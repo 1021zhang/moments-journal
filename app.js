@@ -1,46 +1,52 @@
 const noteStorageKey = "moments-journal.notes";
 
-const photoStyles = [
-  { sky: "#f7c5a4", mid: "#f6de9a", ground: "#7aa898", accent: "#d66f45", caption: "warm street" },
-  { sky: "#b8dce3", mid: "#f6f0d9", ground: "#6f9f87", accent: "#ec9f55", caption: "quiet park" },
-  { sky: "#dfc6ef", mid: "#fff0c8", ground: "#8d96c9", accent: "#d88161", caption: "late cafe" },
-  { sky: "#f2b6ae", mid: "#ffe2a8", ground: "#5b8f8f", accent: "#cc5c3f", caption: "tiny trip" },
-  { sky: "#c9e6d6", mid: "#f9eec2", ground: "#d58c64", accent: "#4f8d73", caption: "window light" },
-  { sky: "#bfd2f2", mid: "#f7d7b1", ground: "#7e987b", accent: "#de7652", caption: "soft evening" }
+const photos = [
+  { caption: "cafe", tone: "photo-cafe" },
+  { caption: "walk", tone: "photo-walk" },
+  { caption: "table", tone: "photo-table" },
+  { caption: "flowers", tone: "photo-flowers" },
+  { caption: "window", tone: "photo-window" },
+  { caption: "street", tone: "photo-street" },
+  { caption: "clouds", tone: "photo-clouds" },
+  { caption: "desk", tone: "photo-desk" }
 ];
 
 const days = [
   {
     id: "yesterday",
-    title: "Yesterday",
-    dateLine: "2 June · Tuesday",
-    note: "A little orange light stayed on the table after everyone left.",
+    label: "Yesterday",
+    date: "",
+    weekday: "",
+    note: "orange light, warm coffee, a soft pause",
     emojis: ["🍊", "☕", "✨"],
-    photos: [0, 2, 4, 1]
+    photos: [0, 1, 2, 3]
   },
   {
-    id: "sunday",
-    title: "1 June · Monday",
-    dateLine: "Slow morning",
-    note: "Bought flowers, forgot the receipt, kept the mood.",
-    emojis: ["🌼", "🎧", "🧡"],
-    photos: [3, 5, 1]
+    id: "june-2",
+    label: "2 June",
+    date: "2 June",
+    weekday: "Tuesday",
+    note: "kept the tiny ordinary things",
+    emojis: ["🌼", "🎧"],
+    photos: [4, 5, 6]
   },
   {
-    id: "saturday",
-    title: "31 May · Sunday",
-    dateLine: "Errands and clouds",
-    note: "Three small stops turned into a whole page of memories.",
-    emojis: ["☁️", "🧾", "🚶"],
-    photos: [2, 0, 5, 4]
+    id: "june-1",
+    label: "1 June",
+    date: "1 June",
+    weekday: "Monday",
+    note: "three errands and one pretty sky",
+    emojis: ["☁️", "🚶", "🧾"],
+    photos: [2, 7, 0, 5]
   },
   {
-    id: "friday",
-    title: "30 May · Saturday",
-    dateLine: "Desk notes",
-    note: "The desk was messy, but the day finally felt arranged.",
-    emojis: ["📎", "🍵", "🌙"],
-    photos: [4, 1, 3]
+    id: "may-31",
+    label: "31 May",
+    date: "31 May",
+    weekday: "Sunday",
+    note: "the desk slowly became a page",
+    emojis: ["📎", "🍵"],
+    photos: [3, 6, 4]
   }
 ];
 
@@ -78,58 +84,73 @@ function noteFor(day) {
   return state.notes[day.id] || day.note;
 }
 
-function photoVars(photoIndex) {
-  const photo = photoStyles[photoIndex % photoStyles.length];
-  return `--sky:${photo.sky};--mid:${photo.mid};--ground:${photo.ground};--photo-accent:${photo.accent};`;
-}
-
 function polaroid(photoIndex, options = {}) {
-  const photo = photoStyles[photoIndex % photoStyles.length];
-  const caption = options.caption || photo.caption;
+  const photo = photos[photoIndex % photos.length];
   const tilt = options.tilt || "0deg";
   const size = options.size || "";
-  const depth = options.depth || "";
+  const layer = options.layer || "";
 
   return `
-    <figure class="polaroid ${size} ${depth}" style="${photoVars(photoIndex)}--tilt:${tilt};">
-      <div class="photo-art" aria-hidden="true">
-        <span class="sun"></span>
-        <span class="hill hill-one"></span>
-        <span class="hill hill-two"></span>
-        <span class="tape-mark"></span>
-      </div>
-      <figcaption>${caption}</figcaption>
+    <figure class="polaroid ${photo.tone} ${size} ${layer}" style="--tilt:${tilt};">
+      <div class="photo-image" aria-hidden="true"></div>
+      <figcaption>${photo.caption}</figcaption>
     </figure>
   `;
 }
 
-function renderHome() {
-  const pilePhotos = [0, 2, 4, 1, 5, 3];
+function statusBar() {
+  return `
+    <div class="status-bar" aria-hidden="true">
+      <span>9:41</span>
+      <span class="status-icons">● ● ▰</span>
+    </div>
+  `;
+}
+
+function dateTitle(day) {
+  if (day.id === "yesterday") {
+    return `<h2 class="date-heading yesterday-label">Yesterday</h2>`;
+  }
 
   return `
-    <main class="home-view" aria-label="Memory Pile">
-      <header class="home-header">
-        <p class="kicker">Moments Journal</p>
+    <h2 class="date-heading">
+      <span>${day.date}</span>
+      <i></i>
+      <em>${day.weekday}</em>
+    </h2>
+  `;
+}
+
+function emojiLine(day) {
+  return `<div class="tiny-emojis">${day.emojis.map((emoji) => `<span>${emoji}</span>`).join("")}</div>`;
+}
+
+function renderHome() {
+  const pilePhotos = [0, 2, 4, 1, 6, 3];
+
+  return `
+    <main class="phone-screen home-view" aria-label="Memory Pile">
+      ${statusBar()}
+      <header class="app-header">
+        <p>Moments</p>
         <h1>Memory Pile</h1>
       </header>
 
       <button class="memory-pile" type="button" data-action="open-daybook" aria-label="Open daybook">
-        <span class="sticky-note note-one">sunlight<br />on paper</span>
-        <span class="sticky-note note-two">keep this</span>
+        <span class="sticky-note note-one">sun<br />crumbs</span>
+        <span class="sticky-note note-two">save it</span>
         <span class="floating-emoji emoji-one">🍊</span>
         <span class="floating-emoji emoji-two">✨</span>
-        <span class="floating-emoji emoji-three">☕</span>
         ${pilePhotos.map((photo, index) =>
           polaroid(photo, {
-            tilt: ["-12deg", "8deg", "-4deg", "14deg", "-18deg", "5deg"][index],
-            depth: `pile-${index + 1}`
+            tilt: ["-11deg", "8deg", "-4deg", "13deg", "-16deg", "5deg"][index],
+            layer: `pile-${index + 1}`
           })
         ).join("")}
       </button>
 
       <footer class="home-footer">
         <button class="add-button" type="button" data-action="add-photo">Add Photos</button>
-        <p>Mock photos for a clickable scrapbook prototype</p>
       </footer>
     </main>
   `;
@@ -137,36 +158,28 @@ function renderHome() {
 
 function renderDaybook() {
   return `
-    <main class="daybook-view" aria-label="Daybook">
-      <nav class="top-nav">
-        <button class="back-button" type="button" data-action="home">Memory Pile</button>
-        <p class="kicker">Daybook</p>
-      </nav>
+    <main class="phone-screen daybook-view" aria-label="Daybook">
+      ${statusBar()}
+      <header class="daybook-header">
+        <button class="icon-text-button" type="button" data-action="home">Pile</button>
+        <h1>Daybook</h1>
+        <button class="round-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
+      </header>
 
-      <section class="daybook-hero">
-        <h1>Collected by day</h1>
-        <p>Photos first, little notes second.</p>
-      </section>
-
-      <div class="day-sections">
+      <div class="day-feed">
         ${days.map((day) => `
-          <button class="day-section" type="button" data-day="${day.id}" aria-label="Open ${day.title}">
-            <div class="day-copy">
-              <span>${day.dateLine}</span>
-              <h2>${day.title}</h2>
-              <p>${escapeHtml(noteFor(day))}</p>
-              <div class="emoji-row" aria-label="Emoji memories">
-                ${day.emojis.map((emoji) => `<span>${emoji}</span>`).join("")}
-              </div>
-            </div>
-            <div class="day-photo-strip">
+          <button class="day-section" type="button" data-day="${day.id}" aria-label="Open ${day.label}">
+            ${dateTitle(day)}
+            <div class="photo-strip">
               ${day.photos.map((photo, index) =>
                 polaroid(photo, {
-                  tilt: ["-7deg", "4deg", "-3deg", "8deg"][index] || "2deg",
-                  size: index === 0 ? "strip-main" : "strip-small"
+                  tilt: ["-4deg", "3deg", "-2deg", "5deg"][index] || "1deg",
+                  size: "strip-photo"
                 })
               ).join("")}
             </div>
+            <p class="day-note">${escapeHtml(noteFor(day))}</p>
+            ${emojiLine(day)}
           </button>
         `).join("")}
       </div>
@@ -176,48 +189,38 @@ function renderDaybook() {
 
 function renderSingleDay() {
   const day = getDay();
-  const note = noteFor(day);
-  const safeNote = escapeHtml(note);
+  const safeNote = escapeHtml(noteFor(day));
 
   return `
-    <main class="single-day-view" aria-label="Single Day Page">
-      <nav class="top-nav">
-        <button class="back-button" type="button" data-action="daybook">Daybook</button>
+    <main class="phone-screen single-day-view" aria-label="Single Day Page">
+      ${statusBar()}
+      <nav class="single-nav">
+        <button class="icon-text-button" type="button" data-action="daybook">Back</button>
         <button class="edit-button" type="button" data-action="edit-note">Edit</button>
       </nav>
 
       <header class="single-header">
-        <p class="kicker">${day.dateLine}</p>
-        <h1>${day.title}</h1>
+        ${dateTitle(day)}
+        <p>${safeNote}</p>
+        ${emojiLine(day)}
       </header>
 
-      <section class="scrapbook-page">
-        <aside class="scrap-note">
-          <div class="emoji-row">
-            ${day.emojis.map((emoji) => `<span>${emoji}</span>`).join("")}
-          </div>
-          <p>${safeNote}</p>
-        </aside>
-
-        <div class="collage">
-          ${polaroid(day.photos[0], { tilt: "-3deg", size: "hero-photo" })}
-          ${day.photos.slice(1, 4).map((photo, index) =>
-            polaroid(photo, {
-              tilt: ["8deg", "-10deg", "5deg"][index],
-              size: `mini-photo mini-${index + 1}`
-            })
-          ).join("")}
-          <span class="orange-dot dot-one"></span>
-          <span class="orange-dot dot-two"></span>
-          <span class="paper-clip"></span>
-        </div>
+      <section class="single-collage">
+        ${polaroid(day.photos[0], { tilt: "-2deg", size: "hero-photo" })}
+        ${day.photos.slice(1, 4).map((photo, index) =>
+          polaroid(photo, {
+            tilt: ["7deg", "-8deg", "4deg"][index],
+            size: `mini-photo mini-${index + 1}`
+          })
+        ).join("")}
+        <span class="torn-paper">today felt small and full</span>
       </section>
     </main>
 
     <dialog class="note-dialog" id="noteDialog">
       <form method="dialog">
         <label for="noteInput">Edit note</label>
-        <textarea id="noteInput" maxlength="140">${safeNote}</textarea>
+        <textarea id="noteInput" maxlength="90">${safeNote}</textarea>
         <div class="dialog-actions">
           <button class="ghost-button" value="cancel" type="submit">Cancel</button>
           <button class="add-button" value="save" type="submit">Save</button>
@@ -260,10 +263,12 @@ function editNote() {
 
 function showAddPhotoFeedback() {
   const button = document.querySelector("[data-action='add-photo']");
-  button.textContent = "Added to the pile";
+  if (!button) return;
+  const original = button.textContent;
+  button.textContent = "Added";
   window.setTimeout(() => {
-    button.textContent = "Add Photos";
-  }, 1200);
+    button.textContent = original;
+  }, 950);
 }
 
 document.addEventListener("click", (event) => {
