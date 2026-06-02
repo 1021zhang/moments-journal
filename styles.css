@@ -1,0 +1,706 @@
+:root {
+  color-scheme: light;
+  --paper: #fffdf9;
+  --paper-warm: #fff7ed;
+  --ink: #23211f;
+  --muted: #8a8178;
+  --line: #eee5da;
+  --orange: #e87f42;
+  --orange-soft: #ffe2c8;
+  --shadow: 0 22px 60px rgba(55, 43, 32, 0.12);
+  --small-shadow: 0 12px 28px rgba(55, 43, 32, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  background:
+    linear-gradient(180deg, rgba(255, 246, 237, 0.9), rgba(255, 253, 249, 0.92) 34%),
+    var(--paper);
+  color: var(--ink);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--orange);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 0;
+  font-size: 3.45rem;
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
+h2 {
+  margin-bottom: 12px;
+  font-size: 2rem;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.home-view {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: 38px 24px 28px;
+}
+
+.home-header {
+  position: relative;
+  z-index: 3;
+  width: min(940px, 100%);
+  margin: 0 auto;
+}
+
+.memory-pile {
+  position: relative;
+  place-self: center;
+  width: min(680px, 92vw);
+  height: min(610px, 65vh);
+  min-height: 430px;
+  border: 0;
+  background: transparent;
+}
+
+.memory-pile::before {
+  position: absolute;
+  inset: 20% 14% 18%;
+  border-radius: 50%;
+  background: rgba(232, 127, 66, 0.08);
+  content: "";
+  filter: blur(30px);
+}
+
+.home-footer {
+  position: relative;
+  z-index: 4;
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.home-footer p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.add-button,
+.edit-button,
+.back-button,
+.ghost-button {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  box-shadow: var(--small-shadow);
+}
+
+.add-button {
+  min-width: 154px;
+  border-color: var(--orange);
+  background: var(--orange);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.back-button,
+.edit-button,
+.ghost-button {
+  padding: 0 16px;
+}
+
+.edit-button {
+  border-color: var(--orange-soft);
+  background: var(--paper-warm);
+  color: #9e4d23;
+  font-weight: 800;
+}
+
+.sticky-note,
+.floating-emoji {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.sticky-note {
+  display: grid;
+  place-items: center;
+  width: 118px;
+  min-height: 78px;
+  padding: 14px;
+  border: 1px solid rgba(232, 127, 66, 0.2);
+  background: #fff0bd;
+  box-shadow: var(--small-shadow);
+  color: #76552b;
+  font: 800 0.92rem/1.2 "Bradley Hand", "Comic Sans MS", cursive;
+  text-align: center;
+}
+
+.note-one {
+  left: 4%;
+  top: 18%;
+  transform: rotate(-10deg);
+}
+
+.note-two {
+  right: 7%;
+  bottom: 25%;
+  width: 104px;
+  min-height: 64px;
+  transform: rotate(8deg);
+}
+
+.floating-emoji {
+  font-size: 2.1rem;
+  filter: drop-shadow(0 8px 12px rgba(80, 50, 24, 0.12));
+}
+
+.emoji-one {
+  left: 16%;
+  bottom: 21%;
+  transform: rotate(-12deg);
+}
+
+.emoji-two {
+  right: 18%;
+  top: 17%;
+  transform: rotate(9deg);
+}
+
+.emoji-three {
+  right: 11%;
+  bottom: 43%;
+  transform: rotate(-6deg);
+}
+
+.polaroid {
+  position: relative;
+  width: 178px;
+  margin: 0;
+  padding: 10px 10px 28px;
+  border: 1px solid rgba(222, 211, 200, 0.8);
+  border-radius: 4px;
+  background: #ffffff;
+  box-shadow: var(--shadow);
+  transform: rotate(var(--tilt));
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.polaroid figcaption {
+  position: absolute;
+  right: 12px;
+  bottom: 9px;
+  left: 12px;
+  overflow: hidden;
+  color: #a09185;
+  font: 700 0.72rem/1 "Bradley Hand", "Comic Sans MS", cursive;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-art {
+  position: relative;
+  aspect-ratio: 1 / 0.78;
+  overflow: hidden;
+  border-radius: 2px;
+  background:
+    radial-gradient(circle at 72% 22%, var(--photo-accent) 0 9%, transparent 10%),
+    linear-gradient(180deg, var(--sky), var(--mid) 54%, var(--ground));
+}
+
+.photo-art::before,
+.photo-art::after,
+.hill,
+.sun,
+.tape-mark {
+  position: absolute;
+  display: block;
+  content: "";
+}
+
+.photo-art::before {
+  right: -18%;
+  bottom: -28%;
+  width: 72%;
+  height: 56%;
+  border-radius: 52% 48% 0 0;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.photo-art::after {
+  left: -16%;
+  bottom: -18%;
+  width: 76%;
+  height: 44%;
+  border-radius: 50% 50% 0 0;
+  background: rgba(35, 33, 31, 0.12);
+}
+
+.sun {
+  right: 18%;
+  top: 18%;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 246, 210, 0.86);
+}
+
+.hill-one {
+  left: 12%;
+  bottom: 19%;
+  width: 28%;
+  height: 38%;
+  border-radius: 60% 60% 8% 8%;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.hill-two {
+  right: 12%;
+  bottom: 12%;
+  width: 22%;
+  height: 28%;
+  border-radius: 48% 48% 8% 8%;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.tape-mark {
+  top: -9px;
+  left: 50%;
+  width: 48px;
+  height: 18px;
+  background: rgba(255, 230, 185, 0.64);
+  transform: translateX(-50%) rotate(-3deg);
+}
+
+.memory-pile .polaroid {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+}
+
+.memory-pile:hover .polaroid {
+  box-shadow: 0 28px 70px rgba(55, 43, 32, 0.16);
+}
+
+.pile-1 {
+  z-index: 5;
+  width: 216px;
+  transform: translate(-56%, -54%) rotate(var(--tilt));
+}
+
+.pile-2 {
+  z-index: 4;
+  width: 194px;
+  transform: translate(-20%, -64%) rotate(var(--tilt));
+}
+
+.pile-3 {
+  z-index: 3;
+  width: 184px;
+  transform: translate(-74%, -20%) rotate(var(--tilt));
+}
+
+.pile-4 {
+  z-index: 6;
+  width: 188px;
+  transform: translate(-12%, -12%) rotate(var(--tilt));
+}
+
+.pile-5 {
+  z-index: 2;
+  width: 170px;
+  transform: translate(-92%, -78%) rotate(var(--tilt));
+}
+
+.pile-6 {
+  z-index: 2;
+  width: 166px;
+  transform: translate(12%, -34%) rotate(var(--tilt));
+}
+
+.daybook-view,
+.single-day-view {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0 60px;
+}
+
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 48px;
+}
+
+.daybook-hero {
+  display: grid;
+  gap: 10px;
+  margin: 42px 0 34px;
+}
+
+.daybook-hero p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 1rem;
+}
+
+.day-sections {
+  display: grid;
+  gap: 28px;
+}
+
+.day-section {
+  display: grid;
+  grid-template-columns: minmax(210px, 300px) minmax(0, 1fr);
+  gap: 24px;
+  width: 100%;
+  min-height: 282px;
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: var(--small-shadow);
+  color: var(--ink);
+  text-align: left;
+}
+
+.day-section:hover {
+  border-color: var(--orange-soft);
+  background: #fffaf5;
+}
+
+.day-copy {
+  align-self: center;
+}
+
+.day-copy span {
+  color: var(--orange);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.day-copy p {
+  margin-bottom: 18px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.emoji-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.emoji-row span {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #fff2df;
+  box-shadow: 0 8px 18px rgba(55, 43, 32, 0.08);
+}
+
+.day-photo-strip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 236px;
+  padding: 18px 6px;
+  overflow-x: auto;
+}
+
+.day-photo-strip .polaroid {
+  flex: 0 0 auto;
+  margin-right: -24px;
+}
+
+.strip-main {
+  width: 212px;
+}
+
+.strip-small {
+  width: 158px;
+}
+
+.single-header {
+  margin: 42px 0 22px;
+}
+
+.scrapbook-page {
+  position: relative;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 28px;
+  min-height: 620px;
+  padding: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(232, 127, 66, 0.06) 1px, transparent 1px),
+    linear-gradient(rgba(232, 127, 66, 0.04) 1px, transparent 1px),
+    #ffffff;
+  background-size: 46px 46px;
+  box-shadow: var(--shadow);
+}
+
+.scrap-note {
+  align-self: start;
+  padding: 22px;
+  border: 1px solid rgba(232, 127, 66, 0.18);
+  border-radius: 8px;
+  background: var(--paper-warm);
+  box-shadow: var(--small-shadow);
+}
+
+.scrap-note p {
+  margin: 18px 0 0;
+  color: #6f5544;
+  font: 800 1.15rem/1.55 "Bradley Hand", "Comic Sans MS", cursive;
+}
+
+.collage {
+  position: relative;
+  min-height: 540px;
+}
+
+.collage .polaroid {
+  position: absolute;
+}
+
+.hero-photo {
+  left: 9%;
+  top: 4%;
+  width: min(430px, 64%);
+}
+
+.mini-photo {
+  width: 170px;
+}
+
+.mini-1 {
+  right: 9%;
+  top: 8%;
+}
+
+.mini-2 {
+  right: 18%;
+  bottom: 12%;
+}
+
+.mini-3 {
+  left: 4%;
+  bottom: 6%;
+}
+
+.orange-dot,
+.paper-clip {
+  position: absolute;
+  display: block;
+  pointer-events: none;
+}
+
+.orange-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 10px 18px rgba(232, 127, 66, 0.24);
+}
+
+.dot-one {
+  right: 38%;
+  top: 14%;
+}
+
+.dot-two {
+  left: 18%;
+  bottom: 24%;
+  width: 12px;
+  height: 12px;
+}
+
+.paper-clip {
+  right: 4%;
+  bottom: 26%;
+  width: 38px;
+  height: 68px;
+  border: 4px solid #efc19a;
+  border-left-color: transparent;
+  border-radius: 20px;
+  transform: rotate(16deg);
+}
+
+.note-dialog {
+  width: min(420px, calc(100% - 32px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.note-dialog::backdrop {
+  background: rgba(35, 33, 31, 0.18);
+}
+
+.note-dialog label {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--orange);
+  font-weight: 800;
+}
+
+.note-dialog textarea {
+  width: 100%;
+  min-height: 130px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  outline: none;
+  resize: vertical;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+@media (max-width: 820px) {
+  h1 {
+    font-size: 2.4rem;
+  }
+
+  h2 {
+    font-size: 1.55rem;
+  }
+
+  .home-view {
+    padding: 24px 16px;
+  }
+
+  .memory-pile {
+    height: 520px;
+    min-height: 500px;
+  }
+
+  .pile-1 {
+    width: 188px;
+  }
+
+  .pile-2,
+  .pile-4 {
+    width: 166px;
+  }
+
+  .pile-3,
+  .pile-5,
+  .pile-6 {
+    width: 148px;
+  }
+
+  .sticky-note {
+    width: 96px;
+    min-height: 60px;
+    padding: 10px;
+    font-size: 0.78rem;
+  }
+
+  .daybook-view,
+  .single-day-view {
+    width: min(100% - 24px, 720px);
+  }
+
+  .day-section {
+    grid-template-columns: 1fr;
+    padding: 18px;
+  }
+
+  .day-photo-strip {
+    min-height: 210px;
+  }
+
+  .strip-main {
+    width: 180px;
+  }
+
+  .strip-small {
+    width: 140px;
+  }
+
+  .scrapbook-page {
+    grid-template-columns: 1fr;
+    min-height: 760px;
+    padding: 18px;
+  }
+
+  .scrap-note {
+    position: relative;
+    z-index: 5;
+  }
+
+  .collage {
+    min-height: 520px;
+  }
+
+  .hero-photo {
+    left: 2%;
+    width: 78%;
+  }
+
+  .mini-photo {
+    width: 138px;
+  }
+
+  .mini-1 {
+    right: 0;
+    top: 18%;
+  }
+
+  .mini-2 {
+    right: 5%;
+  }
+}
