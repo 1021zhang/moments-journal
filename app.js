@@ -218,6 +218,14 @@ function polaroid(photo, options = {}) {
   `;
 }
 
+function memoryPilePhoto(photo, index) {
+  return `
+    <figure class="memory-pile-photo slot-${index}">
+      <img src="${photo.src}" alt="" draggable="false" />
+    </figure>
+  `;
+}
+
 function dateTitle(day) {
   if (day.label) {
     return `<h2 class="date-heading solo-label">${escapeHtml(day.label)}</h2>`;
@@ -246,11 +254,7 @@ function renderHome() {
 
       <button class="memory-pile" type="button" data-action="open-daybook" aria-label="Open daybook">
         <span class="memory-stack-stage" aria-hidden="true">
-          ${pilePhotos.map((photo, index) =>
-            polaroid(photo, {
-              layer: `pile-${index + 1}`
-            })
-          ).join("")}
+          ${pilePhotos.map(memoryPilePhoto).join("")}
         </span>
       </button>
 
