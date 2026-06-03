@@ -927,4 +927,19 @@ async function initApp() {
   render();
 }
 
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js")
+      .then((registration) => {
+        console.log("Moments Journal service worker registered.", registration.scope);
+      })
+      .catch((error) => {
+        console.warn("Moments Journal service worker registration failed.", error);
+      });
+  });
+}
+
 initApp();
+registerServiceWorker();
