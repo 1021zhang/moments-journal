@@ -98,15 +98,6 @@ function polaroid(photoIndex, options = {}) {
   `;
 }
 
-function statusBar() {
-  return `
-    <div class="status-bar" aria-hidden="true">
-      <span>9:41</span>
-      <span class="status-icons">● ● ▰</span>
-    </div>
-  `;
-}
-
 function dateTitle(day) {
   if (day.id === "yesterday") {
     return `<h2 class="date-heading yesterday-label">Yesterday</h2>`;
@@ -130,7 +121,6 @@ function renderHome() {
 
   return `
     <main class="phone-screen home-view" aria-label="Memory Pile">
-      ${statusBar()}
       <header class="app-header">
         <p>Moments</p>
         <h1>Memory Pile</h1>
@@ -150,7 +140,7 @@ function renderHome() {
       </button>
 
       <footer class="home-footer">
-        <button class="add-button" type="button" data-action="add-photo">Add Photos</button>
+        <button class="home-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
       </footer>
     </main>
   `;
@@ -159,7 +149,6 @@ function renderHome() {
 function renderDaybook() {
   return `
     <main class="phone-screen daybook-view" aria-label="Daybook">
-      ${statusBar()}
       <header class="daybook-header">
         <button class="icon-text-button" type="button" data-action="home">Pile</button>
         <h1>Daybook</h1>
@@ -193,7 +182,6 @@ function renderSingleDay() {
 
   return `
     <main class="phone-screen single-day-view" aria-label="Single Day Page">
-      ${statusBar()}
       <nav class="single-nav">
         <button class="icon-text-button" type="button" data-action="daybook">Back</button>
         <button class="edit-button" type="button" data-action="edit-note">Edit</button>
@@ -265,7 +253,7 @@ function showAddPhotoFeedback() {
   const button = document.querySelector("[data-action='add-photo']");
   if (!button) return;
   const original = button.textContent;
-  button.textContent = "Added";
+  button.textContent = "✓";
   window.setTimeout(() => {
     button.textContent = original;
   }, 950);
