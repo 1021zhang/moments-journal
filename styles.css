@@ -123,88 +123,123 @@ button {
 .home-view {
   position: relative;
   display: grid;
-  grid-template-rows: minmax(430px, 1fr) auto;
+  grid-template-rows: minmax(470px, 1fr) auto;
 }
 
 .memory-pile {
   position: relative;
   place-self: center;
-  width: 318px;
-  height: 292px;
+  display: block;
+  width: 100%;
+  height: 326px;
   border: 0;
   background: transparent;
-  transform: translateY(8px);
+  transform: translateY(24px);
 }
 
-.memory-pile .polaroid {
+.memory-stack-stage {
   position: absolute;
   left: 50%;
   top: 50%;
+  display: block;
+  width: min(82vw, 330px);
+  height: 280px;
+  transform: translate(-50%, -50%);
 }
 
-.memory-pile .pile-2 .photo-image,
-.memory-pile .pile-6 .photo-image {
+.memory-stack-stage .polaroid {
+  position: absolute;
+  left: auto;
+  top: auto;
+}
+
+.memory-stack-stage .pile-2 .photo-image,
+.memory-stack-stage .pile-6 .photo-image {
   aspect-ratio: 0.82 / 1;
 }
 
-.memory-pile .pile-3 .photo-image,
-.memory-pile .pile-8 .photo-image {
+.memory-stack-stage .pile-3 .photo-image,
+.memory-stack-stage .pile-8 .photo-image {
   aspect-ratio: 1.18 / 1;
 }
 
 .pile-1 {
-  z-index: 8;
-  width: 176px;
-  transform: translate(-50%, -50%) rotate(var(--tilt));
+  left: 12px;
+  top: 70px;
+  z-index: 3;
+  width: 118px;
+  transform: rotate(-16deg);
 }
 
 .pile-2 {
-  z-index: 6;
-  width: 156px;
-  transform: translate(-10%, -70%) rotate(var(--tilt));
+  left: 58px;
+  top: 26px;
+  z-index: 4;
+  width: 112px;
+  transform: rotate(-8deg);
 }
 
 .pile-3 {
-  z-index: 5;
-  width: 162px;
-  transform: translate(-90%, -28%) rotate(var(--tilt));
+  left: 118px;
+  top: 54px;
+  z-index: 8;
+  width: 124px;
+  transform: rotate(3deg);
 }
 
 .pile-4 {
-  z-index: 7;
-  width: 148px;
-  transform: translate(-8%, -22%) rotate(var(--tilt));
+  left: 178px;
+  top: 30px;
+  z-index: 5;
+  width: 114px;
+  transform: rotate(10deg);
 }
 
 .pile-5 {
-  z-index: 3;
-  width: 142px;
-  transform: translate(-78%, -88%) rotate(var(--tilt));
+  left: 224px;
+  top: 80px;
+  z-index: 4;
+  width: 112px;
+  transform: rotate(16deg);
 }
 
 .pile-6 {
-  z-index: 4;
-  width: 152px;
-  transform: translate(12%, -34%) rotate(var(--tilt));
+  left: 42px;
+  top: 145px;
+  z-index: 2;
+  width: 116px;
+  transform: rotate(8deg);
 }
 
 .pile-7 {
-  z-index: 2;
-  width: 136px;
-  transform: translate(-42%, -104%) rotate(var(--tilt));
+  left: 102px;
+  top: 132px;
+  z-index: 6;
+  width: 120px;
+  transform: rotate(-12deg);
 }
 
 .pile-8 {
+  left: 166px;
+  top: 142px;
+  z-index: 7;
+  width: 116px;
+  transform: rotate(6deg);
+}
+
+.pile-9 {
+  left: 218px;
+  top: 135px;
   z-index: 3;
-  width: 140px;
-  transform: translate(-66%, 4%) rotate(var(--tilt));
+  width: 112px;
+  transform: rotate(-5deg);
 }
 
 .home-footer {
   display: grid;
   justify-items: center;
-  gap: 18px;
-  padding-bottom: 18px;
+  gap: 28px;
+  padding-bottom: 20px;
 }
 
 .home-footer p {
@@ -472,11 +507,13 @@ button {
 }
 
 .resize-handle,
+.rotate-handle,
 .delete-photo {
   display: none;
 }
 
 .free-photo.is-selected .resize-handle,
+.free-photo.is-selected .rotate-handle,
 .free-photo.is-selected .delete-photo {
   display: grid;
 }
@@ -493,10 +530,27 @@ button {
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
 }
 
-.delete-photo {
+.rotate-handle {
   position: absolute;
   top: -13px;
   right: -13px;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  background: #ffffff;
+  color: #2d2d2d;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+}
+
+.delete-photo {
+  position: absolute;
+  top: -13px;
+  left: -13px;
   place-items: center;
   width: 26px;
   height: 26px;
@@ -583,6 +637,10 @@ button {
 }
 
 @media (max-width: 370px) {
+  .memory-stack-stage {
+    transform: translate(-50%, -50%) scale(0.88);
+  }
+
   .strip-photo {
     width: 96px;
   }

@@ -37,7 +37,11 @@ const gesture = {
   startY: 0,
   startWidth: 0,
   startHeight: 0,
-  aspectRatio: 1
+  aspectRatio: 1,
+  startRotation: 0,
+  startAngle: 0,
+  centerX: 0,
+  centerY: 0
 };
 
 function loadNotes() {
@@ -234,20 +238,20 @@ function renderHome() {
     .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
     .map(normalizeUserPhoto);
   const sourcePhotos = userPile.length ? userPile : mockPhotos;
-  const pilePhotos = Array.from({ length: 8 }, (_, index) => sourcePhotos[index % sourcePhotos.length]);
-  const tilts = ["-13deg", "9deg", "-6deg", "12deg", "-18deg", "5deg", "-4deg", "16deg"];
+  const pilePhotos = Array.from({ length: 9 }, (_, index) => sourcePhotos[index % sourcePhotos.length]);
 
   return `
     <main class="phone-screen home-view" aria-label="Memory Pile">
       <h1 class="sr-only">Memory Pile</h1>
 
       <button class="memory-pile" type="button" data-action="open-daybook" aria-label="Open daybook">
-        ${pilePhotos.map((photo, index) =>
-          polaroid(photo, {
-            tilt: tilts[index],
-            layer: `pile-${index + 1}`
-          })
-        ).join("")}
+        <span class="memory-stack-stage" aria-hidden="true">
+          ${pilePhotos.map((photo, index) =>
+            polaroid(photo, {
+              layer: `pile-${index + 1}`
+            })
+          ).join("")}
+        </span>
       </button>
 
       <footer class="home-footer">
@@ -322,6 +326,7 @@ function freeCanvasPhoto(photo) {
     <div class="free-photo ${selected}" data-photo-id="${photo.id}" style="${style}">
       <img src="${photo.src}" alt="" draggable="false" />
       <button class="delete-photo" type="button" data-action="delete-photo" aria-label="Delete photo">×</button>
+      <span class="rotate-handle" aria-hidden="true">↻</span>
       <span class="resize-handle" aria-hidden="true"></span>
     </div>
   `;
@@ -630,6 +635,15 @@ function startPhotoGesture(event, mode, photoId) {
   gesture.startWidth = photo.width;
   gesture.startHeight = photo.height;
   gesture.aspectRatio = photo.aspectRatio || photo.width / photo.height || 1;
+  gesture.startRotation = photo.rotation || 0;
+
+  const rect = event.currentTarget?.closest?.(".free-photo")?.getBoundingClientRect()
+    || document.querySelector(`[data-photo-id="${photoId}"]`)?.getBoundingClientRect();
+  if (rect) {
+    gesture.centerX = rect.left + rect.width / 2;
+    gesture.centerY = rect.top + rect.height / 2;
+    gesture.startAngle = Math.atan2(event.clientY - gesture.centerY, event.clientX - gesture.centerX);
+  }
 
   const maxZ = state.userPhotos.reduce((max, item) => Math.max(max, item.zIndex || 0), 0);
   photo.zIndex = maxZ + 1;
@@ -664,10 +678,17 @@ function updateGesture(event) {
     photo.y = clamp(photo.y, -40, canvasHeight - 40);
   }
 
+  if (gesture.mode === "rotate") {
+    const angle = Math.atan2(event.clientY - gesture.centerY, event.clientX - gesture.centerX);
+    const delta = (angle - gesture.startAngle) * 180 / Math.PI;
+    photo.rotation = Math.round((gesture.startRotation + delta) * 10) / 10;
+  }
+
   element.style.left = `${photo.x}px`;
   element.style.top = `${photo.y}px`;
   element.style.width = `${photo.width}px`;
   element.style.height = `${photo.height}px`;
+  element.style.setProperty("--rotation", `${photo.rotation}deg`);
 }
 
 function endGesture() {
@@ -696,9 +717,22 @@ document.addEventListener("pointerdown", (event) => {
     return;
   }
 
+  const rotateHandle = event.target.closest(".rotate-handle");
+  if (rotateHandle) {
+    const photoId = rotateHandle.closest(".free-photo")?.dataset.photoId;
+    if (photoId) startPhotoGesture(event, "rotate", photoId);
+    return;
+  }
+
   const freePhoto = event.target.closest(".free-photo");
   if (freePhoto) {
     startPhotoGesture(event, "drag", freePhoto.dataset.photoId);
+    return;
+  }
+
+  if (event.target.classList.contains("free-canvas") && state.selectedPhotoId) {
+    state.selectedPhotoId = "";
+    render();
   }
 });
 
