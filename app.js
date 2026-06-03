@@ -2,6 +2,8 @@ const noteStorageKey = "moments-journal.notes";
 const localPhotosKey = "moments-journal.photos";
 const dbName = "moments-journal";
 const photoStoreName = "photos";
+const canvasWidth = 358;
+const canvasHeight = 560;
 
 const mockPhotos = [
   { id: "mock-cafe", type: "mock", caption: "cafe", src: "https://picsum.photos/seed/moments-cafe/320/320" },
@@ -14,43 +16,28 @@ const mockPhotos = [
   { id: "mock-desk", type: "mock", caption: "desk", src: "https://picsum.photos/seed/moments-desk/320/320" }
 ];
 
-const mockDays = [
-  {
-    id: "mock-yesterday",
-    label: "Yesterday",
-    note: "Hiked the ridge, slow coffee, good talks.",
-    photos: [0, 1, 2, 3]
-  },
-  {
-    id: "mock-june-7",
-    date: "7 June",
-    weekday: "Saturday",
-    note: "Rain on the windows, noodles after dark.",
-    photos: [4, 5, 6]
-  },
-  {
-    id: "mock-june-6",
-    date: "6 June",
-    weekday: "Friday",
-    note: "Small errands, bright sky, one good song.",
-    photos: [2, 7, 0, 5]
-  },
-  {
-    id: "mock-june-5",
-    date: "5 June",
-    weekday: "Thursday",
-    note: "A quiet table and a pocket of time.",
-    photos: [3, 6, 4]
-  }
-];
-
 const state = {
   view: "home",
-  activeDayId: "mock-yesterday",
+  activeDayId: "",
+  selectedPhotoId: "",
+  pendingImportDateKey: "",
   notes: loadNotes(),
   userPhotos: [],
   db: null,
   storageMode: "indexedDB"
+};
+
+const gesture = {
+  active: false,
+  mode: "",
+  photoId: "",
+  startClientX: 0,
+  startClientY: 0,
+  startX: 0,
+  startY: 0,
+  startWidth: 0,
+  startHeight: 0,
+  aspectRatio: 1
 };
 
 function loadNotes() {
@@ -81,6 +68,10 @@ function uid() {
   return `photo-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
 function dateKeyFromDate(date) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -93,8 +84,12 @@ function dateFromKey(dateKey) {
   return new Date(year, month - 1, day);
 }
 
+function todayDateKey() {
+  return dateKeyFromDate(new Date());
+}
+
 function relativeLabel(dateKey) {
-  const todayKey = dateKeyFromDate(new Date());
+  const todayKey = todayDateKey();
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
 
@@ -109,22 +104,75 @@ function relativeLabel(dateKey) {
 }
 
 function noteFor(day) {
-  return state.notes[day.id] || day.note;
+  return state.notes[day.id] || day.note || "";
 }
 
 function normalizeUserPhoto(photo) {
   return {
-    id: photo.id,
+    ...photo,
     type: "user",
     src: photo.imageDataUrl,
     label: photo.label || "",
     caption: photo.label || "",
-    addedAt: photo.addedAt,
-    dateKey: photo.dateKey
+    aspectRatio: photo.aspectRatio || 1
   };
 }
 
-function buildDayModels() {
+function generateLayout(photo, index) {
+  const aspectRatio = photo.aspectRatio || 1;
+  const widths = [186, 146, 164, 126, 154, 136, 172, 128];
+  const positions = [
+    [28, 24],
+    [190, 104],
+    [54, 214],
+    [212, 284],
+    [118, 384],
+    [18, 396],
+    [178, 28],
+    [92, 122]
+  ];
+  const rotations = [-3, 4, -2, 3, -4, 2, 1, -1];
+  const width = widths[index % widths.length];
+  const height = width / aspectRatio;
+  const [x, y] = positions[index % positions.length];
+
+  return {
+    x: clamp(x, 0, canvasWidth - width),
+    y: clamp(y, 0, canvasHeight - height),
+    width,
+    height,
+    rotation: rotations[index % rotations.length],
+    zIndex: index + 1
+  };
+}
+
+function ensureLayoutsForPhotos() {
+  let changed = false;
+  const groups = new Map();
+
+  state.userPhotos.forEach((photo) => {
+    if (!groups.has(photo.dateKey)) groups.set(photo.dateKey, []);
+    groups.get(photo.dateKey).push(photo);
+  });
+
+  groups.forEach((photos) => {
+    photos
+      .slice()
+      .sort((a, b) => a.addedAt.localeCompare(b.addedAt))
+      .forEach((photo, index) => {
+        const needsLayout = [photo.x, photo.y, photo.width, photo.height, photo.rotation, photo.zIndex]
+          .some((value) => typeof value !== "number");
+
+        if (!needsLayout) return;
+        Object.assign(photo, generateLayout(photo, index));
+        changed = true;
+      });
+  });
+
+  if (changed) persistAllUserPhotos();
+}
+
+function buildUserDayModels() {
   const groups = new Map();
 
   state.userPhotos
@@ -135,31 +183,21 @@ function buildDayModels() {
       groups.get(photo.dateKey).push(normalizeUserPhoto(photo));
     });
 
-  const userDays = Array.from(groups.entries())
+  return Array.from(groups.entries())
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([dateKey, photos]) => {
-      const title = relativeLabel(dateKey);
-      return {
-        id: `user-${dateKey}`,
-        dateKey,
-        isUserDay: true,
-        note: `${photos.length} photo${photos.length === 1 ? "" : "s"} added on this day.`,
-        photos,
-        ...title
-      };
-    });
-
-  const sampleDays = mockDays.map((day) => ({
-    ...day,
-    isUserDay: false,
-    photos: day.photos.map((index) => mockPhotos[index])
-  }));
-
-  return [...userDays, ...sampleDays];
+    .map(([dateKey, photos]) => ({
+      id: `user-${dateKey}`,
+      dateKey,
+      isUserDay: true,
+      note: `${photos.length} photo${photos.length === 1 ? "" : "s"} added on this day.`,
+      photos,
+      ...relativeLabel(dateKey)
+    }));
 }
 
 function getDay(dayId = state.activeDayId) {
-  return buildDayModels().find((day) => day.id === dayId) || buildDayModels()[0];
+  const userDays = buildUserDayModels();
+  return userDays.find((day) => day.id === dayId) || userDays[0] || null;
 }
 
 function polaroid(photo, options = {}) {
@@ -195,7 +233,7 @@ function renderHome() {
     .slice()
     .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
     .map(normalizeUserPhoto);
-  const pilePhotos = (userPile.length ? [...userPile, ...mockPhotos] : mockPhotos).slice(0, 8);
+  const pilePhotos = (userPile.length ? userPile : mockPhotos).slice(0, 8);
   const tilts = ["-8deg", "5deg", "-3deg", "7deg", "-10deg", "3deg", "-5deg", "6deg"];
 
   return `
@@ -219,8 +257,27 @@ function renderHome() {
   `;
 }
 
+function renderEmptyDaybook() {
+  return `
+    <main class="phone-screen daybook-view" aria-label="Daybook">
+      <header class="daybook-header">
+        <button class="icon-text-button" type="button" data-action="home">Pile</button>
+        <h1>Daybook</h1>
+        <button class="round-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
+      </header>
+
+      <section class="empty-daybook">
+        <p>Add photos to start your daybook.</p>
+        <button class="home-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
+      </section>
+    </main>
+  `;
+}
+
 function renderDaybook() {
-  const days = buildDayModels();
+  const days = buildUserDayModels();
+  if (!days.length) return renderEmptyDaybook();
+
   return `
     <main class="phone-screen daybook-view" aria-label="Daybook">
       <header class="daybook-header">
@@ -249,10 +306,31 @@ function renderDaybook() {
   `;
 }
 
+function freeCanvasPhoto(photo) {
+  const selected = state.selectedPhotoId === photo.id ? "is-selected" : "";
+  const style = [
+    `left:${photo.x}px`,
+    `top:${photo.y}px`,
+    `width:${photo.width}px`,
+    `height:${photo.height}px`,
+    `z-index:${photo.zIndex}`,
+    `--rotation:${photo.rotation}deg`
+  ].join(";");
+
+  return `
+    <div class="free-photo ${selected}" data-photo-id="${photo.id}" style="${style}">
+      <img src="${photo.src}" alt="" draggable="false" />
+      <button class="delete-photo" type="button" data-action="delete-photo" aria-label="Delete photo">×</button>
+      <span class="resize-handle" aria-hidden="true"></span>
+    </div>
+  `;
+}
+
 function renderSingleDay() {
   const day = getDay();
+  if (!day) return renderEmptyDaybook();
+
   const safeNote = escapeHtml(noteFor(day));
-  const collagePhotos = day.photos.slice(0, 4);
 
   return `
     <main class="phone-screen single-day-view" aria-label="Single Day Page">
@@ -266,21 +344,10 @@ function renderSingleDay() {
         <p>${safeNote}</p>
       </header>
 
-      <section class="single-collage">
-        ${collagePhotos[0] ? polaroid(collagePhotos[0], { tilt: "-2deg", size: "hero-photo" }) : ""}
-        ${collagePhotos.slice(1, 4).map((photo, index) =>
-          polaroid(photo, {
-            tilt: ["7deg", "-8deg", "4deg"][index],
-            size: `mini-photo mini-${index + 1}`
-          })
-        ).join("")}
+      <section class="free-canvas" aria-label="Free layout canvas">
+        ${day.photos.map(freeCanvasPhoto).join("")}
+        <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
       </section>
-
-      ${day.isUserDay ? `
-        <button class="delete-day-button" type="button" data-action="delete-user-day">
-          Delete imported photos
-        </button>
-      ` : ""}
     </main>
 
     <dialog class="note-dialog" id="noteDialog">
@@ -307,6 +374,7 @@ function render() {
 
 function openDay(dayId) {
   state.activeDayId = dayId;
+  state.selectedPhotoId = "";
   state.view = "single";
   render();
 }
@@ -315,6 +383,8 @@ function editNote() {
   const dialog = document.querySelector("#noteDialog");
   const input = document.querySelector("#noteInput");
   const day = getDay();
+  if (!dialog || !input || !day) return;
+
   input.value = noteFor(day);
   dialog.showModal();
   input.focus();
@@ -328,6 +398,8 @@ function editNote() {
 }
 
 function openPhotoPicker() {
+  const day = getDay();
+  state.pendingImportDateKey = state.view === "single" && day?.dateKey ? day.dateKey : todayDateKey();
   const input = document.querySelector("#photoInput");
   input.value = "";
   input.click();
@@ -374,31 +446,44 @@ async function loadUserPhotos() {
   return records.sort((a, b) => b.addedAt.localeCompare(a.addedAt));
 }
 
-async function saveUserPhotos(records) {
+async function persistAllUserPhotos() {
   if (state.storageMode === "localStorage") {
-    const current = JSON.parse(localStorage.getItem(localPhotosKey) || "[]");
-    localStorage.setItem(localPhotosKey, JSON.stringify([...records, ...current]));
+    localStorage.setItem(localPhotosKey, JSON.stringify(state.userPhotos));
     return;
   }
 
   const transaction = state.db.transaction(photoStoreName, "readwrite");
   const store = transaction.objectStore(photoStoreName);
-  records.forEach((record) => store.put(record));
+  state.userPhotos.forEach((record) => store.put(record));
   await transactionDone(transaction);
 }
 
-async function deleteUserPhotosByDateKey(dateKey) {
+async function saveUserPhotos(records) {
+  state.userPhotos = [...records, ...state.userPhotos].sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+  await persistAllUserPhotos();
+}
+
+async function updateUserPhoto(photo) {
   if (state.storageMode === "localStorage") {
-    const current = JSON.parse(localStorage.getItem(localPhotosKey) || "[]");
-    localStorage.setItem(localPhotosKey, JSON.stringify(current.filter((photo) => photo.dateKey !== dateKey)));
+    localStorage.setItem(localPhotosKey, JSON.stringify(state.userPhotos));
     return;
   }
 
   const transaction = state.db.transaction(photoStoreName, "readwrite");
-  const store = transaction.objectStore(photoStoreName);
-  state.userPhotos
-    .filter((photo) => photo.dateKey === dateKey)
-    .forEach((photo) => store.delete(photo.id));
+  transaction.objectStore(photoStoreName).put(photo);
+  await transactionDone(transaction);
+}
+
+async function deleteUserPhoto(photoId) {
+  state.userPhotos = state.userPhotos.filter((photo) => photo.id !== photoId);
+
+  if (state.storageMode === "localStorage") {
+    localStorage.setItem(localPhotosKey, JSON.stringify(state.userPhotos));
+    return;
+  }
+
+  const transaction = state.db.transaction(photoStoreName, "readwrite");
+  transaction.objectStore(photoStoreName).delete(photoId);
   await transactionDone(transaction);
 }
 
@@ -441,7 +526,10 @@ async function compressImage(file) {
     });
 
     if (!blob) throw new Error("Could not compress image");
-    return blobToDataUrl(blob);
+    return {
+      imageDataUrl: await blobToDataUrl(blob),
+      aspectRatio: width / height
+    };
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
@@ -452,19 +540,23 @@ async function handlePhotoSelection(event) {
   if (!files.length) return;
 
   const imported = [];
+  const dateKey = state.pendingImportDateKey || todayDateKey();
+  const existingForDay = state.userPhotos.filter((photo) => photo.dateKey === dateKey).length;
 
   for (const file of files) {
     try {
       const addedAt = new Date().toISOString();
-      const dateKey = dateKeyFromDate(new Date(addedAt));
-      const imageDataUrl = await compressImage(file);
-      imported.push({
+      const compressed = await compressImage(file);
+      const photo = {
         id: uid(),
-        imageDataUrl,
+        imageDataUrl: compressed.imageDataUrl,
+        aspectRatio: compressed.aspectRatio,
         addedAt,
         dateKey,
         label: ""
-      });
+      };
+      Object.assign(photo, generateLayout(photo, existingForDay + imported.length));
+      imported.push(photo);
     } catch {
       // Skip files that fail to load or compress.
     }
@@ -482,23 +574,136 @@ async function handlePhotoSelection(event) {
     return;
   }
 
-  state.userPhotos = [...imported, ...state.userPhotos].sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+  if (state.view === "single") {
+    state.activeDayId = `user-${dateKey}`;
+    state.selectedPhotoId = imported[0].id;
+  }
+
   render();
 }
 
-async function deleteActiveUserDay() {
-  const day = getDay();
-  if (!day.isUserDay) return;
+function getUserPhoto(photoId) {
+  return state.userPhotos.find((photo) => photo.id === photoId);
+}
 
-  const confirmed = window.confirm("Delete imported photos from this day?");
+function selectPhoto(photoId) {
+  const photo = getUserPhoto(photoId);
+  if (!photo) return;
+
+  state.selectedPhotoId = photoId;
+  const maxZ = state.userPhotos.reduce((max, item) => Math.max(max, item.zIndex || 0), 0);
+  photo.zIndex = maxZ + 1;
+  updateUserPhoto(photo);
+  render();
+}
+
+async function deleteSelectedPhoto(photoId) {
+  const confirmed = window.confirm("Delete this photo?");
   if (!confirmed) return;
 
-  await deleteUserPhotosByDateKey(day.dateKey);
-  state.userPhotos = state.userPhotos.filter((photo) => photo.dateKey !== day.dateKey);
-  state.activeDayId = buildDayModels()[0]?.id || "";
-  state.view = "daybook";
+  await deleteUserPhoto(photoId);
+  state.selectedPhotoId = "";
+
+  const day = getDay();
+  if (!day) {
+    state.view = "daybook";
+    state.activeDayId = "";
+  }
+
   render();
 }
+
+function startPhotoGesture(event, mode, photoId) {
+  const photo = getUserPhoto(photoId);
+  if (!photo) return;
+
+  event.preventDefault();
+  state.selectedPhotoId = photoId;
+  gesture.active = true;
+  gesture.mode = mode;
+  gesture.photoId = photoId;
+  gesture.startClientX = event.clientX;
+  gesture.startClientY = event.clientY;
+  gesture.startX = photo.x;
+  gesture.startY = photo.y;
+  gesture.startWidth = photo.width;
+  gesture.startHeight = photo.height;
+  gesture.aspectRatio = photo.aspectRatio || photo.width / photo.height || 1;
+
+  const maxZ = state.userPhotos.reduce((max, item) => Math.max(max, item.zIndex || 0), 0);
+  photo.zIndex = maxZ + 1;
+  const element = document.querySelector(`[data-photo-id="${photoId}"]`);
+  document.querySelectorAll(".free-photo.is-selected").forEach((photoElement) => {
+    photoElement.classList.remove("is-selected");
+  });
+  element?.classList.add("is-selected");
+  if (element) element.style.zIndex = String(photo.zIndex);
+}
+
+function updateGesture(event) {
+  if (!gesture.active) return;
+
+  const photo = getUserPhoto(gesture.photoId);
+  const element = document.querySelector(`[data-photo-id="${gesture.photoId}"]`);
+  if (!photo || !element) return;
+
+  const dx = event.clientX - gesture.startClientX;
+  const dy = event.clientY - gesture.startClientY;
+
+  if (gesture.mode === "drag") {
+    photo.x = clamp(gesture.startX + dx, -40, canvasWidth - 40);
+    photo.y = clamp(gesture.startY + dy, -40, canvasHeight - 40);
+  }
+
+  if (gesture.mode === "resize") {
+    const projectedDelta = Math.max(dx, dy * gesture.aspectRatio);
+    photo.width = clamp(gesture.startWidth + projectedDelta, 72, canvasWidth - 24);
+    photo.height = photo.width / gesture.aspectRatio;
+    photo.x = clamp(photo.x, -40, canvasWidth - 40);
+    photo.y = clamp(photo.y, -40, canvasHeight - 40);
+  }
+
+  element.style.left = `${photo.x}px`;
+  element.style.top = `${photo.y}px`;
+  element.style.width = `${photo.width}px`;
+  element.style.height = `${photo.height}px`;
+}
+
+function endGesture() {
+  if (!gesture.active) return;
+
+  const photo = getUserPhoto(gesture.photoId);
+  gesture.active = false;
+  gesture.mode = "";
+  gesture.photoId = "";
+
+  if (photo) updateUserPhoto(photo);
+}
+
+document.addEventListener("pointerdown", (event) => {
+  const deleteButton = event.target.closest(".delete-photo");
+  if (deleteButton) {
+    const photoId = deleteButton.closest(".free-photo")?.dataset.photoId;
+    if (photoId) deleteSelectedPhoto(photoId);
+    return;
+  }
+
+  const resizeHandle = event.target.closest(".resize-handle");
+  if (resizeHandle) {
+    const photoId = resizeHandle.closest(".free-photo")?.dataset.photoId;
+    if (photoId) startPhotoGesture(event, "resize", photoId);
+    return;
+  }
+
+  const freePhoto = event.target.closest(".free-photo");
+  if (freePhoto) {
+    startPhotoGesture(event, "drag", freePhoto.dataset.photoId);
+  }
+});
+
+window.addEventListener("pointermove", updateGesture);
+window.addEventListener("pointerup", endGesture);
+window.addEventListener("pointercancel", endGesture);
 
 document.addEventListener("click", (event) => {
   const dayTarget = event.target.closest("[data-day]");
@@ -523,10 +728,6 @@ document.addEventListener("click", (event) => {
     openPhotoPicker();
     return;
   }
-  if (action === "delete-user-day") {
-    deleteActiveUserDay();
-    return;
-  }
 
   render();
 });
@@ -541,6 +742,7 @@ async function initApp() {
   }
 
   state.userPhotos = await loadUserPhotos();
+  ensureLayoutsForPhotos();
   render();
 }
 

@@ -6,9 +6,9 @@ The app groups photos by the day they are added to the journal. It does not read
 
 ## Prototype Structure
 
-- Memory Pile: a pure white home screen with stacked polaroids and a small plus button.
+- Memory Pile: a pure white home screen with a large stack of recent user photos and a small plus button.
 - Daybook: a vertical date flow grouped by `dateKey`, generated from each photo's `addedAt` import time.
-- Single Day Page: a quiet single-day collage with editable short note.
+- Single Day Page: a free white canvas where photos can be moved and resized.
 
 ## Photo Storage
 
@@ -21,6 +21,14 @@ Stored user photo fields:
 - `addedAt`
 - `dateKey`
 - `label`
+- `x`
+- `y`
+- `width`
+- `height`
+- `rotation`
+- `zIndex`
+
+Mock photos are only used when the user has not added any photos yet.
 
 ## Run
 
