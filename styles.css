@@ -123,17 +123,17 @@ button {
 .home-view {
   position: relative;
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: minmax(430px, 1fr) auto;
 }
 
 .memory-pile {
   position: relative;
   place-self: center;
-  width: 100%;
-  height: 590px;
+  width: 318px;
+  height: 292px;
   border: 0;
   background: transparent;
-  transform: translateY(-26px);
+  transform: translateY(8px);
 }
 
 .memory-pile .polaroid {
@@ -142,59 +142,69 @@ button {
   top: 50%;
 }
 
+.memory-pile .pile-2 .photo-image,
+.memory-pile .pile-6 .photo-image {
+  aspect-ratio: 0.82 / 1;
+}
+
+.memory-pile .pile-3 .photo-image,
+.memory-pile .pile-8 .photo-image {
+  aspect-ratio: 1.18 / 1;
+}
+
 .pile-1 {
-  z-index: 7;
-  width: 188px;
-  transform: translate(-54%, -54%) rotate(var(--tilt));
+  z-index: 8;
+  width: 176px;
+  transform: translate(-50%, -50%) rotate(var(--tilt));
 }
 
 .pile-2 {
-  z-index: 5;
-  width: 166px;
-  transform: translate(-10%, -68%) rotate(var(--tilt));
+  z-index: 6;
+  width: 156px;
+  transform: translate(-10%, -70%) rotate(var(--tilt));
 }
 
 .pile-3 {
-  z-index: 4;
-  width: 158px;
-  transform: translate(-84%, -20%) rotate(var(--tilt));
+  z-index: 5;
+  width: 162px;
+  transform: translate(-90%, -28%) rotate(var(--tilt));
 }
 
 .pile-4 {
-  z-index: 8;
-  width: 170px;
-  transform: translate(-8%, -18%) rotate(var(--tilt));
+  z-index: 7;
+  width: 148px;
+  transform: translate(-8%, -22%) rotate(var(--tilt));
 }
 
 .pile-5 {
   z-index: 3;
-  width: 140px;
-  transform: translate(-82%, -80%) rotate(var(--tilt));
+  width: 142px;
+  transform: translate(-78%, -88%) rotate(var(--tilt));
 }
 
 .pile-6 {
   z-index: 4;
-  width: 138px;
-  transform: translate(18%, -38%) rotate(var(--tilt));
+  width: 152px;
+  transform: translate(12%, -34%) rotate(var(--tilt));
 }
 
 .pile-7 {
   z-index: 2;
-  width: 132px;
-  transform: translate(-30%, -88%) rotate(var(--tilt));
+  width: 136px;
+  transform: translate(-42%, -104%) rotate(var(--tilt));
 }
 
 .pile-8 {
   z-index: 3;
-  width: 128px;
-  transform: translate(-98%, -50%) rotate(var(--tilt));
+  width: 140px;
+  transform: translate(-66%, 4%) rotate(var(--tilt));
 }
 
 .home-footer {
   display: grid;
   justify-items: center;
-  gap: 20px;
-  padding-bottom: 8px;
+  gap: 18px;
+  padding-bottom: 18px;
 }
 
 .home-footer p {

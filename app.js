@@ -233,8 +233,9 @@ function renderHome() {
     .slice()
     .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
     .map(normalizeUserPhoto);
-  const pilePhotos = (userPile.length ? userPile : mockPhotos).slice(0, 8);
-  const tilts = ["-8deg", "5deg", "-3deg", "7deg", "-10deg", "3deg", "-5deg", "6deg"];
+  const sourcePhotos = userPile.length ? userPile : mockPhotos;
+  const pilePhotos = Array.from({ length: 8 }, (_, index) => sourcePhotos[index % sourcePhotos.length]);
+  const tilts = ["-13deg", "9deg", "-6deg", "12deg", "-18deg", "5deg", "-4deg", "16deg"];
 
   return `
     <main class="phone-screen home-view" aria-label="Memory Pile">
