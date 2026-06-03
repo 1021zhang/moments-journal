@@ -1,9 +1,13 @@
 const noteStorageKey = "moments-journal.notes";
 const localPhotosKey = "moments-journal.photos";
+const localCoverKey = "moments-journal.memoryCover";
 const dbName = "moments-journal";
 const photoStoreName = "photos";
+const coverStoreName = "memoryCover";
 const canvasWidth = 358;
 const canvasHeight = 560;
+const coverCanvasWidth = 358;
+const coverCanvasHeight = 430;
 
 const mockPhotos = [
   { id: "mock-cafe", type: "mock", caption: "cafe", src: "https://picsum.photos/seed/moments-cafe/320/320" },
@@ -20,8 +24,10 @@ const state = {
   view: "home",
   activeDayId: "",
   selectedPhotoId: "",
+  selectedSurface: "",
   pendingImportDateKey: "",
   notes: loadNotes(),
+  memoryCover: defaultMemoryCover(),
   userPhotos: [],
   db: null,
   storageMode: "indexedDB"
@@ -31,6 +37,7 @@ const gesture = {
   active: false,
   mode: "",
   photoId: "",
+  surface: "",
   startClientX: 0,
   startClientY: 0,
   startX: 0,
@@ -50,6 +57,36 @@ function loadNotes() {
   } catch {
     return {};
   }
+}
+
+function defaultMemoryCover() {
+  return {
+    photoLayouts: {},
+    elements: [
+      {
+        id: "cover-caption",
+        type: "text",
+        content: "A lot happened recently.",
+        x: 44,
+        y: 364,
+        fontSize: 22,
+        color: "#777777",
+        rotation: 0
+      }
+    ]
+  };
+}
+
+function normalizeMemoryCover(cover) {
+  const fallback = defaultMemoryCover();
+  return {
+    photoLayouts: cover?.photoLayouts && typeof cover.photoLayouts === "object"
+      ? cover.photoLayouts
+      : {},
+    elements: Array.isArray(cover?.elements) && cover.elements.length
+      ? cover.elements
+      : fallback.elements
+  };
 }
 
 function saveNotes() {
@@ -150,6 +187,93 @@ function generateLayout(photo, index) {
   };
 }
 
+function sizeForCoverPhoto(photo, baseWidth) {
+  const aspectRatio = photo.aspectRatio || 1;
+  const width = baseWidth;
+  const height = width / aspectRatio;
+
+  if (height <= 300) return { width, height };
+
+  return {
+    width: 300 * aspectRatio,
+    height: 300
+  };
+}
+
+function generateCoverLayout(photo, index, count) {
+  const single = () => {
+    const baseWidth = photo.aspectRatio && photo.aspectRatio < 0.82 ? 218 : 276;
+    const size = sizeForCoverPhoto(photo, baseWidth);
+    return {
+      x: Math.round((coverCanvasWidth - size.width) / 2),
+      y: Math.round((coverCanvasHeight - size.height) / 2) - 6,
+      width: Math.round(size.width),
+      height: Math.round(size.height),
+      rotation: 0,
+      zIndex: 1
+    };
+  };
+
+  if (count <= 1) return single();
+
+  const lightLayouts = [
+    { x: 56, y: 88, width: 226, rotation: -5, zIndex: 2 },
+    { x: 126, y: 136, width: 218, rotation: 6, zIndex: 3 },
+    { x: 74, y: 222, width: 192, rotation: -8, zIndex: 4 }
+  ];
+
+  const pileLayouts = [
+    { x: 28, y: 78, width: 190, rotation: -9, zIndex: 2 },
+    { x: 138, y: 54, width: 176, rotation: 8, zIndex: 3 },
+    { x: 74, y: 128, width: 206, rotation: 2, zIndex: 6 },
+    { x: 196, y: 172, width: 146, rotation: 12, zIndex: 5 },
+    { x: 36, y: 232, width: 168, rotation: -6, zIndex: 4 },
+    { x: 122, y: 258, width: 184, rotation: 5, zIndex: 7 },
+    { x: 10, y: 156, width: 138, rotation: -14, zIndex: 1 },
+    { x: 224, y: 98, width: 126, rotation: 15, zIndex: 1 }
+  ];
+
+  const preset = count <= 3
+    ? lightLayouts[index % lightLayouts.length]
+    : pileLayouts[index % pileLayouts.length];
+  const size = sizeForCoverPhoto(photo, preset.width);
+
+  return {
+    x: clamp(preset.x, -12, coverCanvasWidth - 64),
+    y: clamp(preset.y, 8, coverCanvasHeight - 64),
+    width: Math.round(size.width),
+    height: Math.round(size.height),
+    rotation: preset.rotation,
+    zIndex: preset.zIndex
+  };
+}
+
+function coverPhotos() {
+  return state.userPhotos
+    .slice()
+    .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
+    .slice(0, 8)
+    .map(normalizeUserPhoto);
+}
+
+function ensureMemoryCoverLayouts() {
+  let changed = false;
+  state.memoryCover = normalizeMemoryCover(state.memoryCover);
+  const photos = coverPhotos();
+
+  photos.forEach((photo, index) => {
+    const current = state.memoryCover.photoLayouts[photo.id];
+    const needsLayout = !current || [current.x, current.y, current.width, current.height, current.rotation, current.zIndex]
+      .some((value) => typeof value !== "number");
+
+    if (!needsLayout) return;
+    state.memoryCover.photoLayouts[photo.id] = generateCoverLayout(photo, index, photos.length);
+    changed = true;
+  });
+
+  if (changed) saveMemoryCover();
+}
+
 function ensureLayoutsForPhotos() {
   let changed = false;
   const groups = new Map();
@@ -218,14 +342,6 @@ function polaroid(photo, options = {}) {
   `;
 }
 
-function memoryPilePhoto(photo, index) {
-  return `
-    <figure class="memory-pile-photo slot-${index}">
-      <img src="${photo.src}" alt="" draggable="false" />
-    </figure>
-  `;
-}
-
 function dateTitle(day) {
   if (day.label) {
     return `<h2 class="date-heading solo-label">${escapeHtml(day.label)}</h2>`;
@@ -240,25 +356,59 @@ function dateTitle(day) {
   `;
 }
 
-function renderHome() {
-  const userPile = state.userPhotos
-    .slice()
-    .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
-    .map(normalizeUserPhoto);
-  const sourcePhotos = userPile.length ? userPile : mockPhotos;
-  const pilePhotos = Array.from({ length: 9 }, (_, index) => sourcePhotos[index % sourcePhotos.length]);
+function coverCaption() {
+  const textElement = state.memoryCover.elements.find((element) => element.type === "text");
+  return textElement?.content || "A lot happened recently.";
+}
+
+function memoryCoverPhoto(photo) {
+  const layout = state.memoryCover.photoLayouts[photo.id] || generateCoverLayout(photo, 0, 1);
+  const selected = state.selectedSurface === "cover" && state.selectedPhotoId === photo.id ? "is-selected" : "";
+  const style = [
+    `left:${layout.x}px`,
+    `top:${layout.y}px`,
+    `width:${layout.width}px`,
+    `height:${layout.height}px`,
+    `z-index:${layout.zIndex}`,
+    `--rotation:${layout.rotation}deg`
+  ].join(";");
 
   return `
-    <main class="memory-home" aria-label="Memory Pile">
-      <h1 class="sr-only">Memory Pile</h1>
+    <div class="free-photo cover-photo ${selected}" data-surface="cover" data-photo-id="${photo.id}" style="${style}">
+      <img src="${photo.src}" alt="" draggable="false" />
+      <span class="rotate-handle" aria-hidden="true">↻</span>
+      <span class="resize-handle" aria-hidden="true"></span>
+    </div>
+  `;
+}
 
-      <section class="memory-hero" data-action="open-daybook" role="button" tabindex="0" aria-label="Open daybook">
-        <div class="memory-stack-stage">
-          ${pilePhotos.map(memoryPilePhoto).join("")}
-        </div>
+function renderEmptyHome() {
+  return `
+    <main class="memory-home memory-home-empty" aria-label="Memory Cover">
+      <h1 class="sr-only">Memory Cover</h1>
+
+      <section class="memory-empty-state">
+        <p>Add your first memory.</p>
+        <button class="add-photo-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
+      </section>
+    </main>
+  `;
+}
+
+function renderHome() {
+  const photos = coverPhotos();
+  if (!photos.length) return renderEmptyHome();
+  ensureMemoryCoverLayouts();
+
+  return `
+    <main class="memory-home" aria-label="Memory Cover">
+      <h1 class="sr-only">Memory Cover</h1>
+
+      <section class="memory-cover-canvas" aria-label="Memory cover canvas">
+        ${photos.map(memoryCoverPhoto).join("")}
       </section>
 
-      <p class="memory-caption">A lot happened last week.</p>
+      <p class="memory-caption">${escapeHtml(coverCaption())}</p>
       <button class="add-photo-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
     </main>
   `;
@@ -314,7 +464,7 @@ function renderDaybook() {
 }
 
 function freeCanvasPhoto(photo) {
-  const selected = state.selectedPhotoId === photo.id ? "is-selected" : "";
+  const selected = state.selectedSurface === "day" && state.selectedPhotoId === photo.id ? "is-selected" : "";
   const style = [
     `left:${photo.x}px`,
     `top:${photo.y}px`,
@@ -325,7 +475,7 @@ function freeCanvasPhoto(photo) {
   ].join(";");
 
   return `
-    <div class="free-photo ${selected}" data-photo-id="${photo.id}" style="${style}">
+    <div class="free-photo ${selected}" data-surface="day" data-photo-id="${photo.id}" style="${style}">
       <img src="${photo.src}" alt="" draggable="false" />
       <button class="delete-photo" type="button" data-action="delete-photo" aria-label="Delete photo">×</button>
       <span class="rotate-handle" aria-hidden="true">↻</span>
@@ -383,6 +533,7 @@ function render() {
 function openDay(dayId) {
   state.activeDayId = dayId;
   state.selectedPhotoId = "";
+  state.selectedSurface = "";
   state.view = "single";
   render();
 }
@@ -420,16 +571,54 @@ function openPhotoDatabase() {
       return;
     }
 
-    const request = indexedDB.open(dbName, 1);
+    const request = indexedDB.open(dbName, 2);
     request.onupgradeneeded = () => {
       const db = request.result;
-      const store = db.createObjectStore(photoStoreName, { keyPath: "id" });
-      store.createIndex("dateKey", "dateKey", { unique: false });
-      store.createIndex("addedAt", "addedAt", { unique: false });
+      if (!db.objectStoreNames.contains(photoStoreName)) {
+        const store = db.createObjectStore(photoStoreName, { keyPath: "id" });
+        store.createIndex("dateKey", "dateKey", { unique: false });
+        store.createIndex("addedAt", "addedAt", { unique: false });
+      }
+      if (!db.objectStoreNames.contains(coverStoreName)) {
+        db.createObjectStore(coverStoreName, { keyPath: "id" });
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+}
+
+async function loadMemoryCover() {
+  if (state.storageMode === "localStorage") {
+    try {
+      return normalizeMemoryCover(JSON.parse(localStorage.getItem(localCoverKey) || "null"));
+    } catch {
+      return defaultMemoryCover();
+    }
+  }
+
+  const transaction = state.db.transaction(coverStoreName, "readonly");
+  const request = transaction.objectStore(coverStoreName).get("cover");
+  const record = await new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+
+  return normalizeMemoryCover(record?.value);
+}
+
+async function saveMemoryCover() {
+  const cover = normalizeMemoryCover(state.memoryCover);
+  state.memoryCover = cover;
+
+  if (state.storageMode === "localStorage") {
+    localStorage.setItem(localCoverKey, JSON.stringify(cover));
+    return;
+  }
+
+  const transaction = state.db.transaction(coverStoreName, "readwrite");
+  transaction.objectStore(coverStoreName).put({ id: "cover", value: cover });
+  await transactionDone(transaction);
 }
 
 function transactionDone(transaction) {
@@ -484,6 +673,10 @@ async function updateUserPhoto(photo) {
 
 async function deleteUserPhoto(photoId) {
   state.userPhotos = state.userPhotos.filter((photo) => photo.id !== photoId);
+  if (state.memoryCover.photoLayouts[photoId]) {
+    delete state.memoryCover.photoLayouts[photoId];
+    saveMemoryCover();
+  }
 
   if (state.storageMode === "localStorage") {
     localStorage.setItem(localPhotosKey, JSON.stringify(state.userPhotos));
@@ -585,7 +778,10 @@ async function handlePhotoSelection(event) {
   if (state.view === "single") {
     state.activeDayId = `user-${dateKey}`;
     state.selectedPhotoId = imported[0].id;
+    state.selectedSurface = "day";
   }
+
+  ensureMemoryCoverLayouts();
 
   render();
 }
@@ -599,6 +795,7 @@ function selectPhoto(photoId) {
   if (!photo) return;
 
   state.selectedPhotoId = photoId;
+  state.selectedSurface = "day";
   const maxZ = state.userPhotos.reduce((max, item) => Math.max(max, item.zIndex || 0), 0);
   photo.zIndex = maxZ + 1;
   updateUserPhoto(photo);
@@ -611,6 +808,7 @@ async function deleteSelectedPhoto(photoId) {
 
   await deleteUserPhoto(photoId);
   state.selectedPhotoId = "";
+  state.selectedSurface = "";
 
   const day = getDay();
   if (!day) {
@@ -621,87 +819,136 @@ async function deleteSelectedPhoto(photoId) {
   render();
 }
 
-function startPhotoGesture(event, mode, photoId) {
+function surfaceDimensions(surface) {
+  return surface === "cover"
+    ? { width: coverCanvasWidth, height: coverCanvasHeight }
+    : { width: canvasWidth, height: canvasHeight };
+}
+
+function getInteractiveLayout(photoId, surface) {
   const photo = getUserPhoto(photoId);
-  if (!photo) return;
+  if (!photo) return null;
+
+  if (surface === "cover") {
+    if (!state.memoryCover.photoLayouts[photoId]) {
+      state.memoryCover.photoLayouts[photoId] = generateCoverLayout(normalizeUserPhoto(photo), 0, coverPhotos().length || 1);
+    }
+    return state.memoryCover.photoLayouts[photoId];
+  }
+
+  return photo;
+}
+
+function maxZForSurface(surface) {
+  if (surface === "cover") {
+    return Object.values(state.memoryCover.photoLayouts)
+      .reduce((max, layout) => Math.max(max, layout.zIndex || 0), 0);
+  }
+
+  return state.userPhotos.reduce((max, item) => Math.max(max, item.zIndex || 0), 0);
+}
+
+async function persistInteractiveLayout(photoId, surface) {
+  if (surface === "cover") {
+    await saveMemoryCover();
+    return;
+  }
+
+  const photo = getUserPhoto(photoId);
+  if (photo) await updateUserPhoto(photo);
+}
+
+function elementForPhoto(photoId, surface) {
+  return document.querySelector(`[data-surface="${surface}"][data-photo-id="${photoId}"]`);
+}
+
+function startPhotoGesture(event, mode, photoId, surface = "day") {
+  const photo = getUserPhoto(photoId);
+  const layout = getInteractiveLayout(photoId, surface);
+  if (!photo || !layout) return;
 
   event.preventDefault();
   state.selectedPhotoId = photoId;
+  state.selectedSurface = surface;
   gesture.active = true;
   gesture.mode = mode;
   gesture.photoId = photoId;
+  gesture.surface = surface;
   gesture.startClientX = event.clientX;
   gesture.startClientY = event.clientY;
-  gesture.startX = photo.x;
-  gesture.startY = photo.y;
-  gesture.startWidth = photo.width;
-  gesture.startHeight = photo.height;
-  gesture.aspectRatio = photo.aspectRatio || photo.width / photo.height || 1;
-  gesture.startRotation = photo.rotation || 0;
+  gesture.startX = layout.x;
+  gesture.startY = layout.y;
+  gesture.startWidth = layout.width;
+  gesture.startHeight = layout.height;
+  gesture.aspectRatio = photo.aspectRatio || layout.width / layout.height || 1;
+  gesture.startRotation = layout.rotation || 0;
 
   const rect = event.currentTarget?.closest?.(".free-photo")?.getBoundingClientRect()
-    || document.querySelector(`[data-photo-id="${photoId}"]`)?.getBoundingClientRect();
+    || elementForPhoto(photoId, surface)?.getBoundingClientRect();
   if (rect) {
     gesture.centerX = rect.left + rect.width / 2;
     gesture.centerY = rect.top + rect.height / 2;
     gesture.startAngle = Math.atan2(event.clientY - gesture.centerY, event.clientX - gesture.centerX);
   }
 
-  const maxZ = state.userPhotos.reduce((max, item) => Math.max(max, item.zIndex || 0), 0);
-  photo.zIndex = maxZ + 1;
-  const element = document.querySelector(`[data-photo-id="${photoId}"]`);
+  layout.zIndex = maxZForSurface(surface) + 1;
+  const element = elementForPhoto(photoId, surface);
   document.querySelectorAll(".free-photo.is-selected").forEach((photoElement) => {
     photoElement.classList.remove("is-selected");
   });
   element?.classList.add("is-selected");
-  if (element) element.style.zIndex = String(photo.zIndex);
+  if (element) element.style.zIndex = String(layout.zIndex);
 }
 
 function updateGesture(event) {
   if (!gesture.active) return;
 
   const photo = getUserPhoto(gesture.photoId);
-  const element = document.querySelector(`[data-photo-id="${gesture.photoId}"]`);
-  if (!photo || !element) return;
+  const layout = getInteractiveLayout(gesture.photoId, gesture.surface);
+  const element = elementForPhoto(gesture.photoId, gesture.surface);
+  if (!photo || !layout || !element) return;
 
   const dx = event.clientX - gesture.startClientX;
   const dy = event.clientY - gesture.startClientY;
+  const dimensions = surfaceDimensions(gesture.surface);
 
   if (gesture.mode === "drag") {
-    photo.x = clamp(gesture.startX + dx, -40, canvasWidth - 40);
-    photo.y = clamp(gesture.startY + dy, -40, canvasHeight - 40);
+    layout.x = clamp(gesture.startX + dx, -40, dimensions.width - 40);
+    layout.y = clamp(gesture.startY + dy, -40, dimensions.height - 40);
   }
 
   if (gesture.mode === "resize") {
     const projectedDelta = Math.max(dx, dy * gesture.aspectRatio);
-    photo.width = clamp(gesture.startWidth + projectedDelta, 72, canvasWidth - 24);
-    photo.height = photo.width / gesture.aspectRatio;
-    photo.x = clamp(photo.x, -40, canvasWidth - 40);
-    photo.y = clamp(photo.y, -40, canvasHeight - 40);
+    layout.width = clamp(gesture.startWidth + projectedDelta, 72, dimensions.width - 24);
+    layout.height = layout.width / gesture.aspectRatio;
+    layout.x = clamp(layout.x, -40, dimensions.width - 40);
+    layout.y = clamp(layout.y, -40, dimensions.height - 40);
   }
 
   if (gesture.mode === "rotate") {
     const angle = Math.atan2(event.clientY - gesture.centerY, event.clientX - gesture.centerX);
     const delta = (angle - gesture.startAngle) * 180 / Math.PI;
-    photo.rotation = Math.round((gesture.startRotation + delta) * 10) / 10;
+    layout.rotation = Math.round((gesture.startRotation + delta) * 10) / 10;
   }
 
-  element.style.left = `${photo.x}px`;
-  element.style.top = `${photo.y}px`;
-  element.style.width = `${photo.width}px`;
-  element.style.height = `${photo.height}px`;
-  element.style.setProperty("--rotation", `${photo.rotation}deg`);
+  element.style.left = `${layout.x}px`;
+  element.style.top = `${layout.y}px`;
+  element.style.width = `${layout.width}px`;
+  element.style.height = `${layout.height}px`;
+  element.style.setProperty("--rotation", `${layout.rotation}deg`);
 }
 
 function endGesture() {
   if (!gesture.active) return;
 
-  const photo = getUserPhoto(gesture.photoId);
+  const photoId = gesture.photoId;
+  const surface = gesture.surface;
   gesture.active = false;
   gesture.mode = "";
   gesture.photoId = "";
+  gesture.surface = "";
 
-  if (photo) updateUserPhoto(photo);
+  if (photoId) persistInteractiveLayout(photoId, surface);
 }
 
 document.addEventListener("pointerdown", (event) => {
@@ -714,26 +961,31 @@ document.addEventListener("pointerdown", (event) => {
 
   const resizeHandle = event.target.closest(".resize-handle");
   if (resizeHandle) {
-    const photoId = resizeHandle.closest(".free-photo")?.dataset.photoId;
-    if (photoId) startPhotoGesture(event, "resize", photoId);
+    const owner = resizeHandle.closest(".free-photo");
+    const photoId = owner?.dataset.photoId;
+    const surface = owner?.dataset.surface || "day";
+    if (photoId) startPhotoGesture(event, "resize", photoId, surface);
     return;
   }
 
   const rotateHandle = event.target.closest(".rotate-handle");
   if (rotateHandle) {
-    const photoId = rotateHandle.closest(".free-photo")?.dataset.photoId;
-    if (photoId) startPhotoGesture(event, "rotate", photoId);
+    const owner = rotateHandle.closest(".free-photo");
+    const photoId = owner?.dataset.photoId;
+    const surface = owner?.dataset.surface || "day";
+    if (photoId) startPhotoGesture(event, "rotate", photoId, surface);
     return;
   }
 
   const freePhoto = event.target.closest(".free-photo");
   if (freePhoto) {
-    startPhotoGesture(event, "drag", freePhoto.dataset.photoId);
+    startPhotoGesture(event, "drag", freePhoto.dataset.photoId, freePhoto.dataset.surface || "day");
     return;
   }
 
-  if (event.target.classList.contains("free-canvas") && state.selectedPhotoId) {
+  if ((event.target.classList.contains("free-canvas") || event.target.classList.contains("memory-cover-canvas")) && state.selectedPhotoId) {
     state.selectedPhotoId = "";
+    state.selectedSurface = "";
     render();
   }
 });
@@ -754,9 +1006,21 @@ document.addEventListener("click", (event) => {
   if (!actionTarget) return;
 
   const action = actionTarget.dataset.action;
-  if (action === "open-daybook") state.view = "daybook";
-  if (action === "home") state.view = "home";
-  if (action === "daybook") state.view = "daybook";
+  if (action === "open-daybook") {
+    state.selectedPhotoId = "";
+    state.selectedSurface = "";
+    state.view = "daybook";
+  }
+  if (action === "home") {
+    state.selectedPhotoId = "";
+    state.selectedSurface = "";
+    state.view = "home";
+  }
+  if (action === "daybook") {
+    state.selectedPhotoId = "";
+    state.selectedSurface = "";
+    state.view = "daybook";
+  }
   if (action === "edit-note") {
     editNote();
     return;
@@ -779,7 +1043,9 @@ async function initApp() {
   }
 
   state.userPhotos = await loadUserPhotos();
+  state.memoryCover = await loadMemoryCover();
   ensureLayoutsForPhotos();
+  ensureMemoryCoverLayouts();
   render();
 }
 
