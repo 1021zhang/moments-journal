@@ -5,7 +5,6 @@
   --ink: #1f1f1f;
   --muted: #818181;
   --faint: #eeeeee;
-  --orange: #ef8b4a;
   --photo-shadow: 0 12px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
@@ -106,7 +105,7 @@ button {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  color: var(--orange);
+  color: #2d2d2d;
   font-size: 22px;
   font-weight: 300;
   line-height: 1;
@@ -125,42 +124,7 @@ button {
   height: 560px;
   border: 0;
   background: transparent;
-  transform: translateY(-22px);
-}
-
-.sticky-note,
-.floating-emoji {
-  position: absolute;
-  z-index: 2;
-  pointer-events: none;
-}
-
-.sticky-note {
-  display: grid;
-  place-items: center;
-  left: 42px;
-  top: 166px;
-  width: 62px;
-  min-height: 42px;
-  padding: 7px;
-  background: rgba(255, 245, 197, 0.76);
-  color: #9b7448;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.05;
-  text-align: center;
-  transform: rotate(-6deg);
-}
-
-.floating-emoji {
-  right: 60px;
-  top: 166px;
-  color: var(--orange);
-  font-size: 18px;
-  font-weight: 300;
-  opacity: 0.75;
-  transform: rotate(8deg);
+  transform: translateY(-14px);
 }
 
 .memory-pile .polaroid {
@@ -228,7 +192,7 @@ button {
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 50%;
   background: #ffffff;
-  color: var(--orange);
+  color: #2d2d2d;
   font-size: 24px;
   font-weight: 300;
   line-height: 1;
@@ -321,7 +285,7 @@ button {
 .yesterday-label {
   display: flex;
   padding: 0 0 0 2px;
-  color: var(--orange);
+  color: #1f1f1f;
   background: transparent;
 }
 
@@ -357,15 +321,6 @@ button {
   white-space: nowrap;
 }
 
-.tiny-emojis {
-  display: flex;
-  gap: 5px;
-  margin: 6px 0 0 2px;
-  color: #777777;
-  font-size: 13px;
-  line-height: 1;
-}
-
 .single-nav {
   padding-bottom: 22px;
 }
@@ -377,7 +332,7 @@ button {
 .edit-button {
   min-height: 32px;
   padding: 0;
-  color: var(--orange);
+  color: #2d2d2d;
   font-size: 15px;
   font-weight: 400;
 }
@@ -402,10 +357,6 @@ button {
   font-size: 14px;
   font-weight: 400;
   line-height: 1.4;
-}
-
-.single-header .tiny-emojis {
-  margin: 0;
 }
 
 .single-collage {
@@ -441,21 +392,6 @@ button {
 .mini-3 {
   right: 38px;
   bottom: 48px;
-}
-
-.torn-paper {
-  position: absolute;
-  left: 86px;
-  bottom: 196px;
-  max-width: 168px;
-  padding: 8px 11px;
-  background: rgba(255, 245, 197, 0.86);
-  color: #8a6a43;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 1.25;
-  transform: rotate(-4deg);
 }
 
 .note-dialog {
@@ -504,7 +440,7 @@ button {
 }
 
 .add-button {
-  color: var(--orange);
+  color: #1f1f1f;
 }
 
 .ghost-button {

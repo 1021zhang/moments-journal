@@ -18,7 +18,6 @@ const days = [
     date: "",
     weekday: "",
     note: "Hiked the ridge, slow coffee, good talks.",
-    emojis: ["🍊", "☕"],
     photos: [0, 1, 2, 3]
   },
   {
@@ -27,7 +26,6 @@ const days = [
     date: "7 June",
     weekday: "Saturday",
     note: "Rain on the windows, noodles after dark.",
-    emojis: ["🌧️", "🍜"],
     photos: [4, 5, 6]
   },
   {
@@ -36,7 +34,6 @@ const days = [
     date: "6 June",
     weekday: "Friday",
     note: "Small errands, bright sky, one good song.",
-    emojis: ["☁️", "🎧"],
     photos: [2, 7, 0, 5]
   },
   {
@@ -45,7 +42,6 @@ const days = [
     date: "5 June",
     weekday: "Thursday",
     note: "A quiet table and a pocket of time.",
-    emojis: ["📎", "🍵"],
     photos: [3, 6, 4]
   }
 ];
@@ -112,10 +108,6 @@ function dateTitle(day) {
   `;
 }
 
-function emojiLine(day) {
-  return `<div class="tiny-emojis">${day.emojis.map((emoji) => `<span>${emoji}</span>`).join("")}</div>`;
-}
-
 function renderHome() {
   const pilePhotos = [0, 2, 4, 1, 6, 3];
 
@@ -124,8 +116,6 @@ function renderHome() {
       <h1 class="sr-only">Memory Pile</h1>
 
       <button class="memory-pile" type="button" data-action="open-daybook" aria-label="Open daybook">
-        <span class="sticky-note note-one">last<br />week</span>
-        <span class="floating-emoji emoji-one">✦</span>
         ${pilePhotos.map((photo, index) =>
           polaroid(photo, {
             tilt: ["-8deg", "5deg", "-3deg", "7deg", "-10deg", "3deg"][index],
@@ -164,7 +154,6 @@ function renderDaybook() {
               ).join("")}
             </div>
             <p class="day-note">${escapeHtml(noteFor(day))}</p>
-            ${emojiLine(day)}
           </button>
         `).join("")}
       </div>
@@ -186,7 +175,6 @@ function renderSingleDay() {
       <header class="single-header">
         ${dateTitle(day)}
         <p>${safeNote}</p>
-        ${emojiLine(day)}
       </header>
 
       <section class="single-collage">
@@ -197,7 +185,6 @@ function renderSingleDay() {
             size: `mini-photo mini-${index + 1}`
           })
         ).join("")}
-        <span class="torn-paper">today felt small and full</span>
       </section>
     </main>
 
@@ -249,7 +236,7 @@ function showAddPhotoFeedback() {
   const button = document.querySelector("[data-action='add-photo']");
   if (!button) return;
   const original = button.textContent;
-  button.textContent = "✓";
+  button.textContent = "+";
   window.setTimeout(() => {
     button.textContent = original;
   }, 950);
