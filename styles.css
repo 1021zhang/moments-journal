@@ -43,6 +43,15 @@ button {
   background: #ffffff;
 }
 
+.file-input {
+  position: fixed;
+  inset: auto;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .phone-screen {
   width: min(390px, 100vw);
   min-height: min(844px, 100vh);
@@ -167,6 +176,18 @@ button {
   z-index: 4;
   width: 116px;
   transform: translate(18%, -38%) rotate(var(--tilt));
+}
+
+.pile-7 {
+  z-index: 2;
+  width: 110px;
+  transform: translate(-30%, -88%) rotate(var(--tilt));
+}
+
+.pile-8 {
+  z-index: 3;
+  width: 108px;
+  transform: translate(-98%, -50%) rotate(var(--tilt));
 }
 
 .home-footer {
@@ -392,6 +413,17 @@ button {
 .mini-3 {
   right: 38px;
   bottom: 48px;
+}
+
+.delete-day-button {
+  display: block;
+  margin: 18px auto 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #8a8a8a;
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .note-dialog {

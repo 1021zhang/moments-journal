@@ -2,13 +2,25 @@
 
 A minimal photo-first digital scrapbook prototype.
 
-This is not a long-form diary app. The core interaction is a daily collage made from mock polaroid photos, tiny notes, and emoji.
+The app groups photos by the day they are added to the journal. It does not read EXIF data and does not group by original shooting date.
 
 ## Prototype Structure
 
-- Memory Pile: a home screen with stacked polaroids, sticky notes, emoji, and an Add Photos button.
-- Daybook: a date-based flow with horizontal, staggered polaroid groups.
-- Single Day Page: a full scrapbook collage for one day with a large photo, smaller polaroids, emoji, and editable short note.
+- Memory Pile: a pure white home screen with stacked polaroids and a small plus button.
+- Daybook: a vertical date flow grouped by `dateKey`, generated from each photo's `addedAt` import time.
+- Single Day Page: a quiet single-day collage with editable short note.
+
+## Photo Storage
+
+Imported photos are compressed in the browser, saved locally with IndexedDB, and restored after refresh.
+
+Stored user photo fields:
+
+- `id`
+- `imageDataUrl`
+- `addedAt`
+- `dateKey`
+- `label`
 
 ## Run
 
