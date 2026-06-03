@@ -1,13 +1,11 @@
 const noteStorageKey = "moments-journal.notes";
 const localPhotosKey = "moments-journal.photos";
-const localCoverKey = "moments-journal.memoryCover";
 const dbName = "moments-journal";
 const photoStoreName = "photos";
-const coverStoreName = "memoryCover";
 const canvasWidth = 358;
 const canvasHeight = 560;
-const coverCanvasWidth = 358;
-const coverCanvasHeight = 430;
+const stackPreviewWidth = 358;
+const stackPreviewHeight = 360;
 
 const mockPhotos = [
   { id: "mock-cafe", type: "mock", caption: "cafe", src: "https://picsum.photos/seed/moments-cafe/320/320" },
@@ -27,7 +25,6 @@ const state = {
   selectedSurface: "",
   pendingImportDateKey: "",
   notes: loadNotes(),
-  memoryCover: defaultMemoryCover(),
   userPhotos: [],
   db: null,
   storageMode: "indexedDB"
@@ -57,36 +54,6 @@ function loadNotes() {
   } catch {
     return {};
   }
-}
-
-function defaultMemoryCover() {
-  return {
-    photoLayouts: {},
-    elements: [
-      {
-        id: "cover-caption",
-        type: "text",
-        content: "A lot happened recently.",
-        x: 44,
-        y: 364,
-        fontSize: 22,
-        color: "#777777",
-        rotation: 0
-      }
-    ]
-  };
-}
-
-function normalizeMemoryCover(cover) {
-  const fallback = defaultMemoryCover();
-  return {
-    photoLayouts: cover?.photoLayouts && typeof cover.photoLayouts === "object"
-      ? cover.photoLayouts
-      : {},
-    elements: Array.isArray(cover?.elements) && cover.elements.length
-      ? cover.elements
-      : fallback.elements
-  };
 }
 
 function saveNotes() {
@@ -187,26 +154,26 @@ function generateLayout(photo, index) {
   };
 }
 
-function sizeForCoverPhoto(photo, baseWidth) {
+function sizeForStackPhoto(photo, baseWidth) {
   const aspectRatio = photo.aspectRatio || 1;
   const width = baseWidth;
   const height = width / aspectRatio;
 
-  if (height <= 300) return { width, height };
+  if (height <= 238) return { width, height };
 
   return {
-    width: 300 * aspectRatio,
-    height: 300
+    width: 238 * aspectRatio,
+    height: 238
   };
 }
 
-function generateCoverLayout(photo, index, count) {
+function generateStackLayout(photo, index, count) {
   const single = () => {
-    const baseWidth = photo.aspectRatio && photo.aspectRatio < 0.82 ? 218 : 276;
-    const size = sizeForCoverPhoto(photo, baseWidth);
+    const baseWidth = photo.aspectRatio && photo.aspectRatio < 0.82 ? 214 : 270;
+    const size = sizeForStackPhoto(photo, baseWidth);
     return {
-      x: Math.round((coverCanvasWidth - size.width) / 2),
-      y: Math.round((coverCanvasHeight - size.height) / 2) - 6,
+      x: Math.round((stackPreviewWidth - size.width) / 2),
+      y: Math.round((stackPreviewHeight - size.height) / 2) - 4,
       width: Math.round(size.width),
       height: Math.round(size.height),
       rotation: 0,
@@ -217,30 +184,30 @@ function generateCoverLayout(photo, index, count) {
   if (count <= 1) return single();
 
   const lightLayouts = [
-    { x: 56, y: 88, width: 226, rotation: -5, zIndex: 2 },
-    { x: 126, y: 136, width: 218, rotation: 6, zIndex: 3 },
-    { x: 74, y: 222, width: 192, rotation: -8, zIndex: 4 }
+    { x: 42, y: 72, width: 224, rotation: -5, zIndex: 2 },
+    { x: 128, y: 120, width: 214, rotation: 6, zIndex: 3 },
+    { x: 70, y: 190, width: 190, rotation: -8, zIndex: 4 }
   ];
 
   const pileLayouts = [
-    { x: 28, y: 78, width: 190, rotation: -9, zIndex: 2 },
-    { x: 138, y: 54, width: 176, rotation: 8, zIndex: 3 },
-    { x: 74, y: 128, width: 206, rotation: 2, zIndex: 6 },
-    { x: 196, y: 172, width: 146, rotation: 12, zIndex: 5 },
-    { x: 36, y: 232, width: 168, rotation: -6, zIndex: 4 },
-    { x: 122, y: 258, width: 184, rotation: 5, zIndex: 7 },
-    { x: 10, y: 156, width: 138, rotation: -14, zIndex: 1 },
-    { x: 224, y: 98, width: 126, rotation: 15, zIndex: 1 }
+    { x: 24, y: 54, width: 176, rotation: -10, zIndex: 2 },
+    { x: 144, y: 40, width: 164, rotation: 8, zIndex: 3 },
+    { x: 76, y: 110, width: 204, rotation: 2, zIndex: 7 },
+    { x: 198, y: 142, width: 142, rotation: 12, zIndex: 5 },
+    { x: 34, y: 198, width: 166, rotation: -6, zIndex: 4 },
+    { x: 124, y: 224, width: 178, rotation: 5, zIndex: 8 },
+    { x: 8, y: 136, width: 136, rotation: -14, zIndex: 1 },
+    { x: 230, y: 84, width: 120, rotation: 15, zIndex: 1 }
   ];
 
   const preset = count <= 3
     ? lightLayouts[index % lightLayouts.length]
     : pileLayouts[index % pileLayouts.length];
-  const size = sizeForCoverPhoto(photo, preset.width);
+  const size = sizeForStackPhoto(photo, preset.width);
 
   return {
-    x: clamp(preset.x, -12, coverCanvasWidth - 64),
-    y: clamp(preset.y, 8, coverCanvasHeight - 64),
+    x: clamp(preset.x, 0, stackPreviewWidth - 40),
+    y: clamp(preset.y, 8, stackPreviewHeight - 40),
     width: Math.round(size.width),
     height: Math.round(size.height),
     rotation: preset.rotation,
@@ -248,30 +215,12 @@ function generateCoverLayout(photo, index, count) {
   };
 }
 
-function coverPhotos() {
+function stackPhotos() {
   return state.userPhotos
     .slice()
     .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
     .slice(0, 8)
     .map(normalizeUserPhoto);
-}
-
-function ensureMemoryCoverLayouts() {
-  let changed = false;
-  state.memoryCover = normalizeMemoryCover(state.memoryCover);
-  const photos = coverPhotos();
-
-  photos.forEach((photo, index) => {
-    const current = state.memoryCover.photoLayouts[photo.id];
-    const needsLayout = !current || [current.x, current.y, current.width, current.height, current.rotation, current.zIndex]
-      .some((value) => typeof value !== "number");
-
-    if (!needsLayout) return;
-    state.memoryCover.photoLayouts[photo.id] = generateCoverLayout(photo, index, photos.length);
-    changed = true;
-  });
-
-  if (changed) saveMemoryCover();
 }
 
 function ensureLayoutsForPhotos() {
@@ -356,14 +305,8 @@ function dateTitle(day) {
   `;
 }
 
-function coverCaption() {
-  const textElement = state.memoryCover.elements.find((element) => element.type === "text");
-  return textElement?.content || "A lot happened recently.";
-}
-
-function memoryCoverPhoto(photo) {
-  const layout = state.memoryCover.photoLayouts[photo.id] || generateCoverLayout(photo, 0, 1);
-  const selected = state.selectedSurface === "cover" && state.selectedPhotoId === photo.id ? "is-selected" : "";
+function memoryStackPhoto(photo, index, count) {
+  const layout = generateStackLayout(photo, index, count);
   const style = [
     `left:${layout.x}px`,
     `top:${layout.y}px`,
@@ -374,28 +317,16 @@ function memoryCoverPhoto(photo) {
   ].join(";");
 
   return `
-    <div class="free-photo cover-photo ${selected}" data-surface="cover" data-photo-id="${photo.id}" style="${style}">
+    <figure class="memory-stack-photo" style="${style}">
       <img src="${photo.src}" alt="" draggable="false" />
-      <span class="rotate-handle" aria-hidden="true">↻</span>
-      <span class="resize-handle" aria-hidden="true"></span>
-    </div>
-  `;
-}
-
-function memoryHomeNav() {
-  return `
-    <nav class="memory-home-nav" aria-label="Memory navigation">
-      <span>Moments</span>
-      <button type="button" data-action="open-daybook">Daybook</button>
-    </nav>
+    </figure>
   `;
 }
 
 function renderEmptyHome() {
   return `
-    <main class="memory-home memory-home-empty" aria-label="Memory Cover">
-      <h1 class="sr-only">Memory Cover</h1>
-      ${memoryHomeNav()}
+    <main class="memory-home memory-home-empty" aria-label="Memory Stack">
+      <h1 class="sr-only">Memory Stack</h1>
 
       <section class="memory-empty-state">
         <p>Add your first memory.</p>
@@ -406,20 +337,18 @@ function renderEmptyHome() {
 }
 
 function renderHome() {
-  const photos = coverPhotos();
+  const photos = stackPhotos();
   if (!photos.length) return renderEmptyHome();
-  ensureMemoryCoverLayouts();
 
   return `
-    <main class="memory-home" aria-label="Memory Cover">
-      <h1 class="sr-only">Memory Cover</h1>
-      ${memoryHomeNav()}
+    <main class="memory-home" aria-label="Memory Stack">
+      <h1 class="sr-only">Memory Stack</h1>
 
-      <section class="memory-cover-canvas" aria-label="Memory cover canvas">
-        ${photos.map(memoryCoverPhoto).join("")}
-      </section>
+      <button class="memory-stack-preview" type="button" data-action="open-daybook" aria-label="Open daybook">
+        ${photos.map((photo, index) => memoryStackPhoto(photo, index, photos.length)).join("")}
+      </button>
 
-      <p class="memory-caption">${escapeHtml(coverCaption())}</p>
+      <button class="memory-caption" type="button" data-action="open-daybook">A lot happened recently.</button>
       <button class="add-photo-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
     </main>
   `;
@@ -590,46 +519,10 @@ function openPhotoDatabase() {
         store.createIndex("dateKey", "dateKey", { unique: false });
         store.createIndex("addedAt", "addedAt", { unique: false });
       }
-      if (!db.objectStoreNames.contains(coverStoreName)) {
-        db.createObjectStore(coverStoreName, { keyPath: "id" });
-      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
-}
-
-async function loadMemoryCover() {
-  if (state.storageMode === "localStorage") {
-    try {
-      return normalizeMemoryCover(JSON.parse(localStorage.getItem(localCoverKey) || "null"));
-    } catch {
-      return defaultMemoryCover();
-    }
-  }
-
-  const transaction = state.db.transaction(coverStoreName, "readonly");
-  const request = transaction.objectStore(coverStoreName).get("cover");
-  const record = await new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-
-  return normalizeMemoryCover(record?.value);
-}
-
-async function saveMemoryCover() {
-  const cover = normalizeMemoryCover(state.memoryCover);
-  state.memoryCover = cover;
-
-  if (state.storageMode === "localStorage") {
-    localStorage.setItem(localCoverKey, JSON.stringify(cover));
-    return;
-  }
-
-  const transaction = state.db.transaction(coverStoreName, "readwrite");
-  transaction.objectStore(coverStoreName).put({ id: "cover", value: cover });
-  await transactionDone(transaction);
 }
 
 function transactionDone(transaction) {
@@ -684,10 +577,6 @@ async function updateUserPhoto(photo) {
 
 async function deleteUserPhoto(photoId) {
   state.userPhotos = state.userPhotos.filter((photo) => photo.id !== photoId);
-  if (state.memoryCover.photoLayouts[photoId]) {
-    delete state.memoryCover.photoLayouts[photoId];
-    saveMemoryCover();
-  }
 
   if (state.storageMode === "localStorage") {
     localStorage.setItem(localPhotosKey, JSON.stringify(state.userPhotos));
@@ -792,8 +681,6 @@ async function handlePhotoSelection(event) {
     state.selectedSurface = "day";
   }
 
-  ensureMemoryCoverLayouts();
-
   render();
 }
 
@@ -831,40 +718,21 @@ async function deleteSelectedPhoto(photoId) {
 }
 
 function surfaceDimensions(surface) {
-  return surface === "cover"
-    ? { width: coverCanvasWidth, height: coverCanvasHeight }
-    : { width: canvasWidth, height: canvasHeight };
+  return { width: canvasWidth, height: canvasHeight };
 }
 
 function getInteractiveLayout(photoId, surface) {
   const photo = getUserPhoto(photoId);
   if (!photo) return null;
 
-  if (surface === "cover") {
-    if (!state.memoryCover.photoLayouts[photoId]) {
-      state.memoryCover.photoLayouts[photoId] = generateCoverLayout(normalizeUserPhoto(photo), 0, coverPhotos().length || 1);
-    }
-    return state.memoryCover.photoLayouts[photoId];
-  }
-
   return photo;
 }
 
 function maxZForSurface(surface) {
-  if (surface === "cover") {
-    return Object.values(state.memoryCover.photoLayouts)
-      .reduce((max, layout) => Math.max(max, layout.zIndex || 0), 0);
-  }
-
   return state.userPhotos.reduce((max, item) => Math.max(max, item.zIndex || 0), 0);
 }
 
 async function persistInteractiveLayout(photoId, surface) {
-  if (surface === "cover") {
-    await saveMemoryCover();
-    return;
-  }
-
   const photo = getUserPhoto(photoId);
   if (photo) await updateUserPhoto(photo);
 }
@@ -994,7 +862,7 @@ document.addEventListener("pointerdown", (event) => {
     return;
   }
 
-  if ((event.target.classList.contains("free-canvas") || event.target.classList.contains("memory-cover-canvas")) && state.selectedPhotoId) {
+  if (event.target.classList.contains("free-canvas") && state.selectedPhotoId) {
     state.selectedPhotoId = "";
     state.selectedSurface = "";
     render();
@@ -1037,6 +905,7 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (action === "add-photo") {
+    event.stopPropagation();
     openPhotoPicker();
     return;
   }
@@ -1054,9 +923,7 @@ async function initApp() {
   }
 
   state.userPhotos = await loadUserPhotos();
-  state.memoryCover = await loadMemoryCover();
   ensureLayoutsForPhotos();
-  ensureMemoryCoverLayouts();
   render();
 }
 
