@@ -382,10 +382,20 @@ function memoryCoverPhoto(photo) {
   `;
 }
 
+function memoryHomeNav() {
+  return `
+    <nav class="memory-home-nav" aria-label="Memory navigation">
+      <span>Moments</span>
+      <button type="button" data-action="open-daybook">Daybook</button>
+    </nav>
+  `;
+}
+
 function renderEmptyHome() {
   return `
     <main class="memory-home memory-home-empty" aria-label="Memory Cover">
       <h1 class="sr-only">Memory Cover</h1>
+      ${memoryHomeNav()}
 
       <section class="memory-empty-state">
         <p>Add your first memory.</p>
@@ -403,6 +413,7 @@ function renderHome() {
   return `
     <main class="memory-home" aria-label="Memory Cover">
       <h1 class="sr-only">Memory Cover</h1>
+      ${memoryHomeNav()}
 
       <section class="memory-cover-canvas" aria-label="Memory cover canvas">
         ${photos.map(memoryCoverPhoto).join("")}
