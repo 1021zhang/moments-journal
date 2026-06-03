@@ -120,33 +120,36 @@ button {
   line-height: 1;
 }
 
-.home-view {
+.memory-home {
+  min-height: 100svh;
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  padding: 22vh 0 48px;
+  box-sizing: border-box;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: min(844px, 100vh);
+  background: #ffffff;
 }
 
-.memory-pile {
-  display: block;
+.memory-hero {
   width: 100%;
-  height: 300px;
-  margin: 22vh auto 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .memory-stack-stage {
   position: relative;
-  width: 330px;
-  max-width: calc(100vw - 40px);
+  width: min(330px, calc(100vw - 48px));
   height: 300px;
-  margin-left: auto;
-  margin-right: auto;
+  margin: 0 auto;
+  overflow: visible;
+  transform: none;
   left: auto;
   right: auto;
-  transform: none;
 }
 
 .memory-pile-photo {
@@ -171,100 +174,99 @@ button {
   left: 0;
   top: 88px;
   z-index: 3;
-  width: 112px;
-  height: 138px;
+  width: 108px;
+  height: 136px;
   transform: rotate(-18deg);
 }
 
 .slot-1 {
-  left: 32px;
-  top: 42px;
+  left: 36px;
+  top: 44px;
   z-index: 4;
-  width: 112px;
+  width: 110px;
   height: 138px;
   transform: rotate(-10deg);
 }
 
 .slot-2 {
-  left: 82px;
-  top: 68px;
+  left: 88px;
+  top: 70px;
   z-index: 8;
-  width: 118px;
-  height: 145px;
+  width: 116px;
+  height: 144px;
   transform: rotate(2deg);
 }
 
 .slot-3 {
-  left: 136px;
-  top: 38px;
+  left: 144px;
+  top: 42px;
   z-index: 5;
-  width: 112px;
+  width: 110px;
   height: 138px;
   transform: rotate(9deg);
 }
 
 .slot-4 {
   left: 188px;
-  top: 78px;
+  top: 82px;
   z-index: 4;
-  width: 112px;
-  height: 138px;
-  transform: rotate(17deg);
+  width: 108px;
+  height: 136px;
+  transform: rotate(16deg);
 }
 
 .slot-5 {
-  left: 24px;
+  left: 28px;
   top: 158px;
   z-index: 2;
-  width: 108px;
+  width: 106px;
   height: 134px;
   transform: rotate(8deg);
 }
 
 .slot-6 {
-  left: 78px;
-  top: 146px;
+  left: 84px;
+  top: 148px;
   z-index: 6;
-  width: 112px;
+  width: 110px;
   height: 138px;
   transform: rotate(-12deg);
 }
 
 .slot-7 {
-  left: 136px;
-  top: 152px;
+  left: 144px;
+  top: 154px;
   z-index: 7;
-  width: 112px;
+  width: 110px;
   height: 138px;
   transform: rotate(7deg);
 }
 
 .slot-8 {
-  left: 194px;
-  top: 142px;
+  left: 196px;
+  top: 144px;
   z-index: 3;
-  width: 108px;
+  width: 106px;
   height: 134px;
   transform: rotate(-6deg);
 }
 
-.home-footer {
-  display: grid;
-  justify-items: center;
-  gap: 28px;
-  margin-top: 40px;
-  padding-bottom: 20px;
-}
-
-.home-footer p {
-  margin: 0;
+.memory-caption {
+  margin: 38px 0 28px;
   color: #777777;
-  font-size: 15px;
+  font-size: 22px;
   font-weight: 400;
   line-height: 1.3;
+  text-align: center;
+  width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
-.home-add-button {
+.home-add-button,
+.add-photo-button {
+  position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
   width: 42px;

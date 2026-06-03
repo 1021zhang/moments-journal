@@ -249,19 +249,17 @@ function renderHome() {
   const pilePhotos = Array.from({ length: 9 }, (_, index) => sourcePhotos[index % sourcePhotos.length]);
 
   return `
-    <main class="phone-screen home-view" aria-label="Memory Pile">
+    <main class="memory-home" aria-label="Memory Pile">
       <h1 class="sr-only">Memory Pile</h1>
 
-      <button class="memory-pile" type="button" data-action="open-daybook" aria-label="Open daybook">
-        <span class="memory-stack-stage" aria-hidden="true">
+      <section class="memory-hero" data-action="open-daybook" role="button" tabindex="0" aria-label="Open daybook">
+        <div class="memory-stack-stage">
           ${pilePhotos.map(memoryPilePhoto).join("")}
-        </span>
-      </button>
+        </div>
+      </section>
 
-      <footer class="home-footer">
-        <p>A lot happened last week.</p>
-        <button class="home-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
-      </footer>
+      <p class="memory-caption">A lot happened last week.</p>
+      <button class="add-photo-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
     </main>
   `;
 }
