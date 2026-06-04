@@ -27,6 +27,7 @@ const state = {
   selectedSurface: "",
   selectedItemType: "",
   activePanel: "",
+  stickerQuery: "",
   pendingImportDateKey: "",
   notes: loadNotes(),
   userPhotos: [],
@@ -163,10 +164,10 @@ function defaultTextElement(dateKey) {
     type: "text",
     content: "Text",
     dateKey,
-    x: 92,
-    y: 92,
-    width: 180,
-    height: 58,
+    x: 112,
+    y: 216,
+    width: 138,
+    height: 42,
     rotation: 0,
     zIndex: maxCanvasZIndex(dateKey) + 1,
     fontSize: 24,
@@ -178,19 +179,22 @@ function defaultTextElement(dateKey) {
   };
 }
 
-function defaultEmojiElement(dateKey, content) {
+function defaultStickerElement(dateKey, sticker) {
+  const isTextSticker = sticker.stickerType === "text";
   return {
-    id: uid("emoji"),
-    type: "emoji",
-    content,
+    id: uid("sticker"),
+    type: "sticker",
+    stickerType: sticker.stickerType,
+    content: sticker.content,
     dateKey,
-    x: 154,
-    y: 176,
-    width: 64,
-    height: 64,
+    x: isTextSticker ? 108 : 154,
+    y: isTextSticker ? 188 : 176,
+    width: isTextSticker ? 142 : 70,
+    height: isTextSticker ? 58 : 70,
     rotation: 0,
     zIndex: maxCanvasZIndex(dateKey) + 1,
-    fontSize: 46
+    fontSize: isTextSticker ? 22 : 48,
+    color: sticker.color || "#222222"
   };
 }
 
@@ -537,12 +541,17 @@ function canvasElement(element) {
     `;
   }
 
-  baseStyle.push(`--font-size:${element.fontSize}px`);
+  const stickerType = element.type === "emoji" ? "emoji" : element.stickerType;
+  const stickerClass = stickerType === "text" ? "text-sticker" : "emoji-sticker";
+  baseStyle.push(
+    `--font-size:${element.fontSize}px`,
+    `--sticker-color:${escapeHtml(element.color || "#222222")}`
+  );
 
   return `
-    <div class="canvas-item canvas-emoji ${selected}" data-item-type="emoji" data-item-id="${element.id}" style="${baseStyle.join(";")}">
+    <div class="canvas-item canvas-sticker ${stickerClass} ${selected}" data-item-type="${element.type}" data-item-id="${element.id}" style="${baseStyle.join(";")}">
       <span>${escapeHtml(element.content)}</span>
-      <button class="delete-photo" type="button" data-action="delete-element" aria-label="Delete emoji">×</button>
+      <button class="delete-photo" type="button" data-action="delete-element" aria-label="Delete sticker">×</button>
       <span class="rotate-handle" aria-hidden="true">↻</span>
       <span class="resize-handle" aria-hidden="true"></span>
     </div>
@@ -558,9 +567,13 @@ function textToolbar() {
         <button type="button" data-action="text-style" data-style="classic">Classic</button>
         <button type="button" data-action="text-style" data-style="signature">Signature</button>
         <button type="button" data-action="text-style" data-style="editor">Editor</button>
+        <button type="button" data-action="text-style" data-style="poster">Poster</button>
       </div>
       <div class="text-tool-row">
-        <button type="button" data-action="text-color" aria-label="Change text color">Color</button>
+        <button class="edit-text-action" type="button" data-action="edit-selected-text">Edit text</button>
+        ${["#222222", "#777777", "#ffffff", "#f5f1ea", "#d94a4a", "#4f6f52"].map((color) => `
+          <button class="color-dot" type="button" data-action="text-color" data-color="${color}" style="--dot-color:${color}" aria-label="Set text color"></button>
+        `).join("")}
         <button type="button" data-action="text-align" aria-label="Change text alignment">Align</button>
         <button type="button" data-action="text-size-down" aria-label="Decrease text size">A-</button>
         <button type="button" data-action="text-size-up" aria-label="Increase text size">A+</button>
@@ -570,16 +583,42 @@ function textToolbar() {
   `;
 }
 
-function emojiPanel() {
-  if (state.activePanel !== "emoji") return "";
-  const emojis = ["✨", "❤️", "😊", "☕️", "🌿", "🍀", "📍", "🎀", "🐶", "🍰", "🌙", "📷", "🧸", "📝"];
+function stickerLibrary() {
+  const emojiStickers = ["✨", "❤️", "😊", "☕️", "🌿", "🍀", "📍", "🎀", "🐶", "🍰", "🌙", "📷", "🧸", "📝", "🔥", "💫", "🦋", "🌸"]
+    .map((content) => ({ stickerType: "emoji", content, color: "#222222" }));
+  const colors = ["#d94a4a", "#4f6f52", "#6f6f8f", "#222222", "#b47f48", "#7a5c9e"];
+  const textStickers = ["LOVE", "COOL", "WOW", "OMG", "SUMMER", "LUOLUO", "GOOD DAY", "HAPPY", "YUMMY", "FUN", "TODAY", "MEMORY"]
+    .map((content, index) => ({ stickerType: "text", content, color: colors[index % colors.length] }));
+
+  return [...emojiStickers, ...textStickers];
+}
+
+function stickerSheet() {
+  if (state.activePanel !== "sticker") return "";
+  const query = state.stickerQuery.trim().toLowerCase();
+  const stickers = stickerLibrary().filter((sticker) => sticker.content.toLowerCase().includes(query));
 
   return `
-    <div class="emoji-panel" aria-label="Emoji stickers">
-      ${emojis.map((emoji) => `
-        <button type="button" data-action="add-emoji" data-emoji="${escapeHtml(emoji)}">${escapeHtml(emoji)}</button>
-      `).join("")}
-    </div>
+    <button class="sticker-backdrop" type="button" data-action="close-panel" aria-label="Close stickers"></button>
+    <section class="sticker-sheet" aria-label="Sticker library">
+      <div class="sheet-grabber" aria-hidden="true"></div>
+      <input class="sticker-search" type="search" placeholder="搜索" value="${escapeHtml(state.stickerQuery)}" data-sticker-search />
+      <div class="sticker-grid">
+        ${stickers.map((sticker) => `
+          <button
+            class="sticker-choice ${sticker.stickerType === "text" ? "text-sticker-choice" : "emoji-sticker-choice"}"
+            type="button"
+            data-action="add-sticker"
+            data-sticker-type="${sticker.stickerType}"
+            data-sticker-content="${escapeHtml(sticker.content)}"
+            data-sticker-color="${sticker.color}"
+            style="--sticker-color:${sticker.color}"
+          >
+            ${escapeHtml(sticker.content)}
+          </button>
+        `).join("")}
+      </div>
+    </section>
   `;
 }
 
@@ -607,12 +646,12 @@ function renderSingleDay() {
         ${dayElements.map(canvasElement).join("")}
         <div class="floating-toolbox" aria-label="Canvas tools">
           <button type="button" data-action="add-text" aria-label="Add text">Aa</button>
-          <button type="button" data-action="open-emoji-panel" aria-label="Add emoji">☺</button>
+          <button type="button" data-action="open-sticker-panel" aria-label="Add stickers">☺</button>
         </div>
         <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
       </section>
       ${textToolbar()}
-      ${emojiPanel()}
+      ${stickerSheet()}
     </main>
 
     <dialog class="note-dialog" id="noteDialog">
@@ -955,13 +994,13 @@ async function addTextElement() {
   render();
 }
 
-async function addEmojiElement(content) {
+async function addStickerElement(sticker) {
   const day = getDay();
   if (!day) return;
 
-  const element = defaultEmojiElement(day.dateKey, content);
+  const element = defaultStickerElement(day.dateKey, sticker);
   await saveCanvasElement(element);
-  selectItem("emoji", element.id);
+  selectItem("sticker", element.id);
   state.activePanel = "";
   render();
 }
@@ -1011,6 +1050,11 @@ function textStyle(styleId) {
       fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
       fontWeight: "500",
       letterSpacing: "0.02em"
+    },
+    poster: {
+      fontFamily: "Georgia, serif",
+      fontWeight: "700",
+      letterSpacing: "0"
     }
   }[styleId];
 }
@@ -1103,10 +1147,10 @@ function updateGesture(event) {
     const projectedDelta = Math.max(dx, dy * gesture.aspectRatio);
     layout.width = clamp(gesture.startWidth + projectedDelta, 72, dimensions.width - 24);
     layout.height = layout.width / gesture.aspectRatio;
-    if (gesture.itemType === "text" || gesture.itemType === "emoji") {
+    if (gesture.itemType === "text" || gesture.itemType === "emoji" || gesture.itemType === "sticker") {
       const scale = layout.width / gesture.startWidth;
       layout.fontSize = clamp(Math.round((gesture.startFontSize || 24) * scale), 12, 96);
-      layout.height = gesture.itemType === "emoji" ? layout.fontSize * 1.2 : Math.max(36, layout.height);
+      layout.height = gesture.itemType === "text" ? Math.max(36, layout.height) : layout.fontSize * 1.25;
     }
     layout.x = clamp(layout.x, -40, dimensions.width - 40);
     layout.y = clamp(layout.y, -40, dimensions.height - 40);
@@ -1142,7 +1186,7 @@ function endGesture() {
 }
 
 document.addEventListener("pointerdown", (event) => {
-  if (event.target.closest(".floating-toolbox, .text-toolbar, .emoji-panel, .canvas-add-button, .edit-element")) return;
+  if (event.target.closest(".floating-toolbox, .text-toolbar, .sticker-sheet, .sticker-backdrop, .canvas-add-button, .edit-element")) return;
 
   const deleteButton = event.target.closest(".delete-photo");
   if (deleteButton) {
@@ -1150,7 +1194,7 @@ document.addEventListener("pointerdown", (event) => {
     const itemId = owner?.dataset.itemId;
     const itemType = owner?.dataset.itemType;
     if (itemType === "photo" && itemId) deleteSelectedPhoto(itemId);
-    if ((itemType === "text" || itemType === "emoji") && itemId) deleteSelectedElement(itemId);
+    if ((itemType === "text" || itemType === "emoji" || itemType === "sticker") && itemId) deleteSelectedElement(itemId);
     return;
   }
 
@@ -1224,18 +1268,27 @@ document.addEventListener("click", (event) => {
     addTextElement();
     return;
   }
-  if (action === "open-emoji-panel") {
-    state.activePanel = state.activePanel === "emoji" ? "" : "emoji";
+  if (action === "open-sticker-panel") {
+    state.activePanel = state.activePanel === "sticker" ? "" : "sticker";
     render();
     return;
   }
-  if (action === "add-emoji") {
-    addEmojiElement(actionTarget.dataset.emoji || "✨");
+  if (action === "add-sticker") {
+    addStickerElement({
+      stickerType: actionTarget.dataset.stickerType || "emoji",
+      content: actionTarget.dataset.stickerContent || "✨",
+      color: actionTarget.dataset.stickerColor || "#222222"
+    });
     return;
   }
   if (action === "edit-text-element") {
     const itemId = actionTarget.closest(".canvas-item")?.dataset.itemId;
     if (itemId) editTextElement(itemId);
+    return;
+  }
+  if (action === "edit-selected-text") {
+    const element = selectedTextElement();
+    if (element) editTextElement(element.id);
     return;
   }
   if (action === "delete-photo" || action === "delete-element") return;
@@ -1245,10 +1298,9 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (action === "text-color") {
-    const colors = ["#222222", "#777777", "#ffffff", "#f5f1ea", "#d94a4a"];
-    updateSelectedTextElement((element) => {
-      const index = colors.indexOf(element.color);
-      element.color = colors[(index + 1) % colors.length];
+    const color = actionTarget.dataset.color;
+    if (color) updateSelectedTextElement((element) => {
+      element.color = color;
     });
     return;
   }
@@ -1292,6 +1344,16 @@ document.addEventListener("dblclick", (event) => {
   const textItem = event.target.closest('[data-item-type="text"]');
   if (!textItem) return;
   editTextElement(textItem.dataset.itemId);
+});
+
+document.addEventListener("input", (event) => {
+  const search = event.target.closest("[data-sticker-search]");
+  if (!search) return;
+  const query = search.value.trim().toLowerCase();
+  document.querySelectorAll(".sticker-choice").forEach((choice) => {
+    const content = choice.dataset.stickerContent || "";
+    choice.hidden = Boolean(query) && !content.toLowerCase().includes(query);
+  });
 });
 
 document.querySelector("#photoInput").addEventListener("change", handlePhotoSelection);
