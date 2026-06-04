@@ -1,7 +1,9 @@
 const noteStorageKey = "moments-journal.notes";
 const localPhotosKey = "moments-journal.photos";
+const localElementsKey = "moments-journal.canvas-elements";
 const dbName = "moments-journal";
 const photoStoreName = "photos";
+const elementStoreName = "canvasElements";
 const canvasWidth = 358;
 const canvasHeight = 560;
 const stackPreviewWidth = 358;
@@ -23,9 +25,12 @@ const state = {
   activeDayId: "",
   selectedPhotoId: "",
   selectedSurface: "",
+  selectedItemType: "",
+  activePanel: "",
   pendingImportDateKey: "",
   notes: loadNotes(),
   userPhotos: [],
+  canvasElements: [],
   db: null,
   storageMode: "indexedDB"
 };
@@ -33,7 +38,8 @@ const state = {
 const gesture = {
   active: false,
   mode: "",
-  photoId: "",
+  itemId: "",
+  itemType: "",
   surface: "",
   startClientX: 0,
   startClientY: 0,
@@ -41,6 +47,7 @@ const gesture = {
   startY: 0,
   startWidth: 0,
   startHeight: 0,
+  startFontSize: 0,
   aspectRatio: 1,
   startRotation: 0,
   startAngle: 0,
@@ -72,8 +79,8 @@ function escapeCssUrl(value) {
   return String(value).replaceAll("'", "%27").replaceAll(")", "%29");
 }
 
-function uid() {
-  return `photo-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+function uid(prefix = "photo") {
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 function clamp(value, min, max) {
@@ -113,6 +120,78 @@ function relativeLabel(dateKey) {
 
 function noteFor(day) {
   return state.notes[day.id] || day.note || "";
+}
+
+function selectedItem(type, id) {
+  return state.selectedItemType === type && state.selectedPhotoId === id;
+}
+
+function clearSelection() {
+  state.selectedPhotoId = "";
+  state.selectedSurface = "";
+  state.selectedItemType = "";
+}
+
+function selectItem(type, id) {
+  state.selectedPhotoId = id;
+  state.selectedSurface = "day";
+  state.selectedItemType = type;
+}
+
+function elementsForDate(dateKey) {
+  return state.canvasElements
+    .filter((element) => element.dateKey === dateKey)
+    .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+}
+
+function getCanvasElement(elementId) {
+  return state.canvasElements.find((element) => element.id === elementId);
+}
+
+function maxCanvasZIndex(dateKey) {
+  const photoMax = state.userPhotos
+    .filter((photo) => photo.dateKey === dateKey)
+    .reduce((max, photo) => Math.max(max, photo.zIndex || 0), 0);
+  const elementMax = elementsForDate(dateKey)
+    .reduce((max, element) => Math.max(max, element.zIndex || 0), 0);
+  return Math.max(photoMax, elementMax);
+}
+
+function defaultTextElement(dateKey) {
+  return {
+    id: uid("text"),
+    type: "text",
+    content: "Text",
+    dateKey,
+    x: 92,
+    y: 92,
+    width: 180,
+    height: 58,
+    rotation: 0,
+    zIndex: maxCanvasZIndex(dateKey) + 1,
+    fontSize: 24,
+    fontFamily: "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
+    fontWeight: "600",
+    color: "#222222",
+    textAlign: "center",
+    letterSpacing: "0"
+  };
+}
+
+function defaultEmojiElement(dateKey, content) {
+  return {
+    id: uid("emoji"),
+    type: "emoji",
+    content,
+    dateKey,
+    x: 154,
+    y: 176,
+    width: 64,
+    height: 64,
+    rotation: 0,
+    zIndex: maxCanvasZIndex(dateKey) + 1,
+    fontSize: 46
+  };
 }
 
 function normalizeUserPhoto(photo) {
@@ -406,7 +485,7 @@ function renderDaybook() {
 }
 
 function freeCanvasPhoto(photo) {
-  const selected = state.selectedSurface === "day" && state.selectedPhotoId === photo.id ? "is-selected" : "";
+  const selected = selectedItem("photo", photo.id) ? "is-selected" : "";
   const style = [
     `left:${photo.x}px`,
     `top:${photo.y}px`,
@@ -417,11 +496,89 @@ function freeCanvasPhoto(photo) {
   ].join(";");
 
   return `
-    <div class="free-photo ${selected}" data-surface="day" data-photo-id="${photo.id}" style="${style}">
+    <div class="canvas-item free-photo ${selected}" data-item-type="photo" data-item-id="${photo.id}" data-surface="day" data-photo-id="${photo.id}" style="${style}">
       <img src="${photo.src}" alt="" draggable="false" />
       <button class="delete-photo" type="button" data-action="delete-photo" aria-label="Delete photo">×</button>
       <span class="rotate-handle" aria-hidden="true">↻</span>
       <span class="resize-handle" aria-hidden="true"></span>
+    </div>
+  `;
+}
+
+function canvasElement(element) {
+  const selected = selectedItem(element.type, element.id) ? "is-selected" : "";
+  const baseStyle = [
+    `left:${element.x}px`,
+    `top:${element.y}px`,
+    `width:${element.width}px`,
+    `height:${element.height}px`,
+    `z-index:${element.zIndex}`,
+    `--rotation:${element.rotation}deg`
+  ];
+
+  if (element.type === "text") {
+    baseStyle.push(
+      `--font-size:${element.fontSize}px`,
+      `--font-family:${escapeHtml(element.fontFamily)}`,
+      `--font-weight:${escapeHtml(element.fontWeight)}`,
+      `--font-color:${escapeHtml(element.color)}`,
+      `--text-align:${escapeHtml(element.textAlign)}`,
+      `--letter-spacing:${escapeHtml(element.letterSpacing || "0")}`
+    );
+
+    return `
+      <div class="canvas-item canvas-text ${selected}" data-item-type="text" data-item-id="${element.id}" style="${baseStyle.join(";")}">
+        <span>${escapeHtml(element.content)}</span>
+        <button class="edit-element" type="button" data-action="edit-text-element" aria-label="Edit text">✎</button>
+        <button class="delete-photo" type="button" data-action="delete-element" aria-label="Delete text">×</button>
+        <span class="rotate-handle" aria-hidden="true">↻</span>
+        <span class="resize-handle" aria-hidden="true"></span>
+      </div>
+    `;
+  }
+
+  baseStyle.push(`--font-size:${element.fontSize}px`);
+
+  return `
+    <div class="canvas-item canvas-emoji ${selected}" data-item-type="emoji" data-item-id="${element.id}" style="${baseStyle.join(";")}">
+      <span>${escapeHtml(element.content)}</span>
+      <button class="delete-photo" type="button" data-action="delete-element" aria-label="Delete emoji">×</button>
+      <span class="rotate-handle" aria-hidden="true">↻</span>
+      <span class="resize-handle" aria-hidden="true"></span>
+    </div>
+  `;
+}
+
+function textToolbar() {
+  if (state.activePanel !== "text") return "";
+
+  return `
+    <div class="text-toolbar" aria-label="Text tools">
+      <div class="font-options">
+        <button type="button" data-action="text-style" data-style="classic">Classic</button>
+        <button type="button" data-action="text-style" data-style="signature">Signature</button>
+        <button type="button" data-action="text-style" data-style="editor">Editor</button>
+      </div>
+      <div class="text-tool-row">
+        <button type="button" data-action="text-color" aria-label="Change text color">Color</button>
+        <button type="button" data-action="text-align" aria-label="Change text alignment">Align</button>
+        <button type="button" data-action="text-size-down" aria-label="Decrease text size">A-</button>
+        <button type="button" data-action="text-size-up" aria-label="Increase text size">A+</button>
+        <button type="button" data-action="close-panel">Done</button>
+      </div>
+    </div>
+  `;
+}
+
+function emojiPanel() {
+  if (state.activePanel !== "emoji") return "";
+  const emojis = ["✨", "❤️", "😊", "☕️", "🌿", "🍀", "📍", "🎀", "🐶", "🍰", "🌙", "📷", "🧸", "📝"];
+
+  return `
+    <div class="emoji-panel" aria-label="Emoji stickers">
+      ${emojis.map((emoji) => `
+        <button type="button" data-action="add-emoji" data-emoji="${escapeHtml(emoji)}">${escapeHtml(emoji)}</button>
+      `).join("")}
     </div>
   `;
 }
@@ -431,6 +588,7 @@ function renderSingleDay() {
   if (!day) return renderEmptyDaybook();
 
   const safeNote = escapeHtml(noteFor(day));
+  const dayElements = elementsForDate(day.dateKey);
 
   return `
     <main class="phone-screen single-day-view" aria-label="Single Day Page">
@@ -446,8 +604,15 @@ function renderSingleDay() {
 
       <section class="free-canvas" aria-label="Free layout canvas">
         ${day.photos.map(freeCanvasPhoto).join("")}
+        ${dayElements.map(canvasElement).join("")}
+        <div class="floating-toolbox" aria-label="Canvas tools">
+          <button type="button" data-action="add-text" aria-label="Add text">Aa</button>
+          <button type="button" data-action="open-emoji-panel" aria-label="Add emoji">☺</button>
+        </div>
         <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
       </section>
+      ${textToolbar()}
+      ${emojiPanel()}
     </main>
 
     <dialog class="note-dialog" id="noteDialog">
@@ -474,8 +639,8 @@ function render() {
 
 function openDay(dayId) {
   state.activeDayId = dayId;
-  state.selectedPhotoId = "";
-  state.selectedSurface = "";
+  clearSelection();
+  state.activePanel = "";
   state.view = "single";
   render();
 }
@@ -513,13 +678,18 @@ function openPhotoDatabase() {
       return;
     }
 
-    const request = indexedDB.open(dbName, 2);
+    const request = indexedDB.open(dbName, 3);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(photoStoreName)) {
         const store = db.createObjectStore(photoStoreName, { keyPath: "id" });
         store.createIndex("dateKey", "dateKey", { unique: false });
         store.createIndex("addedAt", "addedAt", { unique: false });
+      }
+      if (!db.objectStoreNames.contains(elementStoreName)) {
+        const store = db.createObjectStore(elementStoreName, { keyPath: "id" });
+        store.createIndex("dateKey", "dateKey", { unique: false });
+        store.createIndex("type", "type", { unique: false });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -549,6 +719,24 @@ async function loadUserPhotos() {
   return records.sort((a, b) => b.addedAt.localeCompare(a.addedAt));
 }
 
+async function loadCanvasElements() {
+  if (state.storageMode === "localStorage") {
+    try {
+      return JSON.parse(localStorage.getItem(localElementsKey) || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  const transaction = state.db.transaction(elementStoreName, "readonly");
+  const request = transaction.objectStore(elementStoreName).getAll();
+  const records = await new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+  return records;
+}
+
 async function persistAllUserPhotos() {
   if (state.storageMode === "localStorage") {
     localStorage.setItem(localPhotosKey, JSON.stringify(state.userPhotos));
@@ -564,6 +752,24 @@ async function persistAllUserPhotos() {
 async function saveUserPhotos(records) {
   state.userPhotos = [...records, ...state.userPhotos].sort((a, b) => b.addedAt.localeCompare(a.addedAt));
   await persistAllUserPhotos();
+}
+
+async function saveCanvasElement(element) {
+  const currentIndex = state.canvasElements.findIndex((item) => item.id === element.id);
+  if (currentIndex >= 0) {
+    state.canvasElements[currentIndex] = element;
+  } else {
+    state.canvasElements.push(element);
+  }
+
+  if (state.storageMode === "localStorage") {
+    localStorage.setItem(localElementsKey, JSON.stringify(state.canvasElements));
+    return;
+  }
+
+  const transaction = state.db.transaction(elementStoreName, "readwrite");
+  transaction.objectStore(elementStoreName).put(element);
+  await transactionDone(transaction);
 }
 
 async function updateUserPhoto(photo) {
@@ -587,6 +793,19 @@ async function deleteUserPhoto(photoId) {
 
   const transaction = state.db.transaction(photoStoreName, "readwrite");
   transaction.objectStore(photoStoreName).delete(photoId);
+  await transactionDone(transaction);
+}
+
+async function deleteCanvasElement(elementId) {
+  state.canvasElements = state.canvasElements.filter((element) => element.id !== elementId);
+
+  if (state.storageMode === "localStorage") {
+    localStorage.setItem(localElementsKey, JSON.stringify(state.canvasElements));
+    return;
+  }
+
+  const transaction = state.db.transaction(elementStoreName, "readwrite");
+  transaction.objectStore(elementStoreName).delete(elementId);
   await transactionDone(transaction);
 }
 
@@ -679,8 +898,7 @@ async function handlePhotoSelection(event) {
 
   if (state.view === "single") {
     state.activeDayId = `user-${dateKey}`;
-    state.selectedPhotoId = imported[0].id;
-    state.selectedSurface = "day";
+    selectItem("photo", imported[0].id);
   }
 
   render();
@@ -694,8 +912,7 @@ function selectPhoto(photoId) {
   const photo = getUserPhoto(photoId);
   if (!photo) return;
 
-  state.selectedPhotoId = photoId;
-  state.selectedSurface = "day";
+  selectItem("photo", photoId);
   const maxZ = state.userPhotos.reduce((max, item) => Math.max(max, item.zIndex || 0), 0);
   photo.zIndex = maxZ + 1;
   updateUserPhoto(photo);
@@ -707,8 +924,7 @@ async function deleteSelectedPhoto(photoId) {
   if (!confirmed) return;
 
   await deleteUserPhoto(photoId);
-  state.selectedPhotoId = "";
-  state.selectedSurface = "";
+  clearSelection();
 
   const day = getDay();
   if (!day) {
@@ -719,62 +935,148 @@ async function deleteSelectedPhoto(photoId) {
   render();
 }
 
+async function deleteSelectedElement(elementId) {
+  const confirmed = window.confirm("Delete this element?");
+  if (!confirmed) return;
+
+  await deleteCanvasElement(elementId);
+  clearSelection();
+  render();
+}
+
+async function addTextElement() {
+  const day = getDay();
+  if (!day) return;
+
+  const element = defaultTextElement(day.dateKey);
+  await saveCanvasElement(element);
+  selectItem("text", element.id);
+  state.activePanel = "text";
+  render();
+}
+
+async function addEmojiElement(content) {
+  const day = getDay();
+  if (!day) return;
+
+  const element = defaultEmojiElement(day.dateKey, content);
+  await saveCanvasElement(element);
+  selectItem("emoji", element.id);
+  state.activePanel = "";
+  render();
+}
+
+async function editTextElement(elementId) {
+  const element = getCanvasElement(elementId);
+  if (!element || element.type !== "text") return;
+
+  const nextContent = window.prompt("Edit text", element.content);
+  if (nextContent === null) return;
+
+  element.content = nextContent.trim() || "Text";
+  await saveCanvasElement(element);
+  selectItem("text", element.id);
+  state.activePanel = "text";
+  render();
+}
+
+function selectedTextElement() {
+  if (state.selectedItemType !== "text") return null;
+  const element = getCanvasElement(state.selectedPhotoId);
+  return element?.type === "text" ? element : null;
+}
+
+async function updateSelectedTextElement(updater) {
+  const element = selectedTextElement();
+  if (!element) return;
+
+  updater(element);
+  await saveCanvasElement(element);
+  render();
+}
+
+function textStyle(styleId) {
+  return {
+    classic: {
+      fontFamily: "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
+      fontWeight: "600",
+      letterSpacing: "0"
+    },
+    signature: {
+      fontFamily: "Brush Script MT, cursive",
+      fontWeight: "400",
+      letterSpacing: "0"
+    },
+    editor: {
+      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+      fontWeight: "500",
+      letterSpacing: "0.02em"
+    }
+  }[styleId];
+}
+
 function surfaceDimensions(surface) {
   return { width: canvasWidth, height: canvasHeight };
 }
 
-function getInteractiveLayout(photoId, surface) {
-  const photo = getUserPhoto(photoId);
-  if (!photo) return null;
-
-  return photo;
+function getInteractiveLayout(itemId, itemType) {
+  return itemType === "photo" ? getUserPhoto(itemId) : getCanvasElement(itemId);
 }
 
-function maxZForSurface(surface) {
-  return state.userPhotos.reduce((max, item) => Math.max(max, item.zIndex || 0), 0);
+function itemAspectRatio(item, itemType) {
+  if (itemType === "photo") return item.aspectRatio || item.width / item.height || 1;
+  return item.width / item.height || 1;
 }
 
-async function persistInteractiveLayout(photoId, surface) {
-  const photo = getUserPhoto(photoId);
-  if (photo) await updateUserPhoto(photo);
+async function persistInteractiveLayout(itemId, itemType) {
+  if (itemType === "photo") {
+    const photo = getUserPhoto(itemId);
+    if (photo) await updateUserPhoto(photo);
+    return;
+  }
+
+  const element = getCanvasElement(itemId);
+  if (element) await saveCanvasElement(element);
 }
 
-function elementForPhoto(photoId, surface) {
-  return document.querySelector(`[data-surface="${surface}"][data-photo-id="${photoId}"]`);
+function elementForItem(itemId, itemType) {
+  return document.querySelector(`[data-item-type="${itemType}"][data-item-id="${itemId}"]`);
 }
 
-function startPhotoGesture(event, mode, photoId, surface = "day") {
-  const photo = getUserPhoto(photoId);
-  const layout = getInteractiveLayout(photoId, surface);
-  if (!photo || !layout) return;
+function startItemGesture(event, mode, itemId, itemType = "photo") {
+  const layout = getInteractiveLayout(itemId, itemType);
+  if (!layout) return;
 
   event.preventDefault();
-  state.selectedPhotoId = photoId;
-  state.selectedSurface = surface;
+  selectItem(itemType, itemId);
+  if (itemType === "text") state.activePanel = "text";
   gesture.active = true;
   gesture.mode = mode;
-  gesture.photoId = photoId;
-  gesture.surface = surface;
+  gesture.itemId = itemId;
+  gesture.itemType = itemType;
+  gesture.surface = "day";
   gesture.startClientX = event.clientX;
   gesture.startClientY = event.clientY;
   gesture.startX = layout.x;
   gesture.startY = layout.y;
   gesture.startWidth = layout.width;
   gesture.startHeight = layout.height;
-  gesture.aspectRatio = photo.aspectRatio || layout.width / layout.height || 1;
+  gesture.startFontSize = layout.fontSize || 0;
+  gesture.aspectRatio = itemAspectRatio(layout, itemType);
   gesture.startRotation = layout.rotation || 0;
 
-  const rect = event.currentTarget?.closest?.(".free-photo")?.getBoundingClientRect()
-    || elementForPhoto(photoId, surface)?.getBoundingClientRect();
+  const rect = event.currentTarget?.closest?.(".canvas-item")?.getBoundingClientRect()
+    || elementForItem(itemId, itemType)?.getBoundingClientRect();
   if (rect) {
     gesture.centerX = rect.left + rect.width / 2;
     gesture.centerY = rect.top + rect.height / 2;
     gesture.startAngle = Math.atan2(event.clientY - gesture.centerY, event.clientX - gesture.centerX);
   }
 
-  layout.zIndex = maxZForSurface(surface) + 1;
-  const element = elementForPhoto(photoId, surface);
-  document.querySelectorAll(".free-photo.is-selected").forEach((photoElement) => {
+  const day = getDay();
+  layout.zIndex = maxCanvasZIndex(day?.dateKey || layout.dateKey) + 1;
+  const element = elementForItem(itemId, itemType);
+  document.querySelectorAll(".canvas-item.is-selected").forEach((photoElement) => {
     photoElement.classList.remove("is-selected");
   });
   element?.classList.add("is-selected");
@@ -784,10 +1086,9 @@ function startPhotoGesture(event, mode, photoId, surface = "day") {
 function updateGesture(event) {
   if (!gesture.active) return;
 
-  const photo = getUserPhoto(gesture.photoId);
-  const layout = getInteractiveLayout(gesture.photoId, gesture.surface);
-  const element = elementForPhoto(gesture.photoId, gesture.surface);
-  if (!photo || !layout || !element) return;
+  const layout = getInteractiveLayout(gesture.itemId, gesture.itemType);
+  const element = elementForItem(gesture.itemId, gesture.itemType);
+  if (!layout || !element) return;
 
   const dx = event.clientX - gesture.startClientX;
   const dy = event.clientY - gesture.startClientY;
@@ -802,6 +1103,11 @@ function updateGesture(event) {
     const projectedDelta = Math.max(dx, dy * gesture.aspectRatio);
     layout.width = clamp(gesture.startWidth + projectedDelta, 72, dimensions.width - 24);
     layout.height = layout.width / gesture.aspectRatio;
+    if (gesture.itemType === "text" || gesture.itemType === "emoji") {
+      const scale = layout.width / gesture.startWidth;
+      layout.fontSize = clamp(Math.round((gesture.startFontSize || 24) * scale), 12, 96);
+      layout.height = gesture.itemType === "emoji" ? layout.fontSize * 1.2 : Math.max(36, layout.height);
+    }
     layout.x = clamp(layout.x, -40, dimensions.width - 40);
     layout.y = clamp(layout.y, -40, dimensions.height - 40);
   }
@@ -817,56 +1123,64 @@ function updateGesture(event) {
   element.style.width = `${layout.width}px`;
   element.style.height = `${layout.height}px`;
   element.style.setProperty("--rotation", `${layout.rotation}deg`);
+  if (layout.fontSize) element.style.setProperty("--font-size", `${layout.fontSize}px`);
 }
 
 function endGesture() {
   if (!gesture.active) return;
 
-  const photoId = gesture.photoId;
-  const surface = gesture.surface;
+  const itemId = gesture.itemId;
+  const itemType = gesture.itemType;
   gesture.active = false;
   gesture.mode = "";
-  gesture.photoId = "";
+  gesture.itemId = "";
+  gesture.itemType = "";
+  gesture.startFontSize = 0;
   gesture.surface = "";
 
-  if (photoId) persistInteractiveLayout(photoId, surface);
+  if (itemId) persistInteractiveLayout(itemId, itemType);
 }
 
 document.addEventListener("pointerdown", (event) => {
+  if (event.target.closest(".floating-toolbox, .text-toolbar, .emoji-panel, .canvas-add-button, .edit-element")) return;
+
   const deleteButton = event.target.closest(".delete-photo");
   if (deleteButton) {
-    const photoId = deleteButton.closest(".free-photo")?.dataset.photoId;
-    if (photoId) deleteSelectedPhoto(photoId);
+    const owner = deleteButton.closest(".canvas-item");
+    const itemId = owner?.dataset.itemId;
+    const itemType = owner?.dataset.itemType;
+    if (itemType === "photo" && itemId) deleteSelectedPhoto(itemId);
+    if ((itemType === "text" || itemType === "emoji") && itemId) deleteSelectedElement(itemId);
     return;
   }
 
   const resizeHandle = event.target.closest(".resize-handle");
   if (resizeHandle) {
-    const owner = resizeHandle.closest(".free-photo");
-    const photoId = owner?.dataset.photoId;
-    const surface = owner?.dataset.surface || "day";
-    if (photoId) startPhotoGesture(event, "resize", photoId, surface);
+    const owner = resizeHandle.closest(".canvas-item");
+    const itemId = owner?.dataset.itemId;
+    const itemType = owner?.dataset.itemType || "photo";
+    if (itemId) startItemGesture(event, "resize", itemId, itemType);
     return;
   }
 
   const rotateHandle = event.target.closest(".rotate-handle");
   if (rotateHandle) {
-    const owner = rotateHandle.closest(".free-photo");
-    const photoId = owner?.dataset.photoId;
-    const surface = owner?.dataset.surface || "day";
-    if (photoId) startPhotoGesture(event, "rotate", photoId, surface);
+    const owner = rotateHandle.closest(".canvas-item");
+    const itemId = owner?.dataset.itemId;
+    const itemType = owner?.dataset.itemType || "photo";
+    if (itemId) startItemGesture(event, "rotate", itemId, itemType);
     return;
   }
 
-  const freePhoto = event.target.closest(".free-photo");
-  if (freePhoto) {
-    startPhotoGesture(event, "drag", freePhoto.dataset.photoId, freePhoto.dataset.surface || "day");
+  const canvasItem = event.target.closest(".canvas-item");
+  if (canvasItem) {
+    startItemGesture(event, "drag", canvasItem.dataset.itemId, canvasItem.dataset.itemType || "photo");
     return;
   }
 
   if (event.target.classList.contains("free-canvas") && state.selectedPhotoId) {
-    state.selectedPhotoId = "";
-    state.selectedSurface = "";
+    clearSelection();
+    state.activePanel = "";
     render();
   }
 });
@@ -888,22 +1202,81 @@ document.addEventListener("click", (event) => {
 
   const action = actionTarget.dataset.action;
   if (action === "open-daybook") {
-    state.selectedPhotoId = "";
-    state.selectedSurface = "";
+    clearSelection();
+    state.activePanel = "";
     state.view = "daybook";
   }
   if (action === "home") {
-    state.selectedPhotoId = "";
-    state.selectedSurface = "";
+    clearSelection();
+    state.activePanel = "";
     state.view = "home";
   }
   if (action === "daybook") {
-    state.selectedPhotoId = "";
-    state.selectedSurface = "";
+    clearSelection();
+    state.activePanel = "";
     state.view = "daybook";
   }
   if (action === "edit-note") {
     editNote();
+    return;
+  }
+  if (action === "add-text") {
+    addTextElement();
+    return;
+  }
+  if (action === "open-emoji-panel") {
+    state.activePanel = state.activePanel === "emoji" ? "" : "emoji";
+    render();
+    return;
+  }
+  if (action === "add-emoji") {
+    addEmojiElement(actionTarget.dataset.emoji || "✨");
+    return;
+  }
+  if (action === "edit-text-element") {
+    const itemId = actionTarget.closest(".canvas-item")?.dataset.itemId;
+    if (itemId) editTextElement(itemId);
+    return;
+  }
+  if (action === "delete-photo" || action === "delete-element") return;
+  if (action === "text-style") {
+    const style = textStyle(actionTarget.dataset.style);
+    if (style) updateSelectedTextElement((element) => Object.assign(element, style));
+    return;
+  }
+  if (action === "text-color") {
+    const colors = ["#222222", "#777777", "#ffffff", "#f5f1ea", "#d94a4a"];
+    updateSelectedTextElement((element) => {
+      const index = colors.indexOf(element.color);
+      element.color = colors[(index + 1) % colors.length];
+    });
+    return;
+  }
+  if (action === "text-align") {
+    const alignments = ["left", "center", "right"];
+    updateSelectedTextElement((element) => {
+      const index = alignments.indexOf(element.textAlign);
+      element.textAlign = alignments[(index + 1) % alignments.length];
+    });
+    return;
+  }
+  if (action === "text-size-down") {
+    updateSelectedTextElement((element) => {
+      element.fontSize = clamp((element.fontSize || 24) - 2, 12, 96);
+      element.height = Math.max(34, element.fontSize * 1.6);
+    });
+    return;
+  }
+  if (action === "text-size-up") {
+    updateSelectedTextElement((element) => {
+      element.fontSize = clamp((element.fontSize || 24) + 2, 12, 96);
+      element.height = Math.max(34, element.fontSize * 1.6);
+    });
+    return;
+  }
+  if (action === "close-panel") {
+    state.activePanel = "";
+    render();
     return;
   }
   if (action === "add-photo") {
@@ -913,6 +1286,12 @@ document.addEventListener("click", (event) => {
   }
 
   render();
+});
+
+document.addEventListener("dblclick", (event) => {
+  const textItem = event.target.closest('[data-item-type="text"]');
+  if (!textItem) return;
+  editTextElement(textItem.dataset.itemId);
 });
 
 document.querySelector("#photoInput").addEventListener("change", handlePhotoSelection);
@@ -925,6 +1304,7 @@ async function initApp() {
   }
 
   state.userPhotos = await loadUserPhotos();
+  state.canvasElements = await loadCanvasElements();
   ensureLayoutsForPhotos();
   render();
 }

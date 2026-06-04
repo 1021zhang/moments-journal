@@ -449,12 +449,16 @@ button {
   touch-action: none;
 }
 
-.free-photo {
+.canvas-item {
   position: absolute;
   transform: rotate(var(--rotation));
   transform-origin: center center;
   touch-action: none;
   user-select: none;
+}
+
+.free-photo {
+  position: absolute;
 }
 
 .free-photo img {
@@ -467,20 +471,51 @@ button {
   pointer-events: none;
 }
 
-.free-photo.is-selected img {
+.free-photo.is-selected img,
+.canvas-text.is-selected,
+.canvas-emoji.is-selected {
   outline: 1px solid rgba(0, 0, 0, 0.42);
   outline-offset: 3px;
 }
 
+.canvas-text {
+  color: var(--font-color);
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+  font-weight: var(--font-weight);
+  letter-spacing: var(--letter-spacing);
+  line-height: 1.22;
+  text-align: var(--text-align);
+  white-space: pre-wrap;
+}
+
+.canvas-text > span {
+  display: block;
+  width: 100%;
+  min-height: 100%;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.45);
+}
+
+.canvas-emoji {
+  display: grid;
+  place-items: center;
+  color: #222222;
+  font-size: var(--font-size);
+  line-height: 1;
+}
+
 .resize-handle,
 .rotate-handle,
-.delete-photo {
+.delete-photo,
+.edit-element {
   display: none;
 }
 
-.free-photo.is-selected .resize-handle,
-.free-photo.is-selected .rotate-handle,
-.free-photo.is-selected .delete-photo {
+.canvas-item.is-selected .resize-handle,
+.canvas-item.is-selected .rotate-handle,
+.canvas-item.is-selected .delete-photo,
+.canvas-item.is-selected .edit-element {
   display: grid;
 }
 
@@ -531,6 +566,49 @@ button {
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
 }
 
+.edit-element {
+  position: absolute;
+  left: 18px;
+  top: -13px;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  background: #ffffff;
+  color: #2d2d2d;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+}
+
+.floating-toolbox {
+  position: absolute;
+  top: 92px;
+  right: 4px;
+  z-index: 1200;
+  display: grid;
+  gap: 10px;
+}
+
+.floating-toolbox button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 50%;
+  background: rgba(248, 248, 248, 0.92);
+  color: #2d2d2d;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+}
+
 .canvas-add-button {
   position: absolute;
   right: 4px;
@@ -547,6 +625,61 @@ button {
   font-weight: 300;
   line-height: 1;
   box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08);
+}
+
+.text-toolbar,
+.emoji-panel {
+  position: sticky;
+  bottom: 8px;
+  z-index: 1300;
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(14px);
+}
+
+.font-options,
+.text-tool-row,
+.emoji-panel {
+  display: flex;
+  gap: 8px;
+}
+
+.font-options {
+  margin-bottom: 8px;
+}
+
+.font-options button,
+.text-tool-row button,
+.emoji-panel button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 999px;
+  background: #f7f7f7;
+  color: #2d2d2d;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.text-tool-row {
+  flex-wrap: wrap;
+}
+
+.emoji-panel {
+  flex-wrap: wrap;
+}
+
+.emoji-panel button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  padding: 0;
+  font-size: 20px;
 }
 
 .note-dialog {
