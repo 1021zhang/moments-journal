@@ -30,6 +30,11 @@ const state = {
   selectedItemType: "",
   activePanel: "",
   stickerSheetState: "half",
+  textComposer: {
+    active: false,
+    editingId: "",
+    value: ""
+  },
   pendingImportDateKey: "",
   notes: loadNotes(),
   userPhotos: [],
@@ -161,19 +166,20 @@ function maxCanvasZIndex(dateKey) {
   return Math.max(photoMax, elementMax);
 }
 
-function defaultTextElement(dateKey) {
+function defaultTextElement(dateKey, content = "Text") {
+  const textWidth = clamp(content.length * 22, 96, 300);
   return {
     id: uid("text"),
     type: "text",
-    content: "Text",
+    content,
     dateKey,
-    x: 126,
-    y: 216,
-    width: 108,
-    height: 44,
+    x: Math.round((canvasWidth - textWidth) / 2),
+    y: 248,
+    width: textWidth,
+    height: 52,
     rotation: 0,
     zIndex: maxCanvasZIndex(dateKey) + 1,
-    fontSize: 32,
+    fontSize: 34,
     fontFamily: "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
     fontWeight: "600",
     color: "#222222",
@@ -568,31 +574,6 @@ function canvasElement(element) {
   `;
 }
 
-function textToolbar() {
-  if (state.activePanel !== "text") return "";
-
-  return `
-    <div class="text-toolbar" aria-label="Text tools">
-      <div class="font-options">
-        <button type="button" data-action="text-style" data-style="classic">Classic</button>
-        <button type="button" data-action="text-style" data-style="signature">Signature</button>
-        <button type="button" data-action="text-style" data-style="editor">Editor</button>
-        <button type="button" data-action="text-style" data-style="poster">Poster</button>
-      </div>
-      <div class="text-tool-row">
-        <button class="edit-text-action" type="button" data-action="edit-selected-text">Edit text</button>
-        ${["#222222", "#777777", "#ffffff", "#f5f1ea", "#d94a4a", "#4f6f52"].map((color) => `
-          <button class="color-dot" type="button" data-action="text-color" data-color="${color}" style="--dot-color:${color}" aria-label="Set text color"></button>
-        `).join("")}
-        <button type="button" data-action="text-align" aria-label="Change text alignment">Align</button>
-        <button type="button" data-action="text-size-down" aria-label="Decrease text size">A-</button>
-        <button type="button" data-action="text-size-up" aria-label="Increase text size">A+</button>
-        <button type="button" data-action="close-panel">Done</button>
-      </div>
-    </div>
-  `;
-}
-
 function stickerLibrary() {
   const customStickers = state.customStickers
     .slice()
@@ -617,7 +598,7 @@ function stickerSheet() {
       <header class="sticker-sheet-header">
         <button class="sheet-grabber" type="button" data-action="toggle-sticker-sheet" aria-label="Expand stickers"></button>
         <h2>Stickers</h2>
-        <button class="custom-sticker-button" type="button" data-action="add-custom-sticker" aria-label="Add custom sticker">+</button>
+        <span aria-hidden="true"></span>
       </header>
       <div class="sticker-grid">
         ${stickers.map((sticker) => `
@@ -638,6 +619,23 @@ function stickerSheet() {
         `).join("")}
       </div>
     </section>
+  `;
+}
+
+function textComposerOverlay() {
+  if (!state.textComposer.active) return "";
+
+  return `
+    <div class="text-composer-overlay" aria-label="Text input mode">
+      <button class="text-composer-done" type="button" data-action="complete-text-compose">完成</button>
+      <textarea
+        id="textComposerInput"
+        class="text-composer-input"
+        data-text-composer
+        placeholder="Text"
+        rows="2"
+      >${escapeHtml(state.textComposer.value)}</textarea>
+    </div>
   `;
 }
 
@@ -669,8 +667,8 @@ function renderSingleDay() {
         </div>
         <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
       </section>
-      ${textToolbar()}
       ${stickerSheet()}
+      ${textComposerOverlay()}
     </main>
 
     <dialog class="note-dialog" id="noteDialog">
@@ -1035,10 +1033,65 @@ async function addTextElement() {
   const day = getDay();
   if (!day) return;
 
-  const element = defaultTextElement(day.dateKey);
+  openTextComposer();
+}
+
+function focusTextComposer() {
+  window.setTimeout(() => {
+    const input = document.querySelector("#textComposerInput");
+    if (!input) return;
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  }, 0);
+}
+
+function openTextComposer(editingId = "") {
+  const element = editingId ? getCanvasElement(editingId) : null;
+  state.activePanel = "";
+  state.textComposer = {
+    active: true,
+    editingId: element?.type === "text" ? element.id : "",
+    value: element?.type === "text" ? element.content : ""
+  };
+  if (element?.type === "text") {
+    selectItem("text", element.id);
+  } else {
+    clearSelection();
+  }
+  render();
+  focusTextComposer();
+}
+
+async function completeTextComposer() {
+  const value = state.textComposer.value.trim();
+  const editingId = state.textComposer.editingId;
+  state.textComposer = { active: false, editingId: "", value: "" };
+
+  if (!value) {
+    render();
+    return;
+  }
+
+  const editingElement = editingId ? getCanvasElement(editingId) : null;
+  if (editingElement?.type === "text") {
+    editingElement.content = value;
+    editingElement.width = clamp(value.length * 22, 96, 300);
+    editingElement.height = Math.max(52, editingElement.fontSize * 1.55);
+    await saveCanvasElement(editingElement);
+    selectItem("text", editingElement.id);
+    render();
+    return;
+  }
+
+  const day = getDay();
+  if (!day) {
+    render();
+    return;
+  }
+
+  const element = defaultTextElement(day.dateKey, value);
   await saveCanvasElement(element);
   selectItem("text", element.id);
-  state.activePanel = "text";
   render();
 }
 
@@ -1083,44 +1136,7 @@ async function editTextElement(elementId) {
   const element = getCanvasElement(elementId);
   if (!element || element.type !== "text") return;
 
-  selectItem("text", element.id);
-  state.activePanel = "text";
-  beginInlineTextEdit(element.id);
-}
-
-function beginInlineTextEdit(elementId) {
-  const element = getCanvasElement(elementId);
-  if (!element || element.type !== "text") return;
-
-  selectItem("text", element.id);
-  const wrapper = elementForItem(element.id, "text");
-  const editable = wrapper?.querySelector(".text-content");
-  if (!editable) return;
-
-  editable.setAttribute("contenteditable", "true");
-  editable.focus();
-
-  const selection = window.getSelection();
-  const range = document.createRange();
-  range.selectNodeContents(editable);
-  selection.removeAllRanges();
-  selection.addRange(range);
-
-  const finishEdit = async () => {
-    editable.removeAttribute("contenteditable");
-    element.content = editable.textContent.trim() || "Text";
-    await saveCanvasElement(element);
-    selectItem("text", element.id);
-    state.activePanel = "text";
-    render();
-  };
-
-  editable.addEventListener("blur", finishEdit, { once: true });
-  editable.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" || event.shiftKey) return;
-    event.preventDefault();
-    editable.blur();
-  });
+  openTextComposer(element.id);
 }
 
 function selectedTextElement() {
@@ -1290,7 +1306,7 @@ function endGesture() {
 }
 
 document.addEventListener("pointerdown", (event) => {
-  if (event.target.closest('[contenteditable="true"], .floating-toolbox, .text-toolbar, .sticker-sheet, .sticker-backdrop, .canvas-add-button')) return;
+  if (event.target.closest(".text-composer-overlay, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-add-button")) return;
 
   const deleteButton = event.target.closest(".delete-photo");
   if (deleteButton) {
@@ -1369,7 +1385,15 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (action === "add-text") {
-    addTextElement();
+    if (state.selectedItemType === "text" && state.selectedPhotoId) {
+      openTextComposer(state.selectedPhotoId);
+    } else {
+      addTextElement();
+    }
+    return;
+  }
+  if (action === "complete-text-compose") {
+    completeTextComposer();
     return;
   }
   if (action === "open-sticker-panel") {
@@ -1380,10 +1404,6 @@ document.addEventListener("click", (event) => {
   if (action === "toggle-sticker-sheet") {
     state.stickerSheetState = state.stickerSheetState === "full" ? "half" : "full";
     render();
-    return;
-  }
-  if (action === "add-custom-sticker") {
-    openCustomStickerPicker();
     return;
   }
   if (action === "add-sticker") {
@@ -1462,6 +1482,12 @@ document.addEventListener("dblclick", (event) => {
   const textItem = event.target.closest('[data-item-type="text"]');
   if (!textItem) return;
   editTextElement(textItem.dataset.itemId);
+});
+
+document.addEventListener("input", (event) => {
+  const composer = event.target.closest("[data-text-composer]");
+  if (!composer) return;
+  state.textComposer.value = composer.value;
 });
 
 document.querySelector("#photoInput").addEventListener("change", handlePhotoSelection);
