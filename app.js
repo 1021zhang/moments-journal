@@ -1312,10 +1312,42 @@ async function initApp() {
 function registerServiceWorker() {
   if (!("serviceWorker" in navigator)) return;
 
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing || !hadController) return;
+    refreshing = true;
+    console.log("Moments Journal service worker updated. Reloading for the latest version.");
+    window.location.reload();
+  });
+
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./service-worker.js")
       .then((registration) => {
         console.log("Moments Journal service worker registered.", registration.scope);
+
+        if (registration.waiting) {
+          console.log("Moments Journal service worker update is waiting. Activating now.");
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+
+        registration.addEventListener("updatefound", () => {
+          const newWorker = registration.installing;
+          if (!newWorker) return;
+
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state !== "installed") return;
+
+            if (navigator.serviceWorker.controller) {
+              console.log("Moments Journal service worker updated. Activating new version.");
+              newWorker.postMessage({ type: "SKIP_WAITING" });
+            } else {
+              console.log("Moments Journal service worker installed for offline use.");
+            }
+          });
+        });
+
+        registration.update();
       })
       .catch((error) => {
         console.warn("Moments Journal service worker registration failed.", error);
