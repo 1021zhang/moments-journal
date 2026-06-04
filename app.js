@@ -166,20 +166,29 @@ function maxCanvasZIndex(dateKey) {
   return Math.max(photoMax, elementMax);
 }
 
+function measureTextLayout(content, fontSize = 34) {
+  const lines = String(content || "Text").split("\n");
+  const longestLine = lines.reduce((longest, line) => Math.max(longest, Array.from(line || " ").length), 1);
+  const width = clamp(Math.ceil(longestLine * fontSize * 0.62), 44, 300);
+  const height = Math.ceil(lines.length * fontSize * 1.18);
+  return { width, height };
+}
+
 function defaultTextElement(dateKey, content = "Text") {
-  const textWidth = clamp(content.length * 22, 96, 300);
+  const fontSize = 34;
+  const size = measureTextLayout(content, fontSize);
   return {
     id: uid("text"),
     type: "text",
     content,
     dateKey,
-    x: Math.round((canvasWidth - textWidth) / 2),
+    x: Math.round((canvasWidth - size.width) / 2),
     y: 248,
-    width: textWidth,
-    height: 52,
+    width: size.width,
+    height: size.height,
     rotation: 0,
     zIndex: maxCanvasZIndex(dateKey) + 1,
-    fontSize: 34,
+    fontSize,
     fontFamily: "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
     fontWeight: "600",
     color: "#222222",
@@ -1074,9 +1083,10 @@ async function completeTextComposer() {
 
   const editingElement = editingId ? getCanvasElement(editingId) : null;
   if (editingElement?.type === "text") {
+    const size = measureTextLayout(value, editingElement.fontSize || 34);
     editingElement.content = value;
-    editingElement.width = clamp(value.length * 22, 96, 300);
-    editingElement.height = Math.max(52, editingElement.fontSize * 1.55);
+    editingElement.width = size.width;
+    editingElement.height = size.height;
     await saveCanvasElement(editingElement);
     selectItem("text", editingElement.id);
     render();
@@ -1270,7 +1280,13 @@ function updateGesture(event) {
     if (gesture.itemType === "text" || gesture.itemType === "emoji" || gesture.itemType === "sticker") {
       const scale = layout.width / gesture.startWidth;
       layout.fontSize = clamp(Math.round((gesture.startFontSize || 24) * scale), 12, 96);
-      layout.height = gesture.itemType === "text" ? Math.max(36, layout.height) : layout.fontSize * 1.25;
+      if (gesture.itemType === "text") {
+        const size = measureTextLayout(layout.content, layout.fontSize);
+        layout.width = size.width;
+        layout.height = size.height;
+      } else {
+        layout.height = layout.fontSize * 1.25;
+      }
     }
     layout.x = clamp(layout.x, -40, dimensions.width - 40);
     layout.y = clamp(layout.y, -40, dimensions.height - 40);
