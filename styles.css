@@ -455,6 +455,19 @@ button {
   transform-origin: center center;
   touch-action: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    filter 180ms ease,
+    opacity 180ms ease,
+    transform 150ms ease-out;
+}
+
+.canvas-item.is-selected {
+  transform: rotate(var(--rotation)) scale(1.01);
+}
+
+.free-canvas:has(.canvas-item.is-selected) .canvas-item:not(.is-selected) {
+  opacity: 0.94;
 }
 
 .canvas-item.is-dragging {
@@ -477,12 +490,19 @@ button {
   object-fit: contain;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.05);
   pointer-events: none;
+  transition:
+    box-shadow 180ms ease-out,
+    filter 180ms ease-out;
 }
 
 .free-photo.is-selected img,
 .canvas-sticker.is-selected {
-  outline: 1px solid rgba(0, 0, 0, 0.18);
-  outline-offset: 3px;
+  outline: 1px solid rgba(0, 0, 0, 0.14);
+  outline-offset: 4px;
+}
+
+.free-photo.is-selected img {
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.1), 0 3px 8px rgba(0, 0, 0, 0.05);
 }
 
 .canvas-text-element {
@@ -510,6 +530,9 @@ button {
   color: var(--sticker-color);
   font-size: var(--font-size);
   line-height: 1;
+  transition:
+    filter 180ms ease-out,
+    outline-color 160ms ease-out;
 }
 
 .canvas-sticker.text-sticker {
@@ -533,17 +556,26 @@ button {
   object-fit: contain;
   filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.12));
   pointer-events: none;
+  transition: filter 180ms ease-out;
 }
 
 .resize-handle,
 .rotate-handle,
 .delete-photo {
-  display: none;
+  display: grid;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.88);
+  transition:
+    opacity 120ms ease 30ms,
+    transform 120ms ease 30ms;
 }
 
 .canvas-item.is-selected .resize-handle,
 .canvas-item.is-selected .rotate-handle {
-  display: grid;
+  opacity: 1;
+  pointer-events: auto;
+  transform: scale(1);
 }
 
 .resize-handle {
@@ -638,11 +670,11 @@ button {
 
 .delete-zone {
   position: fixed;
-  left: 16px;
-  right: 16px;
+  left: 24px;
+  right: 24px;
   bottom: max(14px, env(safe-area-inset-bottom));
   z-index: 9999;
-  height: 104px;
+  height: 106px;
   pointer-events: none;
   opacity: 0;
   transform: translateY(8px) scale(0.98);
@@ -661,15 +693,16 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 10px;
   width: 100%;
   height: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 26px;
-  background: rgba(35, 35, 40, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 28px;
+  background: rgba(18, 18, 20, 0.82);
   color: #ffffff;
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.16);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
   backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   transition:
     background 160ms ease,
     border-color 160ms ease,
@@ -683,40 +716,43 @@ button {
   transform: translateY(-2px) scale(1.02);
 }
 
-.delete-zone-icon {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  color: rgba(255, 255, 255, 0.88);
-  line-height: 1;
+.delete-icon-circle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid rgba(255, 255, 255, 0.78);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.92);
   transition:
+    border-color 160ms ease,
     color 160ms ease,
     transform 160ms ease;
 }
 
-.delete-zone-icon svg {
+.delete-icon-circle svg {
   display: block;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.65;
+  stroke-width: 1.9;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.delete-zone.is-active .delete-zone-icon,
-.delete-zone.is-over .delete-zone-icon {
+.delete-zone.is-active .delete-icon-circle,
+.delete-zone.is-over .delete-icon-circle {
+  border-color: rgba(255, 255, 255, 0.96);
   color: #ffffff;
-  transform: scale(1.08);
+  transform: scale(1.06);
 }
 
 .delete-zone-copy {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
-  font-weight: 500;
+  color: rgba(255, 255, 255, 0.94);
+  font-size: 13px;
+  font-weight: 600;
   letter-spacing: 0;
   line-height: 1.15;
   transition: color 160ms ease;

@@ -686,7 +686,8 @@ function renderSingleDay() {
       </section>
       <div class="delete-zone" aria-hidden="true">
         <div class="delete-zone-inner">
-          <span class="delete-zone-icon delete-icon" aria-hidden="true">
+          <span class="delete-zone-copy delete-label" data-idle-copy="拖到这里删除" data-active-copy="松手删除">拖到这里删除</span>
+          <span class="delete-icon-circle" aria-hidden="true">
             <svg viewBox="0 0 24 24" focusable="false">
               <path d="M8.5 7.5V5.8c0-.7.5-1.2 1.2-1.2h4.6c.7 0 1.2.5 1.2 1.2v1.7" />
               <path d="M6.4 7.5h11.2" />
@@ -695,7 +696,6 @@ function renderSingleDay() {
               <path d="M13.6 11.4v5.8" />
             </svg>
           </span>
-          <span class="delete-zone-copy delete-label" data-idle-copy="拖到这里删除" data-active-copy="松手删除">拖到这里删除</span>
         </div>
       </div>
       ${stickerSheet()}
