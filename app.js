@@ -5,7 +5,7 @@ const photoStoreName = "photos";
 const canvasWidth = 358;
 const canvasHeight = 560;
 const stackPreviewWidth = 358;
-const stackPreviewHeight = 360;
+const stackPreviewHeight = 390;
 
 const mockPhotos = [
   { id: "mock-cafe", type: "mock", caption: "cafe", src: "https://picsum.photos/seed/moments-cafe/320/320" },
@@ -206,8 +206,8 @@ function generateStackLayout(photo, index, count) {
   const size = sizeForStackPhoto(photo, preset.width);
 
   return {
-    x: clamp(preset.x, 0, stackPreviewWidth - 40),
-    y: clamp(preset.y, 8, stackPreviewHeight - 40),
+    x: clamp(preset.x, 0, stackPreviewWidth - size.width - 8),
+    y: clamp(preset.y, 8, stackPreviewHeight - size.height - 14),
     width: Math.round(size.width),
     height: Math.round(size.height),
     rotation: preset.rotation,
@@ -344,8 +344,10 @@ function renderHome() {
     <main class="memory-home" aria-label="Memory Stack">
       <h1 class="sr-only">Memory Stack</h1>
 
-      <button class="memory-stack-preview" type="button" data-action="open-daybook" aria-label="Open daybook">
-        ${photos.map((photo, index) => memoryStackPhoto(photo, index, photos.length)).join("")}
+      <button class="memory-stack-area" type="button" data-action="open-daybook" aria-label="Open daybook">
+        <span class="memory-stack-stage">
+          ${photos.map((photo, index) => memoryStackPhoto(photo, index, photos.length)).join("")}
+        </span>
       </button>
 
       <button class="memory-caption" type="button" data-action="open-daybook">A lot happened recently.</button>

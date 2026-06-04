@@ -134,18 +134,24 @@ button {
   background: #ffffff;
 }
 
-.memory-stack-preview {
-  position: relative;
+.memory-stack-area {
   display: block;
-  flex: 0 0 360px;
+  flex: 0 0 390px;
   width: 100%;
-  height: 360px;
+  height: 390px;
   padding: 0;
   border: 0;
-  margin: 0 auto;
+  margin: 0 auto 56px;
   background: #ffffff;
-  overflow: hidden;
+  overflow: visible;
   touch-action: manipulation;
+}
+
+.memory-stack-stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .memory-stack-photo {
@@ -166,12 +172,12 @@ button {
   width: 100%;
   height: 100%;
   border-radius: 3px;
-  object-fit: cover;
+  object-fit: contain;
   pointer-events: none;
 }
 
 .memory-caption {
-  margin: 20px 0 24px;
+  margin: 0 0 32px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -602,9 +608,10 @@ button {
     padding-top: 10vh;
   }
 
-  .memory-stack-preview {
-    flex-basis: 340px;
-    height: 340px;
+  .memory-stack-area {
+    flex-basis: 390px;
+    height: 390px;
+    margin-bottom: 48px;
   }
 
   .strip-photo {
