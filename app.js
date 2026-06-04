@@ -164,13 +164,13 @@ function defaultTextElement(dateKey) {
     type: "text",
     content: "Text",
     dateKey,
-    x: 112,
+    x: 126,
     y: 216,
-    width: 138,
-    height: 42,
+    width: 108,
+    height: 44,
     rotation: 0,
     zIndex: maxCanvasZIndex(dateKey) + 1,
-    fontSize: 24,
+    fontSize: 32,
     fontFamily: "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
     fontWeight: "600",
     color: "#222222",
@@ -532,8 +532,7 @@ function canvasElement(element) {
 
     return `
       <div class="canvas-item canvas-text ${selected}" data-item-type="text" data-item-id="${element.id}" style="${baseStyle.join(";")}">
-        <span>${escapeHtml(element.content)}</span>
-        <button class="edit-element" type="button" data-action="edit-text-element" aria-label="Edit text">✎</button>
+        <span class="text-content">${escapeHtml(element.content)}</span>
         <button class="delete-photo" type="button" data-action="delete-element" aria-label="Delete text">×</button>
         <span class="rotate-handle" aria-hidden="true">↻</span>
         <span class="resize-handle" aria-hidden="true"></span>
@@ -1009,14 +1008,44 @@ async function editTextElement(elementId) {
   const element = getCanvasElement(elementId);
   if (!element || element.type !== "text") return;
 
-  const nextContent = window.prompt("Edit text", element.content);
-  if (nextContent === null) return;
-
-  element.content = nextContent.trim() || "Text";
-  await saveCanvasElement(element);
   selectItem("text", element.id);
   state.activePanel = "text";
-  render();
+  beginInlineTextEdit(element.id);
+}
+
+function beginInlineTextEdit(elementId) {
+  const element = getCanvasElement(elementId);
+  if (!element || element.type !== "text") return;
+
+  selectItem("text", element.id);
+  const wrapper = elementForItem(element.id, "text");
+  const editable = wrapper?.querySelector(".text-content");
+  if (!editable) return;
+
+  editable.setAttribute("contenteditable", "true");
+  editable.focus();
+
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(editable);
+  selection.removeAllRanges();
+  selection.addRange(range);
+
+  const finishEdit = async () => {
+    editable.removeAttribute("contenteditable");
+    element.content = editable.textContent.trim() || "Text";
+    await saveCanvasElement(element);
+    selectItem("text", element.id);
+    state.activePanel = "text";
+    render();
+  };
+
+  editable.addEventListener("blur", finishEdit, { once: true });
+  editable.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" || event.shiftKey) return;
+    event.preventDefault();
+    editable.blur();
+  });
 }
 
 function selectedTextElement() {
@@ -1186,7 +1215,7 @@ function endGesture() {
 }
 
 document.addEventListener("pointerdown", (event) => {
-  if (event.target.closest(".floating-toolbox, .text-toolbar, .sticker-sheet, .sticker-backdrop, .canvas-add-button, .edit-element")) return;
+  if (event.target.closest('[contenteditable="true"], .floating-toolbox, .text-toolbar, .sticker-sheet, .sticker-backdrop, .canvas-add-button')) return;
 
   const deleteButton = event.target.closest(".delete-photo");
   if (deleteButton) {

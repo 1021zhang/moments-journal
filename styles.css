@@ -474,11 +474,16 @@ button {
 .free-photo.is-selected img,
 .canvas-text.is-selected,
 .canvas-sticker.is-selected {
-  outline: 1px solid rgba(0, 0, 0, 0.42);
+  outline: 1px solid rgba(0, 0, 0, 0.18);
   outline-offset: 3px;
 }
 
 .canvas-text {
+  display: inline-block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   color: var(--font-color);
   font-family: var(--font-family);
   font-size: var(--font-size);
@@ -489,12 +494,21 @@ button {
   white-space: pre-wrap;
 }
 
-.canvas-text > span {
-  display: block;
+.canvas-text .text-content {
+  display: inline-block;
   width: 100%;
   min-height: 100%;
   overflow-wrap: anywhere;
-  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.45);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+.canvas-text .text-content[contenteditable="true"] {
+  outline: none;
+  caret-color: currentColor;
 }
 
 .canvas-sticker {
@@ -520,15 +534,13 @@ button {
 
 .resize-handle,
 .rotate-handle,
-.delete-photo,
-.edit-element {
+.delete-photo {
   display: none;
 }
 
 .canvas-item.is-selected .resize-handle,
 .canvas-item.is-selected .rotate-handle,
-.canvas-item.is-selected .delete-photo,
-.canvas-item.is-selected .edit-element {
+.canvas-item.is-selected .delete-photo {
   display: grid;
 }
 
@@ -574,24 +586,6 @@ button {
   background: #ffffff;
   color: #2d2d2d;
   font-size: 17px;
-  font-weight: 300;
-  line-height: 1;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
-}
-
-.edit-element {
-  position: absolute;
-  left: 18px;
-  top: -13px;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 50%;
-  background: #ffffff;
-  color: #2d2d2d;
-  font-size: 13px;
   font-weight: 300;
   line-height: 1;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
