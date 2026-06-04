@@ -10,6 +10,7 @@ const canvasWidth = 358;
 const canvasHeight = 560;
 const stackPreviewWidth = 358;
 const stackPreviewHeight = 390;
+const deleteZoneHeight = 120;
 
 const mockPhotos = [
   { id: "mock-cafe", type: "mock", caption: "cafe", src: "https://picsum.photos/seed/moments-cafe/320/320" },
@@ -60,9 +61,16 @@ const gesture = {
   aspectRatio: 1,
   startRotation: 0,
   startAngle: 0,
+  startPinchDistance: 0,
+  startPinchAngle: 0,
+  pointerId: null,
+  overDeleteZone: false,
+  dragging: false,
   centerX: 0,
   centerY: 0
 };
+
+const activePointers = new Map();
 
 function loadNotes() {
   try {
@@ -676,6 +684,12 @@ function renderSingleDay() {
         </div>
         <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
       </section>
+      <div class="delete-zone" aria-hidden="true">
+        <div class="delete-zone-inner">
+          <span class="delete-zone-icon" aria-hidden="true">⌫</span>
+          <span class="delete-zone-copy" data-idle-copy="拖到这里删除" data-active-copy="松手删除">拖到这里删除</span>
+        </div>
+      </div>
       ${stickerSheet()}
       ${textComposerOverlay()}
     </main>
@@ -1217,6 +1231,99 @@ function elementForItem(itemId, itemType) {
   return document.querySelector(`[data-item-type="${itemType}"][data-item-id="${itemId}"]`);
 }
 
+function activePointersForItem(itemId, itemType) {
+  return Array.from(activePointers.values())
+    .filter((pointer) => pointer.itemId === itemId && pointer.itemType === itemType);
+}
+
+function distanceBetween(pointerA, pointerB) {
+  return Math.hypot(pointerB.x - pointerA.x, pointerB.y - pointerA.y);
+}
+
+function angleBetween(pointerA, pointerB) {
+  return Math.atan2(pointerB.y - pointerA.y, pointerB.x - pointerA.x);
+}
+
+function deleteZoneElement() {
+  return document.querySelector(".delete-zone");
+}
+
+function setDeleteZoneVisible(isVisible, isActive = false) {
+  const zone = deleteZoneElement();
+  if (!zone) return;
+
+  zone.classList.toggle("is-visible", isVisible);
+  zone.classList.toggle("is-active", isVisible && isActive);
+
+  const copy = zone.querySelector(".delete-zone-copy");
+  if (copy) {
+    copy.textContent = isVisible && isActive
+      ? copy.dataset.activeCopy
+      : copy.dataset.idleCopy;
+  }
+}
+
+function isPointerInDeleteZone(clientY) {
+  const zone = deleteZoneElement();
+  if (zone) {
+    const rect = zone.getBoundingClientRect();
+    return clientY >= rect.top && clientY <= rect.bottom;
+  }
+
+  return clientY > window.innerHeight - deleteZoneHeight;
+}
+
+function updateDragDeleteFeedback(event) {
+  const isOverDeleteZone = isPointerInDeleteZone(event.clientY);
+  const element = elementForItem(gesture.itemId, gesture.itemType);
+
+  gesture.overDeleteZone = isOverDeleteZone;
+  setDeleteZoneVisible(true, isOverDeleteZone);
+  element?.classList.toggle("is-over-delete", isOverDeleteZone);
+}
+
+async function deleteInteractiveItem(itemId, itemType) {
+  if (itemType === "photo") {
+    await deleteUserPhoto(itemId);
+
+    if (!getDay()) {
+      state.view = "daybook";
+      state.activeDayId = "";
+    }
+  } else {
+    await deleteCanvasElement(itemId);
+  }
+
+  clearSelection();
+  render();
+}
+
+function startTextPinchGesture(event, itemId) {
+  const layout = getCanvasElement(itemId);
+  const pointers = activePointersForItem(itemId, "text");
+  if (!layout || pointers.length < 2) return false;
+
+  event.preventDefault();
+  selectItem("text", itemId);
+  setDeleteZoneVisible(false);
+
+  gesture.active = true;
+  gesture.mode = "pinch";
+  gesture.itemId = itemId;
+  gesture.itemType = "text";
+  gesture.surface = "day";
+  gesture.startFontSize = layout.fontSize || 34;
+  gesture.startRotation = layout.rotation || 0;
+  gesture.startPinchDistance = Math.max(1, distanceBetween(pointers[0], pointers[1]));
+  gesture.startPinchAngle = angleBetween(pointers[0], pointers[1]);
+  gesture.overDeleteZone = false;
+  gesture.dragging = false;
+
+  const element = elementForItem(itemId, "text");
+  element?.classList.remove("is-dragging", "is-over-delete");
+  return true;
+}
+
 function startItemGesture(event, mode, itemId, itemType = "photo") {
   const layout = getInteractiveLayout(itemId, itemType);
   if (!layout) return;
@@ -1238,6 +1345,9 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   gesture.startFontSize = layout.fontSize || 0;
   gesture.aspectRatio = itemAspectRatio(layout, itemType);
   gesture.startRotation = layout.rotation || 0;
+  gesture.pointerId = event.pointerId;
+  gesture.overDeleteZone = false;
+  gesture.dragging = false;
 
   const rect = event.currentTarget?.closest?.(".canvas-item")?.getBoundingClientRect()
     || elementForItem(itemId, itemType)?.getBoundingClientRect();
@@ -1255,14 +1365,42 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   });
   element?.classList.add("is-selected");
   if (element) element.style.zIndex = String(layout.zIndex);
+  if (mode !== "drag") {
+    setDeleteZoneVisible(false);
+  }
 }
 
 function updateGesture(event) {
+  const pointer = activePointers.get(event.pointerId);
+  if (pointer) {
+    pointer.x = event.clientX;
+    pointer.y = event.clientY;
+  }
+
   if (!gesture.active) return;
 
   const layout = getInteractiveLayout(gesture.itemId, gesture.itemType);
   const element = elementForItem(gesture.itemId, gesture.itemType);
   if (!layout || !element) return;
+
+  if (gesture.mode === "pinch" && gesture.itemType === "text") {
+    const pointers = activePointersForItem(gesture.itemId, "text");
+    if (pointers.length < 2) return;
+
+    const distance = Math.max(1, distanceBetween(pointers[0], pointers[1]));
+    const angle = angleBetween(pointers[0], pointers[1]);
+    const scale = distance / gesture.startPinchDistance;
+    const angleDelta = (angle - gesture.startPinchAngle) * 180 / Math.PI;
+    layout.fontSize = clamp(Math.round(gesture.startFontSize * scale), 14, 96);
+    layout.rotation = Math.round((gesture.startRotation + angleDelta) * 10) / 10;
+
+    const size = measureTextLayout(layout.content, layout.fontSize);
+    layout.width = size.width;
+    layout.height = size.height;
+    element.style.setProperty("--font-size", `${layout.fontSize}px`);
+    element.style.setProperty("--rotation", `${layout.rotation}deg`);
+    return;
+  }
 
   const dx = event.clientX - gesture.startClientX;
   const dy = event.clientY - gesture.startClientY;
@@ -1271,6 +1409,11 @@ function updateGesture(event) {
   if (gesture.mode === "drag") {
     layout.x = clamp(gesture.startX + dx, -40, dimensions.width - 40);
     layout.y = clamp(gesture.startY + dy, -40, dimensions.height - 40);
+    if (Math.hypot(dx, dy) > 8) {
+      gesture.dragging = true;
+      element.classList.add("is-dragging");
+      updateDragDeleteFeedback(event);
+    }
   }
 
   if (gesture.mode === "resize") {
@@ -1308,19 +1451,44 @@ function updateGesture(event) {
   if (layout.fontSize) element.style.setProperty("--font-size", `${layout.fontSize}px`);
 }
 
-function endGesture() {
-  if (!gesture.active) return;
+async function endGesture(event) {
+  const pointerId = event?.pointerId;
+  const pointer = activePointers.get(pointerId);
+
+  if (!gesture.active) {
+    if (pointer) activePointers.delete(pointerId);
+    return;
+  }
 
   const itemId = gesture.itemId;
   const itemType = gesture.itemType;
+  const mode = gesture.mode;
+  const shouldDelete = mode === "drag" && gesture.dragging && (
+    gesture.overDeleteZone || (event ? isPointerInDeleteZone(event.clientY) : false)
+  );
+  const element = elementForItem(itemId, itemType);
+
+  setDeleteZoneVisible(false);
+  element?.classList.remove("is-dragging", "is-over-delete");
+
   gesture.active = false;
   gesture.mode = "";
   gesture.itemId = "";
   gesture.itemType = "";
   gesture.startFontSize = 0;
+  gesture.pointerId = null;
+  gesture.overDeleteZone = false;
+  gesture.dragging = false;
   gesture.surface = "";
 
-  if (itemId) persistInteractiveLayout(itemId, itemType);
+  if (shouldDelete && itemId) {
+    await deleteInteractiveItem(itemId, itemType);
+    if (pointer) activePointers.delete(pointerId);
+    return;
+  }
+
+  if (itemId) await persistInteractiveLayout(itemId, itemType);
+  if (pointer) activePointers.delete(pointerId);
 }
 
 document.addEventListener("pointerdown", (event) => {
@@ -1341,7 +1509,10 @@ document.addEventListener("pointerdown", (event) => {
     const owner = resizeHandle.closest(".canvas-item");
     const itemId = owner?.dataset.itemId;
     const itemType = owner?.dataset.itemType || "photo";
-    if (itemId) startItemGesture(event, "resize", itemId, itemType);
+    if (itemId) {
+      activePointers.set(event.pointerId, { itemId, itemType, x: event.clientX, y: event.clientY });
+      startItemGesture(event, "resize", itemId, itemType);
+    }
     return;
   }
 
@@ -1350,13 +1521,23 @@ document.addEventListener("pointerdown", (event) => {
     const owner = rotateHandle.closest(".canvas-item");
     const itemId = owner?.dataset.itemId;
     const itemType = owner?.dataset.itemType || "photo";
-    if (itemId) startItemGesture(event, "rotate", itemId, itemType);
+    if (itemId) {
+      activePointers.set(event.pointerId, { itemId, itemType, x: event.clientX, y: event.clientY });
+      startItemGesture(event, "rotate", itemId, itemType);
+    }
     return;
   }
 
   const canvasItem = event.target.closest(".canvas-item");
   if (canvasItem) {
-    startItemGesture(event, "drag", canvasItem.dataset.itemId, canvasItem.dataset.itemType || "photo");
+    const itemId = canvasItem.dataset.itemId;
+    const itemType = canvasItem.dataset.itemType || "photo";
+    activePointers.set(event.pointerId, { itemId, itemType, x: event.clientX, y: event.clientY });
+    if (itemType === "text" && activePointersForItem(itemId, "text").length >= 2) {
+      startTextPinchGesture(event, itemId);
+      return;
+    }
+    startItemGesture(event, "drag", itemId, itemType);
     return;
   }
 
