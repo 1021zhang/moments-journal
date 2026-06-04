@@ -1,9 +1,11 @@
 const noteStorageKey = "moments-journal.notes";
 const localPhotosKey = "moments-journal.photos";
 const localElementsKey = "moments-journal.canvas-elements";
+const localCustomStickersKey = "moments-journal.custom-stickers";
 const dbName = "moments-journal";
 const photoStoreName = "photos";
 const elementStoreName = "canvasElements";
+const customStickerStoreName = "customStickers";
 const canvasWidth = 358;
 const canvasHeight = 560;
 const stackPreviewWidth = 358;
@@ -27,11 +29,12 @@ const state = {
   selectedSurface: "",
   selectedItemType: "",
   activePanel: "",
-  stickerQuery: "",
+  stickerSheetState: "half",
   pendingImportDateKey: "",
   notes: loadNotes(),
   userPhotos: [],
   canvasElements: [],
+  customStickers: [],
   db: null,
   storageMode: "indexedDB"
 };
@@ -181,20 +184,26 @@ function defaultTextElement(dateKey) {
 
 function defaultStickerElement(dateKey, sticker) {
   const isTextSticker = sticker.stickerType === "text";
+  const isImageSticker = sticker.stickerType === "image";
+  const imageWidth = 112;
+  const imageHeight = imageWidth / (sticker.aspectRatio || 1);
+
   return {
     id: uid("sticker"),
     type: "sticker",
     stickerType: sticker.stickerType,
     content: sticker.content,
+    imageDataUrl: sticker.imageDataUrl || "",
     dateKey,
-    x: isTextSticker ? 108 : 154,
-    y: isTextSticker ? 188 : 176,
-    width: isTextSticker ? 142 : 70,
-    height: isTextSticker ? 58 : 70,
+    x: isTextSticker ? 108 : isImageSticker ? 132 : 154,
+    y: isTextSticker ? 188 : isImageSticker ? 168 : 176,
+    width: isTextSticker ? 142 : isImageSticker ? imageWidth : 70,
+    height: isTextSticker ? 58 : isImageSticker ? imageHeight : 70,
     rotation: 0,
     zIndex: maxCanvasZIndex(dateKey) + 1,
     fontSize: isTextSticker ? 22 : 48,
-    color: sticker.color || "#222222"
+    color: sticker.color || "#222222",
+    aspectRatio: sticker.aspectRatio || (isImageSticker ? imageWidth / imageHeight : 1)
   };
 }
 
@@ -541,7 +550,7 @@ function canvasElement(element) {
   }
 
   const stickerType = element.type === "emoji" ? "emoji" : element.stickerType;
-  const stickerClass = stickerType === "text" ? "text-sticker" : "emoji-sticker";
+  const stickerClass = stickerType === "text" ? "text-sticker" : stickerType === "image" ? "image-sticker" : "emoji-sticker";
   baseStyle.push(
     `--font-size:${element.fontSize}px`,
     `--sticker-color:${escapeHtml(element.color || "#222222")}`
@@ -549,7 +558,9 @@ function canvasElement(element) {
 
   return `
     <div class="canvas-item canvas-sticker ${stickerClass} ${selected}" data-item-type="${element.type}" data-item-id="${element.id}" style="${baseStyle.join(";")}">
-      <span>${escapeHtml(element.content)}</span>
+      ${stickerType === "image"
+        ? `<img src="${element.imageDataUrl}" alt="" draggable="false" />`
+        : `<span>${escapeHtml(element.content)}</span>`}
       <button class="delete-photo" type="button" data-action="delete-element" aria-label="Delete sticker">×</button>
       <span class="rotate-handle" aria-hidden="true">↻</span>
       <span class="resize-handle" aria-hidden="true"></span>
@@ -583,37 +594,46 @@ function textToolbar() {
 }
 
 function stickerLibrary() {
+  const customStickers = state.customStickers
+    .slice()
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .map((sticker) => ({ ...sticker, stickerType: "image" }));
   const emojiStickers = ["✨", "❤️", "😊", "☕️", "🌿", "🍀", "📍", "🎀", "🐶", "🍰", "🌙", "📷", "🧸", "📝", "🔥", "💫", "🦋", "🌸"]
     .map((content) => ({ stickerType: "emoji", content, color: "#222222" }));
   const colors = ["#d94a4a", "#4f6f52", "#6f6f8f", "#222222", "#b47f48", "#7a5c9e"];
   const textStickers = ["LOVE", "COOL", "WOW", "OMG", "SUMMER", "LUOLUO", "GOOD DAY", "HAPPY", "YUMMY", "FUN", "TODAY", "MEMORY"]
     .map((content, index) => ({ stickerType: "text", content, color: colors[index % colors.length] }));
 
-  return [...emojiStickers, ...textStickers];
+  return [...customStickers, ...emojiStickers, ...textStickers];
 }
 
 function stickerSheet() {
   if (state.activePanel !== "sticker") return "";
-  const query = state.stickerQuery.trim().toLowerCase();
-  const stickers = stickerLibrary().filter((sticker) => sticker.content.toLowerCase().includes(query));
+  const stickers = stickerLibrary();
 
   return `
     <button class="sticker-backdrop" type="button" data-action="close-panel" aria-label="Close stickers"></button>
-    <section class="sticker-sheet" aria-label="Sticker library">
-      <div class="sheet-grabber" aria-hidden="true"></div>
-      <input class="sticker-search" type="search" placeholder="搜索" value="${escapeHtml(state.stickerQuery)}" data-sticker-search />
+    <section class="sticker-sheet ${state.stickerSheetState}" aria-label="Sticker library">
+      <header class="sticker-sheet-header">
+        <button class="sheet-grabber" type="button" data-action="toggle-sticker-sheet" aria-label="Expand stickers"></button>
+        <h2>Stickers</h2>
+        <button class="custom-sticker-button" type="button" data-action="add-custom-sticker" aria-label="Add custom sticker">+</button>
+      </header>
       <div class="sticker-grid">
         ${stickers.map((sticker) => `
           <button
-            class="sticker-choice ${sticker.stickerType === "text" ? "text-sticker-choice" : "emoji-sticker-choice"}"
+            class="sticker-choice ${sticker.stickerType === "text" ? "text-sticker-choice" : sticker.stickerType === "image" ? "image-sticker-choice" : "emoji-sticker-choice"}"
             type="button"
             data-action="add-sticker"
             data-sticker-type="${sticker.stickerType}"
-            data-sticker-content="${escapeHtml(sticker.content)}"
-            data-sticker-color="${sticker.color}"
-            style="--sticker-color:${sticker.color}"
+            data-sticker-id="${sticker.id || ""}"
+            data-sticker-content="${escapeHtml(sticker.content || "")}"
+            data-sticker-color="${sticker.color || "#222222"}"
+            style="--sticker-color:${sticker.color || "#222222"}"
           >
-            ${escapeHtml(sticker.content)}
+            ${sticker.stickerType === "image"
+              ? `<img src="${sticker.imageDataUrl}" alt="" draggable="false" />`
+              : escapeHtml(sticker.content)}
           </button>
         `).join("")}
       </div>
@@ -716,7 +736,7 @@ function openPhotoDatabase() {
       return;
     }
 
-    const request = indexedDB.open(dbName, 3);
+    const request = indexedDB.open(dbName, 4);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(photoStoreName)) {
@@ -728,6 +748,10 @@ function openPhotoDatabase() {
         const store = db.createObjectStore(elementStoreName, { keyPath: "id" });
         store.createIndex("dateKey", "dateKey", { unique: false });
         store.createIndex("type", "type", { unique: false });
+      }
+      if (!db.objectStoreNames.contains(customStickerStoreName)) {
+        const store = db.createObjectStore(customStickerStoreName, { keyPath: "id" });
+        store.createIndex("createdAt", "createdAt", { unique: false });
       }
     };
     request.onsuccess = () => resolve(request.result);
@@ -775,6 +799,24 @@ async function loadCanvasElements() {
   return records;
 }
 
+async function loadCustomStickers() {
+  if (state.storageMode === "localStorage") {
+    try {
+      return JSON.parse(localStorage.getItem(localCustomStickersKey) || "[]");
+    } catch {
+      return [];
+    }
+  }
+
+  const transaction = state.db.transaction(customStickerStoreName, "readonly");
+  const request = transaction.objectStore(customStickerStoreName).getAll();
+  const records = await new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+  return records;
+}
+
 async function persistAllUserPhotos() {
   if (state.storageMode === "localStorage") {
     localStorage.setItem(localPhotosKey, JSON.stringify(state.userPhotos));
@@ -807,6 +849,19 @@ async function saveCanvasElement(element) {
 
   const transaction = state.db.transaction(elementStoreName, "readwrite");
   transaction.objectStore(elementStoreName).put(element);
+  await transactionDone(transaction);
+}
+
+async function saveCustomSticker(sticker) {
+  state.customStickers = [sticker, ...state.customStickers.filter((item) => item.id !== sticker.id)];
+
+  if (state.storageMode === "localStorage") {
+    localStorage.setItem(localCustomStickersKey, JSON.stringify(state.customStickers));
+    return;
+  }
+
+  const transaction = state.db.transaction(customStickerStoreName, "readwrite");
+  transaction.objectStore(customStickerStoreName).put(sticker);
   await transactionDone(transaction);
 }
 
@@ -958,9 +1013,6 @@ function selectPhoto(photoId) {
 }
 
 async function deleteSelectedPhoto(photoId) {
-  const confirmed = window.confirm("Delete this photo?");
-  if (!confirmed) return;
-
   await deleteUserPhoto(photoId);
   clearSelection();
 
@@ -974,9 +1026,6 @@ async function deleteSelectedPhoto(photoId) {
 }
 
 async function deleteSelectedElement(elementId) {
-  const confirmed = window.confirm("Delete this element?");
-  if (!confirmed) return;
-
   await deleteCanvasElement(elementId);
   clearSelection();
   render();
@@ -1002,6 +1051,32 @@ async function addStickerElement(sticker) {
   selectItem("sticker", element.id);
   state.activePanel = "";
   render();
+}
+
+function openCustomStickerPicker() {
+  const input = document.querySelector("#stickerInput");
+  input.value = "";
+  input.click();
+}
+
+async function handleCustomStickerSelection(event) {
+  const file = Array.from(event.target.files || []).find((item) => item.type.startsWith("image/"));
+  if (!file) return;
+
+  try {
+    const compressed = await compressImage(file);
+    const sticker = {
+      id: uid("custom-sticker"),
+      stickerType: "image",
+      imageDataUrl: compressed.imageDataUrl,
+      aspectRatio: compressed.aspectRatio,
+      createdAt: new Date().toISOString()
+    };
+    await saveCustomSticker(sticker);
+    await addStickerElement(sticker);
+  } catch {
+    window.alert("This sticker could not be added.");
+  }
 }
 
 async function editTextElement(elementId) {
@@ -1302,11 +1377,25 @@ document.addEventListener("click", (event) => {
     render();
     return;
   }
+  if (action === "toggle-sticker-sheet") {
+    state.stickerSheetState = state.stickerSheetState === "full" ? "half" : "full";
+    render();
+    return;
+  }
+  if (action === "add-custom-sticker") {
+    openCustomStickerPicker();
+    return;
+  }
   if (action === "add-sticker") {
+    const customSticker = actionTarget.dataset.stickerType === "image"
+      ? state.customStickers.find((sticker) => sticker.id === actionTarget.dataset.stickerId)
+      : null;
     addStickerElement({
       stickerType: actionTarget.dataset.stickerType || "emoji",
       content: actionTarget.dataset.stickerContent || "✨",
-      color: actionTarget.dataset.stickerColor || "#222222"
+      color: actionTarget.dataset.stickerColor || "#222222",
+      imageDataUrl: customSticker?.imageDataUrl || "",
+      aspectRatio: customSticker?.aspectRatio || 1
     });
     return;
   }
@@ -1375,17 +1464,8 @@ document.addEventListener("dblclick", (event) => {
   editTextElement(textItem.dataset.itemId);
 });
 
-document.addEventListener("input", (event) => {
-  const search = event.target.closest("[data-sticker-search]");
-  if (!search) return;
-  const query = search.value.trim().toLowerCase();
-  document.querySelectorAll(".sticker-choice").forEach((choice) => {
-    const content = choice.dataset.stickerContent || "";
-    choice.hidden = Boolean(query) && !content.toLowerCase().includes(query);
-  });
-});
-
 document.querySelector("#photoInput").addEventListener("change", handlePhotoSelection);
+document.querySelector("#stickerInput").addEventListener("change", handleCustomStickerSelection);
 
 async function initApp() {
   try {
@@ -1396,6 +1476,7 @@ async function initApp() {
 
   state.userPhotos = await loadUserPhotos();
   state.canvasElements = await loadCanvasElements();
+  state.customStickers = await loadCustomStickers();
   ensureLayoutsForPhotos();
   render();
 }

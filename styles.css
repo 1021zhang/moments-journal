@@ -532,6 +532,16 @@ button {
     0 5px 12px rgba(0, 0, 0, 0.12);
 }
 
+.canvas-sticker.image-sticker img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.12));
+  pointer-events: none;
+}
+
 .resize-handle,
 .rotate-handle,
 .delete-photo {
@@ -709,7 +719,7 @@ button {
   bottom: 0;
   z-index: 1400;
   width: min(390px, 100vw);
-  height: min(62svh, 520px);
+  height: 55svh;
   padding: 10px 16px 22px;
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-bottom: 0;
@@ -718,34 +728,69 @@ button {
   box-shadow: 0 -18px 42px rgba(0, 0, 0, 0.14);
   transform: translateX(50%);
   backdrop-filter: blur(18px);
+  transition: height 180ms ease;
+}
+
+.sticker-sheet.full {
+  height: 88svh;
+}
+
+.sticker-sheet-header {
+  display: grid;
+  grid-template-columns: 44px 1fr 44px;
+  align-items: center;
+  margin-bottom: 14px;
 }
 
 .sheet-grabber {
+  justify-self: center;
   width: 38px;
-  height: 4px;
-  margin: 0 auto 12px;
+  height: 28px;
+  padding: 0;
+  border: 0;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.18);
+  background: transparent;
 }
 
-.sticker-search {
-  width: 100%;
-  height: 38px;
-  margin-bottom: 14px;
-  padding: 0 14px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+.sheet-grabber::before {
+  display: block;
+  width: 38px;
+  height: 4px;
+  margin: 12px auto;
   border-radius: 999px;
-  outline: none;
+  background: rgba(0, 0, 0, 0.18);
+  content: "";
+}
+
+.sticker-sheet-header h2 {
+  margin: 0;
+  color: #2d2d2d;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.custom-sticker-button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 50%;
   background: #ffffff;
   color: #2d2d2d;
-  font-size: 15px;
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
 }
 
 .sticker-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
-  max-height: calc(100% - 70px);
+  max-height: calc(100% - 56px);
   overflow-y: auto;
   padding-bottom: 8px;
 }
@@ -764,6 +809,14 @@ button {
 
 .emoji-sticker-choice {
   font-size: 28px;
+}
+
+.image-sticker-choice img {
+  display: block;
+  width: 80%;
+  height: 80%;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 .text-sticker-choice {
