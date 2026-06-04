@@ -686,8 +686,8 @@ function renderSingleDay() {
       </section>
       <div class="delete-zone" aria-hidden="true">
         <div class="delete-zone-inner">
-          <span class="delete-zone-icon" aria-hidden="true">⌫</span>
-          <span class="delete-zone-copy" data-idle-copy="拖到这里删除" data-active-copy="松手删除">拖到这里删除</span>
+          <span class="delete-zone-icon delete-icon" aria-hidden="true">🗑</span>
+          <span class="delete-zone-copy delete-label" data-idle-copy="拖到这里删除" data-active-copy="松手删除">拖到这里删除</span>
         </div>
       </div>
       ${stickerSheet()}
@@ -1124,9 +1124,18 @@ async function addStickerElement(sticker) {
   if (!day) return;
 
   const element = defaultStickerElement(day.dateKey, sticker);
+  debugInteraction("add sticker", {
+    stickerType: sticker.stickerType,
+    content: sticker.content || "",
+    elementId: element.id
+  });
+  state.activePanel = "";
+  state.stickerSheetState = "half";
+  render();
   await saveCanvasElement(element);
   selectItem("sticker", element.id);
-  state.activePanel = "";
+  setDeleteZoneVisible(false);
+  debugInteraction("close sticker sheet after select", { elementId: element.id });
   render();
 }
 
@@ -1231,6 +1240,10 @@ function elementForItem(itemId, itemType) {
   return document.querySelector(`[data-item-type="${itemType}"][data-item-id="${itemId}"]`);
 }
 
+function debugInteraction(message, details = {}) {
+  console.log(`[moments-journal] ${message}`, details);
+}
+
 function activePointersForItem(itemId, itemType) {
   return Array.from(activePointers.values())
     .filter((pointer) => pointer.itemId === itemId && pointer.itemType === itemType);
@@ -1252,8 +1265,10 @@ function setDeleteZoneVisible(isVisible, isActive = false) {
   const zone = deleteZoneElement();
   if (!zone) return;
 
+  const wasVisible = zone.classList.contains("is-visible");
   zone.classList.toggle("is-visible", isVisible);
   zone.classList.toggle("is-active", isVisible && isActive);
+  zone.classList.toggle("is-over", isVisible && isActive);
 
   const copy = zone.querySelector(".delete-zone-copy");
   if (copy) {
@@ -1261,6 +1276,8 @@ function setDeleteZoneVisible(isVisible, isActive = false) {
       ? copy.dataset.activeCopy
       : copy.dataset.idleCopy;
   }
+
+  if (isVisible && !wasVisible) debugInteraction("show delete zone");
 }
 
 function isPointerInDeleteZone(clientY) {
@@ -1276,13 +1293,24 @@ function isPointerInDeleteZone(clientY) {
 function updateDragDeleteFeedback(event) {
   const isOverDeleteZone = isPointerInDeleteZone(event.clientY);
   const element = elementForItem(gesture.itemId, gesture.itemType);
+  const wasOverDeleteZone = gesture.overDeleteZone;
 
   gesture.overDeleteZone = isOverDeleteZone;
   setDeleteZoneVisible(true, isOverDeleteZone);
   element?.classList.toggle("is-over-delete", isOverDeleteZone);
+
+  if (isOverDeleteZone !== wasOverDeleteZone) {
+    debugInteraction("over delete zone", {
+      elementId: gesture.itemId,
+      itemType: gesture.itemType,
+      isOverDeleteZone
+    });
+  }
 }
 
 async function deleteInteractiveItem(itemId, itemType) {
+  debugInteraction("delete element", { elementId: itemId, itemType });
+
   if (itemType === "photo") {
     await deleteUserPhoto(itemId);
 
@@ -1329,6 +1357,8 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   if (!layout) return;
 
   event.preventDefault();
+  const gestureElement = event.target.closest(".canvas-item");
+  gestureElement?.setPointerCapture?.(event.pointerId);
   selectItem(itemType, itemId);
   if (itemType === "text") state.activePanel = "text";
   gesture.active = true;
@@ -1349,7 +1379,7 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   gesture.overDeleteZone = false;
   gesture.dragging = false;
 
-  const rect = event.currentTarget?.closest?.(".canvas-item")?.getBoundingClientRect()
+  const rect = gestureElement?.getBoundingClientRect()
     || elementForItem(itemId, itemType)?.getBoundingClientRect();
   if (rect) {
     gesture.centerX = rect.left + rect.width / 2;
@@ -1365,9 +1395,16 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   });
   element?.classList.add("is-selected");
   if (element) element.style.zIndex = String(layout.zIndex);
-  if (mode !== "drag") {
+  if (mode === "drag") {
+    debugInteraction("start drag elementId", { elementId: itemId, itemType });
+    setDeleteZoneVisible(true, false);
+  } else {
     setDeleteZoneVisible(false);
   }
+}
+
+function startElementDrag(event, itemId, itemType = "photo") {
+  startItemGesture(event, "drag", itemId, itemType);
 }
 
 function updateGesture(event) {
@@ -1409,11 +1446,11 @@ function updateGesture(event) {
   if (gesture.mode === "drag") {
     layout.x = clamp(gesture.startX + dx, -40, dimensions.width - 40);
     layout.y = clamp(gesture.startY + dy, -40, dimensions.height - 40);
-    if (Math.hypot(dx, dy) > 8) {
+    if (Math.hypot(dx, dy) > 3) {
       gesture.dragging = true;
       element.classList.add("is-dragging");
-      updateDragDeleteFeedback(event);
     }
+    updateDragDeleteFeedback(event);
   }
 
   if (gesture.mode === "resize") {
@@ -1451,6 +1488,10 @@ function updateGesture(event) {
   if (layout.fontSize) element.style.setProperty("--font-size", `${layout.fontSize}px`);
 }
 
+function moveElementDrag(event) {
+  updateGesture(event);
+}
+
 async function endGesture(event) {
   const pointerId = event?.pointerId;
   const pointer = activePointers.get(pointerId);
@@ -1484,11 +1525,17 @@ async function endGesture(event) {
   if (shouldDelete && itemId) {
     await deleteInteractiveItem(itemId, itemType);
     if (pointer) activePointers.delete(pointerId);
+    debugInteraction("end drag", { elementId: itemId, itemType, deleted: true });
     return;
   }
 
   if (itemId) await persistInteractiveLayout(itemId, itemType);
   if (pointer) activePointers.delete(pointerId);
+  if (mode === "drag") debugInteraction("end drag", { elementId: itemId, itemType, deleted: false });
+}
+
+function endElementDrag(event) {
+  endGesture(event);
 }
 
 document.addEventListener("pointerdown", (event) => {
@@ -1537,7 +1584,7 @@ document.addEventListener("pointerdown", (event) => {
       startTextPinchGesture(event, itemId);
       return;
     }
-    startItemGesture(event, "drag", itemId, itemType);
+    startElementDrag(event, itemId, itemType);
     return;
   }
 
@@ -1548,11 +1595,11 @@ document.addEventListener("pointerdown", (event) => {
   }
 });
 
-window.addEventListener("pointermove", updateGesture);
-window.addEventListener("pointerup", endGesture);
-window.addEventListener("pointercancel", endGesture);
+window.addEventListener("pointermove", moveElementDrag);
+window.addEventListener("pointerup", endElementDrag);
+window.addEventListener("pointercancel", endElementDrag);
 
-document.addEventListener("click", (event) => {
+document.addEventListener("click", async (event) => {
   const dayTarget = event.target.closest("[data-day]");
   const actionTarget = event.target.closest("[data-action]");
 
@@ -1609,7 +1656,7 @@ document.addEventListener("click", (event) => {
     const customSticker = actionTarget.dataset.stickerType === "image"
       ? state.customStickers.find((sticker) => sticker.id === actionTarget.dataset.stickerId)
       : null;
-    addStickerElement({
+    await addStickerElement({
       stickerType: actionTarget.dataset.stickerType || "emoji",
       content: actionTarget.dataset.stickerContent || "✨",
       color: actionTarget.dataset.stickerColor || "#222222",
