@@ -472,16 +472,16 @@ button {
 }
 
 .free-photo.is-selected img,
-.canvas-text.is-selected,
 .canvas-sticker.is-selected {
   outline: 1px solid rgba(0, 0, 0, 0.18);
   outline-offset: 3px;
 }
 
-.canvas-text {
-  display: block;
+.canvas-text-element {
+  display: inline-block;
   padding: 0;
   border: 0;
+  outline: none;
   background: transparent;
   box-shadow: none;
   color: var(--font-color);
@@ -492,22 +492,8 @@ button {
   line-height: 1.15;
   text-align: var(--text-align);
   white-space: pre-wrap;
-  overflow: visible;
-}
-
-.canvas-text .text-content {
-  display: block;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  line-height: inherit;
-  overflow-wrap: anywhere;
   word-break: break-word;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  text-shadow: none;
+  overflow: visible;
 }
 
 .canvas-sticker {

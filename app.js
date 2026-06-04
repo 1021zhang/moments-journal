@@ -538,11 +538,16 @@ function canvasElement(element) {
   const baseStyle = [
     `left:${element.x}px`,
     `top:${element.y}px`,
-    `width:${element.width}px`,
-    `height:${element.height}px`,
     `z-index:${element.zIndex}`,
     `--rotation:${element.rotation}deg`
   ];
+
+  if (element.type !== "text") {
+    baseStyle.push(
+      `width:${element.width}px`,
+      `height:${element.height}px`
+    );
+  }
 
   if (element.type === "text") {
     baseStyle.push(
@@ -555,12 +560,7 @@ function canvasElement(element) {
     );
 
     return `
-      <div class="canvas-item canvas-text ${selected}" data-item-type="text" data-item-id="${element.id}" style="${baseStyle.join(";")}">
-        <span class="text-content">${escapeHtml(element.content)}</span>
-        <button class="delete-photo" type="button" data-action="delete-element" aria-label="Delete text">×</button>
-        <span class="rotate-handle" aria-hidden="true">↻</span>
-        <span class="resize-handle" aria-hidden="true"></span>
-      </div>
+      <div class="canvas-item canvas-text-element ${selected}" data-item-type="text" data-item-id="${element.id}" style="${baseStyle.join(";")}">${escapeHtml(element.content)}</div>
     `;
   }
 
@@ -1300,8 +1300,10 @@ function updateGesture(event) {
 
   element.style.left = `${layout.x}px`;
   element.style.top = `${layout.y}px`;
-  element.style.width = `${layout.width}px`;
-  element.style.height = `${layout.height}px`;
+  if (gesture.itemType !== "text") {
+    element.style.width = `${layout.width}px`;
+    element.style.height = `${layout.height}px`;
+  }
   element.style.setProperty("--rotation", `${layout.rotation}deg`);
   if (layout.fontSize) element.style.setProperty("--font-size", `${layout.fontSize}px`);
 }
