@@ -10,7 +10,8 @@ const canvasWidth = 358;
 const canvasHeight = 560;
 const stackPreviewWidth = 358;
 const stackPreviewHeight = 390;
-const deleteZoneHeight = 120;
+const deleteRevealHeight = 180;
+const deleteActiveHeight = 110;
 
 const mockPhotos = [
   { id: "mock-cafe", type: "mock", caption: "cafe", src: "https://picsum.photos/seed/moments-cafe/320/320" },
@@ -665,10 +666,15 @@ function renderSingleDay() {
 
   return `
     <main class="phone-screen single-day-view" aria-label="Single Day Page">
-      <nav class="single-nav">
-        <button class="icon-text-button" type="button" data-action="daybook">Back</button>
-        <button class="edit-button" type="button" data-action="edit-note">Edit</button>
-      </nav>
+      <header class="day-page-header">
+        <div class="header-side header-left">
+          <button class="header-action back-button" type="button" data-action="daybook">Back</button>
+        </div>
+        <div class="header-center" aria-hidden="true"></div>
+        <div class="header-side header-right">
+          <button class="header-action edit-button" type="button" data-action="edit-note">Edit</button>
+        </div>
+      </header>
 
       <header class="single-header">
         ${dateTitle(day)}
@@ -1289,22 +1295,24 @@ function setDeleteZoneVisible(isVisible, isActive = false) {
 }
 
 function isPointerInDeleteZone(clientY) {
-  const zone = deleteZoneElement();
-  if (zone) {
-    const rect = zone.getBoundingClientRect();
-    return clientY >= rect.top && clientY <= rect.bottom;
-  }
+  return clientY > window.innerHeight - deleteActiveHeight;
+}
 
-  return clientY > window.innerHeight - deleteZoneHeight;
+function deleteZoneState(clientY) {
+  if (clientY > window.innerHeight - deleteActiveHeight) return "active";
+  if (clientY > window.innerHeight - deleteRevealHeight) return "reveal";
+  return "hidden";
 }
 
 function updateDragDeleteFeedback(event) {
-  const isOverDeleteZone = isPointerInDeleteZone(event.clientY);
+  const zoneState = deleteZoneState(event.clientY);
+  const shouldShowDeleteZone = zoneState !== "hidden";
+  const isOverDeleteZone = zoneState === "active";
   const element = elementForItem(gesture.itemId, gesture.itemType);
   const wasOverDeleteZone = gesture.overDeleteZone;
 
   gesture.overDeleteZone = isOverDeleteZone;
-  setDeleteZoneVisible(true, isOverDeleteZone);
+  setDeleteZoneVisible(shouldShowDeleteZone, isOverDeleteZone);
   element?.classList.toggle("is-over-delete", isOverDeleteZone);
 
   if (isOverDeleteZone !== wasOverDeleteZone) {
@@ -1405,7 +1413,7 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   if (element) element.style.zIndex = String(layout.zIndex);
   if (mode === "drag") {
     debugInteraction("start drag elementId", { elementId: itemId, itemType });
-    setDeleteZoneVisible(true, false);
+    setDeleteZoneVisible(false);
   } else {
     setDeleteZoneVisible(false);
   }
@@ -1457,8 +1465,10 @@ function updateGesture(event) {
     if (Math.hypot(dx, dy) > 3) {
       gesture.dragging = true;
       element.classList.add("is-dragging");
+      updateDragDeleteFeedback(event);
+    } else {
+      setDeleteZoneVisible(false);
     }
-    updateDragDeleteFeedback(event);
   }
 
   if (gesture.mode === "resize") {
@@ -1622,7 +1632,11 @@ document.addEventListener("click", async (event) => {
   if (action === "open-daybook") {
     clearSelection();
     state.activePanel = "";
-    state.view = "daybook";
+    window.setTimeout(() => {
+      state.view = "daybook";
+      render();
+    }, 120);
+    return;
   }
   if (action === "home") {
     clearSelection();

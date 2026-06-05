@@ -69,8 +69,7 @@ button {
   white-space: nowrap;
 }
 
-.daybook-header,
-.single-nav {
+.daybook-header {
   display: grid;
   grid-template-columns: 64px 1fr 64px;
   align-items: center;
@@ -135,6 +134,7 @@ button {
 }
 
 .memory-stack-area {
+  appearance: none;
   display: block;
   flex: 0 0 390px;
   width: 100%;
@@ -142,9 +142,18 @@ button {
   padding: 0;
   border: 0;
   margin: 0 auto 56px;
-  background: #ffffff;
+  outline: none;
+  background: transparent;
   overflow: visible;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.memory-stack-area:focus,
+.memory-stack-area:focus-visible,
+.memory-caption:focus,
+.memory-caption:focus-visible {
+  outline: none;
 }
 
 .memory-stack-stage {
@@ -152,6 +161,19 @@ button {
   display: block;
   width: 100%;
   height: 100%;
+  outline: none;
+  background: transparent;
+  transform: scale(1);
+  transform-origin: center center;
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    filter 160ms ease,
+    opacity 160ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.memory-stack-area:active .memory-stack-stage {
+  transform: scale(0.985);
 }
 
 .memory-stack-photo {
@@ -165,6 +187,11 @@ button {
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1), 0 3px 8px rgba(0, 0, 0, 0.06);
   transform: rotate(var(--rotation));
   transform-origin: center center;
+  transition: box-shadow 160ms ease;
+}
+
+.memory-stack-area:active .memory-stack-photo {
+  box-shadow: 0 7px 18px rgba(0, 0, 0, 0.09), 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .memory-stack-photo img {
@@ -180,6 +207,7 @@ button {
   margin: 0 0 32px;
   padding: 0;
   border: 0;
+  outline: none;
   background: transparent;
   color: #777777;
   font-size: 18px;
@@ -189,6 +217,7 @@ button {
   width: 100%;
   position: relative;
   z-index: 1;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .memory-home-empty {
@@ -369,20 +398,46 @@ button {
   white-space: nowrap;
 }
 
-.single-nav {
-  padding-bottom: 22px;
+.day-page-header {
+  position: relative;
+  display: grid;
+  grid-template-columns: 80px 1fr 80px;
+  align-items: center;
+  width: 100%;
+  height: 56px;
+  padding: 0 4px;
+  box-sizing: border-box;
 }
 
-.single-nav .edit-button {
-  justify-self: end;
+.header-side {
+  display: flex;
+  align-items: center;
+  height: 56px;
 }
 
-.edit-button {
-  min-height: 32px;
-  padding: 0;
-  color: #2d2d2d;
-  font-size: 15px;
+.header-left {
+  justify-content: flex-start;
+}
+
+.header-right {
+  justify-content: flex-end;
+}
+
+.header-action {
+  appearance: none;
+  min-height: 40px;
+  margin: 0;
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  color: #555555;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+    Arial, sans-serif;
+  font-size: 17px;
   font-weight: 400;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .single-header {
@@ -679,13 +734,16 @@ button {
   opacity: 0;
   transform: translateY(8px) scale(0.98);
   transition:
-    opacity 160ms ease,
-    transform 160ms ease;
+    opacity 150ms ease-in,
+    transform 150ms ease-in;
 }
 
 .delete-zone.is-visible {
   opacity: 1;
   transform: translateY(0) scale(1);
+  transition:
+    opacity 180ms ease-out,
+    transform 180ms ease-out;
 }
 
 .delete-zone-inner {
