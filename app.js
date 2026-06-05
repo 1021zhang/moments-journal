@@ -17,6 +17,9 @@ const maxItemScale = 4;
 const minTextScale = 0.4;
 const maxTextScale = 3.5;
 const pageTransitionMs = 260;
+const backupSchemaVersion = 1;
+const appVersion = "1.0.0";
+const undoLimit = 50;
 
 const mockPhotos = [
   { id: "mock-cafe", type: "mock", caption: "cafe", src: "https://picsum.photos/seed/moments-cafe/320/320" },
@@ -37,6 +40,11 @@ const state = {
   selectedItemType: "",
   activePanel: "",
   stickerSheetState: "half",
+  settingsSheetOpen: false,
+  isExportingBackup: false,
+  isExportingDay: false,
+  toast: "",
+  toastTimer: null,
   textComposer: {
     active: false,
     editingId: "",
@@ -48,7 +56,8 @@ const state = {
   canvasElements: [],
   customStickers: [],
   db: null,
-  storageMode: "indexedDB"
+  storageMode: "indexedDB",
+  undoHistory: {}
 };
 
 const gesture = {
@@ -76,7 +85,8 @@ const gesture = {
   overDeleteZone: false,
   dragging: false,
   centerX: 0,
-  centerY: 0
+  centerY: 0,
+  beforeSnapshot: null
 };
 
 const activePointers = new Map();
@@ -180,6 +190,10 @@ function selectItem(type, id) {
   state.selectedItemType = type;
 }
 
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
 function elementsForDate(dateKey) {
   return state.canvasElements
     .filter((element) => element.dateKey === dateKey)
@@ -197,6 +211,40 @@ function maxCanvasZIndex(dateKey) {
   const elementMax = elementsForDate(dateKey)
     .reduce((max, element) => Math.max(max, element.zIndex || 0), 0);
   return Math.max(photoMax, elementMax);
+}
+
+function undoStackForDate(dateKey) {
+  if (!dateKey) return [];
+  if (!state.undoHistory[dateKey]) state.undoHistory[dateKey] = [];
+  return state.undoHistory[dateKey];
+}
+
+function snapshotForDate(dateKey) {
+  return {
+    dateKey,
+    photos: deepClone(state.userPhotos.filter((photo) => photo.dateKey === dateKey)),
+    elements: deepClone(state.canvasElements.filter((element) => element.dateKey === dateKey))
+  };
+}
+
+function snapshotsEqual(snapshotA, snapshotB) {
+  return JSON.stringify(snapshotA) === JSON.stringify(snapshotB);
+}
+
+function commitUndoSnapshot(beforeSnapshot) {
+  if (!beforeSnapshot?.dateKey) return;
+
+  const afterSnapshot = snapshotForDate(beforeSnapshot.dateKey);
+  if (snapshotsEqual(beforeSnapshot, afterSnapshot)) return;
+
+  const stack = undoStackForDate(beforeSnapshot.dateKey);
+  stack.push(beforeSnapshot);
+  if (stack.length > undoLimit) stack.splice(0, stack.length - undoLimit);
+}
+
+function currentUndoSnapshot() {
+  const day = getDay();
+  return day?.dateKey ? snapshotForDate(day.dateKey) : null;
 }
 
 function measureTextLayout(content, fontSize = 34) {
@@ -504,15 +552,83 @@ function memoryStackPhoto(photo, index, count) {
   `;
 }
 
+function settingsIcon() {
+  return `
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2Z" />
+      <path d="M19.3 13.7c.1-.6.1-1.1 0-1.7l1.6-1.2-1.8-3.1-1.9.8c-.4-.3-.9-.6-1.5-.8L15.5 5h-3.6l-.3 2.1c-.5.2-1 .4-1.5.8l-1.9-.8-1.8 3.1L8 11.4a6.6 6.6 0 0 0 0 1.7l-1.6 1.2 1.8 3.1 1.9-.8c.4.3.9.6 1.5.8l.3 2.1h3.6l.3-2.1c.5-.2 1-.4 1.5-.8l1.9.8 1.8-3.1-1.7-1.3Z" />
+    </svg>
+  `;
+}
+
+function exportIcon() {
+  return `
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M12 15.5V4.8" />
+      <path d="M7.7 8.9 12 4.6l4.3 4.3" />
+      <path d="M5.7 13.8v4.1c0 1 .7 1.7 1.7 1.7h9.2c1 0 1.7-.7 1.7-1.7v-4.1" />
+    </svg>
+  `;
+}
+
+function undoIcon() {
+  return `
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M9.3 7.2 5.5 11l3.8 3.8" />
+      <path d="M5.8 11h8.1c3.1 0 5.1 1.8 5.1 4.4 0 1.2-.4 2.3-1.2 3.1" />
+    </svg>
+  `;
+}
+
+function settingsButton() {
+  return `
+    <button class="settings-button" type="button" data-action="open-settings" aria-label="Settings">
+      ${settingsIcon()}
+    </button>
+  `;
+}
+
+function settingsSheet() {
+  if (!state.settingsSheetOpen) return "";
+
+  return `
+    <button class="settings-backdrop" type="button" data-action="close-settings" aria-label="Close settings"></button>
+    <section class="settings-sheet" aria-label="Settings">
+      <div class="settings-sheet-handle" aria-hidden="true"></div>
+      <button class="settings-close-button" type="button" data-action="close-settings" aria-label="Close settings">Cancel</button>
+      <button class="settings-option" type="button" data-action="export-backup" ${state.isExportingBackup ? "disabled" : ""}>Export backup</button>
+      <button class="settings-option" type="button" data-action="restore-backup">Restore backup</button>
+    </section>
+  `;
+}
+
+function toastMarkup() {
+  if (!state.toast) return "";
+  return `<div class="toast-message" role="status">${escapeHtml(state.toast)}</div>`;
+}
+
+function showToast(message) {
+  state.toast = message;
+  if (state.toastTimer) window.clearTimeout(state.toastTimer);
+  state.toastTimer = window.setTimeout(() => {
+    state.toast = "";
+    state.toastTimer = null;
+    render();
+  }, 2200);
+  render();
+}
+
 function renderEmptyHome() {
   return `
     <main class="memory-home memory-home-empty" aria-label="Memory Stack">
       <h1 class="sr-only">Memory Stack</h1>
+      ${settingsButton()}
 
       <section class="memory-empty-state">
         <p>Add your first memory.</p>
-        <button class="add-photo-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
       </section>
+      ${settingsSheet()}
+      ${toastMarkup()}
     </main>
   `;
 }
@@ -524,6 +640,7 @@ function renderHome() {
   return `
     <main class="memory-home" aria-label="Memory Stack">
       <h1 class="sr-only">Memory Stack</h1>
+      ${settingsButton()}
 
       <button class="memory-stack-area" type="button" data-action="open-daybook" aria-label="Open daybook">
         <span class="memory-stack-stage">
@@ -532,7 +649,8 @@ function renderHome() {
       </button>
 
       <button class="memory-caption" type="button" data-action="open-daybook">A lot happened recently.</button>
-      <button class="add-photo-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
+      ${settingsSheet()}
+      ${toastMarkup()}
     </main>
   `;
 }
@@ -729,6 +847,7 @@ function renderSingleDay() {
 
   const safeNote = escapeHtml(noteFor(day));
   const dayElements = elementsForDate(day.dateKey);
+  const canUndo = undoStackForDate(day.dateKey).length > 0;
 
   return `
     <main class="phone-screen single-day-view" aria-label="Single Day Page">
@@ -738,6 +857,12 @@ function renderSingleDay() {
         </div>
         <div class="header-center" aria-hidden="true"></div>
         <div class="header-side header-right">
+          <button class="header-icon-action undo-button" type="button" data-action="undo" aria-label="Undo" ${canUndo ? "" : "disabled"}>
+            ${undoIcon()}
+          </button>
+          <button class="header-icon-action export-day-button" type="button" data-action="export-day" aria-label="Export day" ${state.isExportingDay ? "disabled" : ""}>
+            ${exportIcon()}
+          </button>
           <button class="header-action edit-button" type="button" data-action="edit-note">Edit</button>
         </div>
       </header>
@@ -772,6 +897,7 @@ function renderSingleDay() {
       </div>
       ${stickerSheet()}
       ${textComposerOverlay()}
+      ${toastMarkup()}
     </main>
 
     <dialog class="note-dialog" id="noteDialog">
@@ -805,6 +931,7 @@ function preparePageState(targetView, options = {}) {
   activePointers.clear();
   setDeleteZoneVisible(false);
   state.activePanel = "";
+  state.settingsSheetOpen = false;
   state.textComposer = { active: false, editingId: "", value: "" };
 
   if (targetView === "single" && options.dayId) {
@@ -833,7 +960,6 @@ function navigateToPage(targetView, direction = "forward", options = {}) {
   const transitionClass = direction === "back" ? "transition-back" : "transition-forward";
 
   isPageTransitioning = true;
-  console.log("[moments-journal] page transition start", { from: fromView, to: targetView, direction });
   app.innerHTML = `
     <div class="app-stage ${transitionClass}" aria-live="polite">
       <section class="page-layer outgoing-page" aria-hidden="true">${outgoingHtml}</section>
@@ -846,7 +972,6 @@ function navigateToPage(targetView, direction = "forward", options = {}) {
     if (!isPageTransitioning) return;
     isPageTransitioning = false;
     render();
-    console.log("[moments-journal] page transition end", { to: targetView });
   };
 
   requestAnimationFrame(() => {
@@ -1059,6 +1184,18 @@ async function persistAllUserPhotos() {
   await transactionDone(transaction);
 }
 
+async function persistAllCanvasElements() {
+  if (state.storageMode === "localStorage") {
+    localStorage.setItem(localElementsKey, JSON.stringify(state.canvasElements));
+    return;
+  }
+
+  const transaction = state.db.transaction(elementStoreName, "readwrite");
+  const store = transaction.objectStore(elementStoreName);
+  state.canvasElements.forEach((record) => store.put(record));
+  await transactionDone(transaction);
+}
+
 async function saveUserPhotos(records) {
   state.userPhotos = [...records, ...state.userPhotos].sort((a, b) => b.addedAt.localeCompare(a.addedAt));
   await persistAllUserPhotos();
@@ -1132,6 +1269,78 @@ async function deleteCanvasElement(elementId) {
   await transactionDone(transaction);
 }
 
+async function restoreDaySnapshot(snapshot) {
+  if (!snapshot?.dateKey) return;
+
+  state.userPhotos = [
+    ...state.userPhotos.filter((photo) => photo.dateKey !== snapshot.dateKey),
+    ...deepClone(snapshot.photos)
+  ].sort((a, b) => b.addedAt.localeCompare(a.addedAt));
+  state.canvasElements = [
+    ...state.canvasElements.filter((element) => element.dateKey !== snapshot.dateKey),
+    ...deepClone(snapshot.elements)
+  ];
+
+  if (state.storageMode === "localStorage") {
+    localStorage.setItem(localPhotosKey, JSON.stringify(state.userPhotos));
+    localStorage.setItem(localElementsKey, JSON.stringify(state.canvasElements));
+    return;
+  }
+
+  const transaction = state.db.transaction([photoStoreName, elementStoreName], "readwrite");
+  const photoStore = transaction.objectStore(photoStoreName);
+  const elementStore = transaction.objectStore(elementStoreName);
+
+  state.userPhotos
+    .filter((photo) => photo.dateKey === snapshot.dateKey)
+    .forEach((photo) => photoStore.put(photo));
+  snapshot.photos.forEach((photo) => photoStore.put(photo));
+
+  state.canvasElements
+    .filter((element) => element.dateKey === snapshot.dateKey)
+    .forEach((element) => elementStore.put(element));
+  snapshot.elements.forEach((element) => elementStore.put(element));
+
+  await new Promise((resolve, reject) => {
+    const oldPhotos = photoStore.index("dateKey").getAllKeys(snapshot.dateKey);
+    oldPhotos.onsuccess = () => {
+      oldPhotos.result
+        .filter((id) => !snapshot.photos.some((photo) => photo.id === id))
+        .forEach((id) => photoStore.delete(id));
+    };
+    oldPhotos.onerror = () => reject(oldPhotos.error);
+
+    const oldElements = elementStore.index("dateKey").getAllKeys(snapshot.dateKey);
+    oldElements.onsuccess = () => {
+      oldElements.result
+        .filter((id) => !snapshot.elements.some((element) => element.id === id))
+        .forEach((id) => elementStore.delete(id));
+    };
+    oldElements.onerror = () => reject(oldElements.error);
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
+async function undoLastChange() {
+  const day = getDay();
+  if (!day) return;
+
+  const stack = undoStackForDate(day.dateKey);
+  const snapshot = stack.pop();
+  if (!snapshot) return;
+
+  await restoreDaySnapshot(snapshot);
+  clearSelection();
+  if (!getDay()) {
+    state.view = "daybook";
+    state.activeDayId = "";
+  }
+  render();
+}
+
 function loadImage(url) {
   return new Promise((resolve, reject) => {
     const image = new Image();
@@ -1148,6 +1357,202 @@ function blobToDataUrl(blob) {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(blob);
   });
+}
+
+function dataUrlToBytes(dataUrl) {
+  const [meta, data] = String(dataUrl).split(",");
+  const mime = meta.match(/^data:([^;]+);base64$/)?.[1] || "application/octet-stream";
+  const binary = atob(data || "");
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return { mime, bytes };
+}
+
+function bytesToDataUrl(bytes, mime) {
+  let binary = "";
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return `data:${mime};base64,${btoa(binary)}`;
+}
+
+function mimeExtension(mime) {
+  if (mime === "image/png") return "png";
+  if (mime === "image/webp") return "webp";
+  return "jpg";
+}
+
+function extensionMime(path) {
+  const lower = path.toLowerCase();
+  if (lower.endsWith(".png")) return "image/png";
+  if (lower.endsWith(".webp")) return "image/webp";
+  return "image/jpeg";
+}
+
+function isoDateStamp(date = new Date()) {
+  return dateKeyFromDate(date);
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function crc32(bytes) {
+  let crc = -1;
+  for (let index = 0; index < bytes.length; index += 1) {
+    crc ^= bytes[index];
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
+  }
+  return (crc ^ -1) >>> 0;
+}
+
+function concatBytes(parts) {
+  const length = parts.reduce((total, part) => total + part.length, 0);
+  const output = new Uint8Array(length);
+  let offset = 0;
+  parts.forEach((part) => {
+    output.set(part, offset);
+    offset += part.length;
+  });
+  return output;
+}
+
+function uint16(value) {
+  return new Uint8Array([value & 255, (value >>> 8) & 255]);
+}
+
+function uint32(value) {
+  return new Uint8Array([
+    value & 255,
+    (value >>> 8) & 255,
+    (value >>> 16) & 255,
+    (value >>> 24) & 255
+  ]);
+}
+
+function createZip(files) {
+  const encoder = new TextEncoder();
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  files.forEach((file) => {
+    const nameBytes = encoder.encode(file.name);
+    const content = file.bytes;
+    const crc = crc32(content);
+    const localHeader = concatBytes([
+      uint32(0x04034b50),
+      uint16(20),
+      uint16(0),
+      uint16(0),
+      uint16(0),
+      uint16(0),
+      uint32(crc),
+      uint32(content.length),
+      uint32(content.length),
+      uint16(nameBytes.length),
+      uint16(0),
+      nameBytes
+    ]);
+    const centralHeader = concatBytes([
+      uint32(0x02014b50),
+      uint16(20),
+      uint16(20),
+      uint16(0),
+      uint16(0),
+      uint16(0),
+      uint16(0),
+      uint32(crc),
+      uint32(content.length),
+      uint32(content.length),
+      uint16(nameBytes.length),
+      uint16(0),
+      uint16(0),
+      uint16(0),
+      uint16(0),
+      uint32(0),
+      uint32(offset),
+      nameBytes
+    ]);
+
+    localParts.push(localHeader, content);
+    centralParts.push(centralHeader);
+    offset += localHeader.length + content.length;
+  });
+
+  const centralDirectory = concatBytes(centralParts);
+  const end = concatBytes([
+    uint32(0x06054b50),
+    uint16(0),
+    uint16(0),
+    uint16(files.length),
+    uint16(files.length),
+    uint32(centralDirectory.length),
+    uint32(offset),
+    uint16(0)
+  ]);
+
+  return new Blob([concatBytes([...localParts, centralDirectory, end])], { type: "application/zip" });
+}
+
+function readUint16(bytes, offset) {
+  return bytes[offset] | (bytes[offset + 1] << 8);
+}
+
+function readUint32(bytes, offset) {
+  return (bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)) >>> 0;
+}
+
+async function readZip(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const decoder = new TextDecoder();
+  let endOffset = -1;
+  for (let offset = bytes.length - 22; offset >= 0; offset -= 1) {
+    if (readUint32(bytes, offset) === 0x06054b50) {
+      endOffset = offset;
+      break;
+    }
+  }
+  if (endOffset < 0) throw new Error("Backup zip is missing its directory.");
+
+  const fileCount = readUint16(bytes, endOffset + 10);
+  let directoryOffset = readUint32(bytes, endOffset + 16);
+  const files = new Map();
+
+  for (let index = 0; index < fileCount; index += 1) {
+    if (readUint32(bytes, directoryOffset) !== 0x02014b50) throw new Error("Backup zip directory is invalid.");
+
+    const method = readUint16(bytes, directoryOffset + 10);
+    const size = readUint32(bytes, directoryOffset + 24);
+    const nameLength = readUint16(bytes, directoryOffset + 28);
+    const extraLength = readUint16(bytes, directoryOffset + 30);
+    const commentLength = readUint16(bytes, directoryOffset + 32);
+    const localOffset = readUint32(bytes, directoryOffset + 42);
+    const name = decoder.decode(bytes.slice(directoryOffset + 46, directoryOffset + 46 + nameLength));
+
+    if (method !== 0) throw new Error("Compressed backup entries are not supported yet.");
+    if (readUint32(bytes, localOffset) !== 0x04034b50) throw new Error("Backup zip file entry is invalid.");
+
+    const localNameLength = readUint16(bytes, localOffset + 26);
+    const localExtraLength = readUint16(bytes, localOffset + 28);
+    const contentOffset = localOffset + 30 + localNameLength + localExtraLength;
+    files.set(name, bytes.slice(contentOffset, contentOffset + size));
+
+    directoryOffset += 46 + nameLength + extraLength + commentLength;
+  }
+
+  return files;
 }
 
 async function compressImage(file) {
@@ -1187,6 +1592,9 @@ async function handlePhotoSelection(event) {
   const imported = [];
   const dateKey = state.pendingImportDateKey || todayDateKey();
   const existingForDay = state.userPhotos.filter((photo) => photo.dateKey === dateKey).length;
+  const undoBefore = state.view === "single" && getDay()?.dateKey === dateKey
+    ? snapshotForDate(dateKey)
+    : null;
 
   for (const file of files) {
     try {
@@ -1222,6 +1630,7 @@ async function handlePhotoSelection(event) {
   if (state.view === "single") {
     state.activeDayId = `user-${dateKey}`;
     selectItem("photo", imported[0].id);
+    commitUndoSnapshot(undoBefore);
   }
 
   render();
@@ -1243,6 +1652,7 @@ function selectPhoto(photoId) {
 }
 
 async function deleteSelectedPhoto(photoId) {
+  const undoBefore = currentUndoSnapshot();
   await deleteUserPhoto(photoId);
   clearSelection();
 
@@ -1252,12 +1662,15 @@ async function deleteSelectedPhoto(photoId) {
     state.activeDayId = "";
   }
 
+  commitUndoSnapshot(undoBefore);
   render();
 }
 
 async function deleteSelectedElement(elementId) {
+  const undoBefore = currentUndoSnapshot();
   await deleteCanvasElement(elementId);
   clearSelection();
+  commitUndoSnapshot(undoBefore);
   render();
 }
 
@@ -1306,12 +1719,14 @@ async function completeTextComposer() {
 
   const editingElement = editingId ? getCanvasElement(editingId) : null;
   if (editingElement?.type === "text") {
+    const undoBefore = currentUndoSnapshot();
     const size = measureTextLayout(value, editingElement.fontSize || 34);
     editingElement.content = value;
     editingElement.width = size.width;
     editingElement.height = size.height;
     await saveCanvasElement(editingElement);
     selectItem("text", editingElement.id);
+    commitUndoSnapshot(undoBefore);
     render();
     return;
   }
@@ -1323,8 +1738,10 @@ async function completeTextComposer() {
   }
 
   const element = defaultTextElement(day.dateKey, value);
+  const undoBefore = snapshotForDate(day.dateKey);
   await saveCanvasElement(element);
   selectItem("text", element.id);
+  commitUndoSnapshot(undoBefore);
   render();
 }
 
@@ -1333,6 +1750,7 @@ async function addStickerElement(sticker) {
   if (!day) return;
 
   const element = defaultStickerElement(day.dateKey, sticker);
+  const undoBefore = snapshotForDate(day.dateKey);
   debugInteraction("add sticker", {
     stickerType: sticker.stickerType,
     content: sticker.content || "",
@@ -1343,6 +1761,7 @@ async function addStickerElement(sticker) {
   render();
   await saveCanvasElement(element);
   selectItem("sticker", element.id);
+  commitUndoSnapshot(undoBefore);
   setDeleteZoneVisible(false);
   debugInteraction("close sticker sheet after select", { elementId: element.id });
   render();
@@ -1371,6 +1790,350 @@ async function handleCustomStickerSelection(event) {
     await addStickerElement(sticker);
   } catch {
     window.alert("This sticker could not be added.");
+  }
+}
+
+function backupImageRecord(record, folder, files) {
+  if (!record.imageDataUrl) return record;
+
+  const { mime, bytes } = dataUrlToBytes(record.imageDataUrl);
+  const imagePath = `images/${folder}/${record.id}.${mimeExtension(mime)}`;
+  files.push({ name: imagePath, bytes });
+  const clone = { ...record, imagePath, imageMime: mime };
+  delete clone.imageDataUrl;
+  if (clone.src) delete clone.src;
+  return clone;
+}
+
+function backupCanvasElement(element, files) {
+  if (element.imageDataUrl) return backupImageRecord(element, "elements", files);
+  return { ...element };
+}
+
+function buildBackupFiles() {
+  const encoder = new TextEncoder();
+  const files = [];
+  const backup = {
+    schemaVersion: backupSchemaVersion,
+    appVersion,
+    exportedAt: new Date().toISOString(),
+    notes: deepClone(state.notes),
+    photos: state.userPhotos.map((photo) => backupImageRecord(photo, "photos", files)),
+    canvasElements: state.canvasElements.map((element) => backupCanvasElement(element, files)),
+    customStickers: state.customStickers.map((sticker) => backupImageRecord(sticker, "stickers", files))
+  };
+
+  files.unshift({
+    name: "backup.json",
+    bytes: encoder.encode(JSON.stringify(backup, null, 2))
+  });
+
+  return files;
+}
+
+function hydrateImageRecord(record, files) {
+  const clone = { ...record };
+  if (!clone.imagePath) return clone;
+
+  const imageBytes = files.get(clone.imagePath);
+  if (!imageBytes) throw new Error(`Missing image file: ${clone.imagePath}`);
+
+  clone.imageDataUrl = bytesToDataUrl(imageBytes, clone.imageMime || extensionMime(clone.imagePath));
+  delete clone.imagePath;
+  delete clone.imageMime;
+  return clone;
+}
+
+function validateBackupPayload(backup) {
+  if (!backup || typeof backup !== "object") throw new Error("Backup file is not valid.");
+  if (!backup.schemaVersion) throw new Error("Backup is missing schemaVersion.");
+  if (!Array.isArray(backup.photos)) throw new Error("Backup is missing photos.");
+  if (!Array.isArray(backup.canvasElements)) throw new Error("Backup is missing canvas elements.");
+  if (!Array.isArray(backup.customStickers)) throw new Error("Backup is missing stickers.");
+
+  backup.photos.forEach((photo) => {
+    if (!photo.id || !photo.dateKey || !photo.addedAt || !photo.imageDataUrl) {
+      throw new Error("Backup has an incomplete photo record.");
+    }
+  });
+}
+
+async function parseBackupFile(file) {
+  const files = await readZip(file);
+  const backupBytes = files.get("backup.json");
+  if (!backupBytes) throw new Error("Backup zip is missing backup.json.");
+
+  const backup = JSON.parse(new TextDecoder().decode(backupBytes));
+  const hydrated = {
+    schemaVersion: backup.schemaVersion,
+    appVersion: backup.appVersion || "",
+    exportedAt: backup.exportedAt || "",
+    notes: backup.notes && typeof backup.notes === "object" ? backup.notes : {},
+    photos: (backup.photos || []).map((photo) => hydrateImageRecord(photo, files)),
+    canvasElements: (backup.canvasElements || []).map((element) => hydrateImageRecord(element, files)),
+    customStickers: (backup.customStickers || []).map((sticker) => hydrateImageRecord(sticker, files))
+  };
+
+  validateBackupPayload(hydrated);
+  return hydrated;
+}
+
+async function replacePersistedData(nextData) {
+  if (state.storageMode === "localStorage") {
+    localStorage.setItem(localPhotosKey, JSON.stringify(nextData.photos));
+    localStorage.setItem(localElementsKey, JSON.stringify(nextData.canvasElements));
+    localStorage.setItem(localCustomStickersKey, JSON.stringify(nextData.customStickers));
+    return;
+  }
+
+  const transaction = state.db.transaction([photoStoreName, elementStoreName, customStickerStoreName], "readwrite");
+  const photoStore = transaction.objectStore(photoStoreName);
+  const elementStore = transaction.objectStore(elementStoreName);
+  const stickerStore = transaction.objectStore(customStickerStoreName);
+
+  photoStore.clear();
+  elementStore.clear();
+  stickerStore.clear();
+  nextData.photos.forEach((photo) => photoStore.put(photo));
+  nextData.canvasElements.forEach((element) => elementStore.put(element));
+  nextData.customStickers.forEach((sticker) => stickerStore.put(sticker));
+
+  await transactionDone(transaction);
+}
+
+async function exportBackup() {
+  if (state.isExportingBackup) return;
+
+  state.isExportingBackup = true;
+  render();
+
+  try {
+    const filename = `Photo-Journal-Backup-${isoDateStamp()}.zip`;
+    const zipBlob = createZip(buildBackupFiles());
+    downloadBlob(zipBlob, filename);
+    showToast("Backup exported.");
+  } catch (error) {
+    showToast(error?.message || "Backup export failed.");
+  } finally {
+    state.isExportingBackup = false;
+    state.settingsSheetOpen = false;
+    render();
+  }
+}
+
+function openBackupPicker() {
+  const input = document.querySelector("#backupInput");
+  input.value = "";
+  input.click();
+}
+
+async function handleBackupRestoreSelection(event) {
+  const file = Array.from(event.target.files || [])[0];
+  if (!file) return;
+
+  let parsed;
+  try {
+    parsed = await parseBackupFile(file);
+  } catch (error) {
+    showToast(error?.message || "Backup file is invalid.");
+    return;
+  }
+
+  const confirmed = window.confirm("Restore this backup? Your current journal data will be replaced.");
+  if (!confirmed) return;
+
+  const previousData = {
+    photos: deepClone(state.userPhotos),
+    canvasElements: deepClone(state.canvasElements),
+    customStickers: deepClone(state.customStickers),
+    notes: deepClone(state.notes)
+  };
+
+  try {
+    await replacePersistedData(parsed);
+    state.userPhotos = parsed.photos;
+    state.canvasElements = parsed.canvasElements;
+    state.customStickers = parsed.customStickers;
+    state.notes = parsed.notes;
+    saveNotes();
+    state.undoHistory = {};
+    state.settingsSheetOpen = false;
+    state.view = "home";
+    state.activeDayId = "";
+    clearSelection();
+    render();
+    showToast("Backup restored.");
+  } catch (error) {
+    state.userPhotos = previousData.photos;
+    state.canvasElements = previousData.canvasElements;
+    state.customStickers = previousData.customStickers;
+    state.notes = previousData.notes;
+    saveNotes();
+    try {
+      await replacePersistedData(previousData);
+    } catch {
+      // Keep in-memory state intact if the rollback write also fails.
+    }
+    render();
+    showToast(error?.message || "Restore failed. Current data was kept.");
+  }
+}
+
+function drawContainedImage(context, image, width, height) {
+  const imageRatio = image.naturalWidth / image.naturalHeight || 1;
+  const boxRatio = width / height || 1;
+  let drawWidth = width;
+  let drawHeight = height;
+
+  if (imageRatio > boxRatio) {
+    drawHeight = width / imageRatio;
+  } else {
+    drawWidth = height * imageRatio;
+  }
+
+  context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+}
+
+async function drawTransformedItem(context, item, itemType, offsetY, draw) {
+  const width = item.width || measureTextLayout(item.content, item.fontSize || 34).width;
+  const height = item.height || measureTextLayout(item.content, item.fontSize || 34).height;
+  context.save();
+  context.translate(item.x + width / 2, offsetY + item.y + height / 2);
+  context.rotate(((item.rotation || 0) * Math.PI) / 180);
+  context.scale(item.scale || 1, item.scale || 1);
+  await draw(width, height);
+  context.restore();
+}
+
+function drawTextLines(context, text, width, fontSize, textAlign = "center") {
+  const lines = String(text || "").split("\n");
+  const lineHeight = fontSize * 1.15;
+  context.textAlign = textAlign;
+  context.textBaseline = "middle";
+  const x = textAlign === "left" ? -width / 2 : textAlign === "right" ? width / 2 : 0;
+  const startY = -((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((line, index) => {
+    context.fillText(line, x, startY + index * lineHeight);
+  });
+}
+
+async function dayCanvasBlob(day) {
+  const exportScale = 2;
+  const headerHeight = 104;
+  const width = canvasWidth;
+  const height = headerHeight + canvasHeight;
+  const canvas = document.createElement("canvas");
+  canvas.width = width * exportScale;
+  canvas.height = height * exportScale;
+  const context = canvas.getContext("2d");
+  context.scale(exportScale, exportScale);
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, width, height);
+
+  const label = relativeLabel(day.dateKey);
+  context.fillStyle = "#222222";
+  context.font = "600 22px -apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(label.date, width / 2, 28);
+  context.fillStyle = "#8a8a8a";
+  context.font = "400 16px -apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif";
+  context.fillText(`· ${label.detail}`, width / 2, 52);
+  const note = noteFor(day);
+  if (note) {
+    context.fillStyle = "#777777";
+    context.font = "400 14px -apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif";
+    context.fillText(note, width / 2, 76);
+  }
+
+  const items = [
+    ...day.photos.map((photo) => ({ ...photo, itemType: "photo" })),
+    ...elementsForDate(day.dateKey).map((element) => ({ ...element, itemType: element.type }))
+  ].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+  for (const item of items) {
+    if (item.itemType === "photo") {
+      const image = await loadImage(item.imageDataUrl || item.src);
+      await drawTransformedItem(context, item, "photo", headerHeight, async (itemWidth, itemHeight) => {
+        context.save();
+        context.shadowColor = "rgba(0, 0, 0, 0.08)";
+        context.shadowBlur = 18;
+        context.shadowOffsetY = 8;
+        drawContainedImage(context, image, itemWidth, itemHeight);
+        context.restore();
+      });
+    } else if (item.itemType === "text") {
+      await drawTransformedItem(context, item, "text", headerHeight, async (itemWidth) => {
+        context.fillStyle = item.color || "#222222";
+        context.font = `${item.fontWeight || "600"} ${item.fontSize || 34}px ${item.fontFamily || "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif"}`;
+        drawTextLines(context, item.content, itemWidth, item.fontSize || 34, item.textAlign || "center");
+      });
+    } else if (item.stickerType === "image" && item.imageDataUrl) {
+      const image = await loadImage(item.imageDataUrl);
+      await drawTransformedItem(context, item, "sticker", headerHeight, async (itemWidth, itemHeight) => {
+        drawContainedImage(context, image, itemWidth, itemHeight);
+      });
+    } else {
+      await drawTransformedItem(context, item, "sticker", headerHeight, async (itemWidth) => {
+        context.fillStyle = item.color || "#222222";
+        context.font = item.stickerType === "text"
+          ? `800 ${item.fontSize || 22}px Georgia, serif`
+          : `${item.fontSize || 48}px -apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif`;
+        if (item.stickerType === "text") {
+          context.lineWidth = 4;
+          context.strokeStyle = "#ffffff";
+          context.textAlign = "center";
+          context.textBaseline = "middle";
+          context.strokeText(item.content, 0, 0);
+        }
+        drawTextLines(context, item.content, itemWidth, item.fontSize || 48, "center");
+      });
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Could not create PNG."));
+    }, "image/png");
+  });
+}
+
+async function exportCurrentDayImage() {
+  const day = getDay();
+  if (!day || state.isExportingDay) return;
+
+  const previousSelection = {
+    selectedPhotoId: state.selectedPhotoId,
+    selectedSurface: state.selectedSurface,
+    selectedItemType: state.selectedItemType
+  };
+
+  state.isExportingDay = true;
+  clearSelection();
+  render();
+
+  try {
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    const blob = await dayCanvasBlob(day);
+    const filename = `Photo-Journal-${day.dateKey}.png`;
+    const file = new File([blob], filename, { type: "image/png" });
+
+    if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+      await navigator.share({ files: [file], title: "Moments Journal" });
+    } else {
+      downloadBlob(blob, filename);
+    }
+
+    showToast("Day image exported.");
+  } catch (error) {
+    showToast(error?.message || "Day export failed.");
+  } finally {
+    state.isExportingDay = false;
+    state.selectedPhotoId = previousSelection.selectedPhotoId;
+    state.selectedSurface = previousSelection.selectedSurface;
+    state.selectedItemType = previousSelection.selectedItemType;
+    render();
   }
 }
 
@@ -1450,7 +2213,8 @@ function elementForItem(itemId, itemType) {
 }
 
 function debugInteraction(message, details = {}) {
-  console.log(`[moments-journal] ${message}`, details);
+  void message;
+  void details;
 }
 
 function activePointersForItem(itemId, itemType) {
@@ -1553,7 +2317,7 @@ function updateDragDeleteFeedback(event) {
   }
 }
 
-async function deleteInteractiveItem(itemId, itemType) {
+async function deleteInteractiveItem(itemId, itemType, beforeSnapshot = currentUndoSnapshot()) {
   debugInteraction("delete element", { elementId: itemId, itemType });
 
   if (itemType === "photo") {
@@ -1568,6 +2332,7 @@ async function deleteInteractiveItem(itemId, itemType) {
   }
 
   clearSelection();
+  commitUndoSnapshot(beforeSnapshot);
   render();
 }
 
@@ -1596,21 +2361,17 @@ function startPinchGesture(event, itemId, itemType) {
   gesture.startPinchCenterY = center.y;
   gesture.overDeleteZone = false;
   gesture.dragging = false;
+  gesture.beforeSnapshot = gesture.beforeSnapshot || currentUndoSnapshot();
 
   const day = getDay();
-  layout.zIndex = maxCanvasZIndex(day?.dateKey || layout.dateKey) + 1;
+  const dateKey = day?.dateKey || layout.dateKey;
+  const maxZ = maxCanvasZIndex(dateKey);
+  if ((layout.zIndex || 0) < maxZ) layout.zIndex = maxZ + 1;
   const element = elementForItem(itemId, itemType);
   element?.classList.remove("is-dragging", "is-over-delete");
   element?.classList.add("is-selected", "is-gesturing");
   applyInteractiveStyle(element, layout, itemType);
 
-  console.log("[moments-journal] gesture start", {
-    mode: "pinch",
-    itemId,
-    itemType,
-    scale: layout.scale || 1,
-    rotation: layout.rotation || 0
-  });
   return true;
 }
 
@@ -1641,6 +2402,7 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   gesture.pointerId = event.pointerId;
   gesture.overDeleteZone = false;
   gesture.dragging = false;
+  gesture.beforeSnapshot = currentUndoSnapshot();
 
   const rect = gestureElement?.getBoundingClientRect()
     || elementForItem(itemId, itemType)?.getBoundingClientRect();
@@ -1651,7 +2413,8 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   }
 
   const day = getDay();
-  layout.zIndex = maxCanvasZIndex(day?.dateKey || layout.dateKey) + 1;
+  const maxZ = maxCanvasZIndex(day?.dateKey || layout.dateKey);
+  if ((layout.zIndex || 0) < maxZ) layout.zIndex = maxZ + 1;
   const element = elementForItem(itemId, itemType);
   document.querySelectorAll(".canvas-item.is-selected").forEach((photoElement) => {
     photoElement.classList.remove("is-selected");
@@ -1699,12 +2462,6 @@ function updateGesture(event) {
     layout.x = clamp(gesture.startX + center.x - gesture.startPinchCenterX, -40, canvasWidth - 40);
     layout.y = clamp(gesture.startY + center.y - gesture.startPinchCenterY, -40, canvasHeight - 40);
     applyInteractiveStyle(element, layout, gesture.itemType);
-    console.log("[moments-journal] gesture scale/rotation", {
-      itemId: gesture.itemId,
-      itemType: gesture.itemType,
-      scale: Math.round(layout.scale * 1000) / 1000,
-      rotation: layout.rotation
-    });
     return;
   }
 
@@ -1772,31 +2529,26 @@ async function endGesture(event) {
   gesture.itemType = "";
   gesture.startFontSize = 0;
   gesture.startScale = 1;
+  const beforeSnapshot = gesture.beforeSnapshot;
+  gesture.beforeSnapshot = null;
   gesture.pointerId = null;
   gesture.overDeleteZone = false;
   gesture.dragging = false;
   gesture.surface = "";
 
   if (shouldDelete && itemId) {
-    await deleteInteractiveItem(itemId, itemType);
+    await deleteInteractiveItem(itemId, itemType, beforeSnapshot);
     if (pointer) activePointers.delete(pointerId);
     debugInteraction("end drag", { elementId: itemId, itemType, deleted: true });
     return;
   }
 
-  if (itemId) await persistInteractiveLayout(itemId, itemType);
+  if (itemId) {
+    await persistInteractiveLayout(itemId, itemType);
+    commitUndoSnapshot(beforeSnapshot);
+  }
   if (pointer) activePointers.delete(pointerId);
   if (mode === "drag") debugInteraction("end drag", { elementId: itemId, itemType, deleted: false });
-  if (mode === "pinch") {
-    const layout = getInteractiveLayout(itemId, itemType);
-    console.log("[moments-journal] gesture end", {
-      mode: "pinch",
-      itemId,
-      itemType,
-      scale: layout?.scale || 1,
-      rotation: layout?.rotation || 0
-    });
-  }
 }
 
 function endElementDrag(event) {
@@ -1808,7 +2560,7 @@ document.addEventListener("pointerdown", (event) => {
   if (stopDaybookNavPointerEvent(event)) return;
   if (startDayPress(event)) return;
 
-  if (event.target.closest(".text-composer-overlay, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-add-button")) return;
+  if (event.target.closest(".text-composer-overlay, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-add-button, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
 
   const deleteButton = event.target.closest(".delete-photo");
   if (deleteButton) {
@@ -1910,6 +2662,40 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "edit-note") {
     editNote();
+    return;
+  }
+  if (action === "open-settings") {
+    event.stopPropagation();
+    state.settingsSheetOpen = true;
+    render();
+    return;
+  }
+  if (action === "close-settings") {
+    event.stopPropagation();
+    state.settingsSheetOpen = false;
+    render();
+    return;
+  }
+  if (action === "export-backup") {
+    event.stopPropagation();
+    exportBackup();
+    return;
+  }
+  if (action === "restore-backup") {
+    event.stopPropagation();
+    state.settingsSheetOpen = false;
+    render();
+    openBackupPicker();
+    return;
+  }
+  if (action === "export-day") {
+    event.stopPropagation();
+    exportCurrentDayImage();
+    return;
+  }
+  if (action === "undo") {
+    event.stopPropagation();
+    undoLastChange();
     return;
   }
   if (action === "add-text") {
@@ -2020,6 +2806,7 @@ document.addEventListener("input", (event) => {
 
 document.querySelector("#photoInput").addEventListener("change", handlePhotoSelection);
 document.querySelector("#stickerInput").addEventListener("change", handleCustomStickerSelection);
+document.querySelector("#backupInput").addEventListener("change", handleBackupRestoreSelection);
 
 async function initApp() {
   try {
@@ -2044,17 +2831,13 @@ function registerServiceWorker() {
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (refreshing || !hadController) return;
     refreshing = true;
-    console.log("Moments Journal service worker updated. Reloading for the latest version.");
     window.location.reload();
   });
 
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./service-worker.js")
       .then((registration) => {
-        console.log("Moments Journal service worker registered.", registration.scope);
-
         if (registration.waiting) {
-          console.log("Moments Journal service worker update is waiting. Activating now.");
           registration.waiting.postMessage({ type: "SKIP_WAITING" });
         }
 
@@ -2066,10 +2849,7 @@ function registerServiceWorker() {
             if (newWorker.state !== "installed") return;
 
             if (navigator.serviceWorker.controller) {
-              console.log("Moments Journal service worker updated. Activating new version.");
               newWorker.postMessage({ type: "SKIP_WAITING" });
-            } else {
-              console.log("Moments Journal service worker installed for offline use.");
             }
           });
         });
