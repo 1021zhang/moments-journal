@@ -41,6 +41,85 @@ button {
   display: grid;
   place-items: start center;
   background: #ffffff;
+  overflow-x: hidden;
+}
+
+.app-stage {
+  position: relative;
+  width: min(390px, 100vw);
+  min-height: 100svh;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.page-layer {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  justify-items: center;
+  align-items: start;
+  min-height: 100%;
+  background: #ffffff;
+  backface-visibility: hidden;
+  will-change: transform, opacity;
+  transition:
+    transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 220ms ease-out;
+}
+
+.transition-forward .outgoing-page {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.transition-forward .incoming-page {
+  opacity: 0;
+  transform: translate3d(18px, 0, 0) scale(0.995);
+}
+
+.transition-forward.is-animating .outgoing-page {
+  opacity: 0;
+  transform: translate3d(-10px, 0, 0) scale(0.992);
+}
+
+.transition-forward.is-animating .incoming-page {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.transition-back .outgoing-page {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.transition-back .incoming-page {
+  opacity: 0;
+  transform: translate3d(-16px, 0, 0) scale(0.995);
+}
+
+.transition-back.is-animating .outgoing-page {
+  opacity: 0;
+  transform: translate3d(12px, 0, 0) scale(0.992);
+}
+
+.transition-back.is-animating .incoming-page {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-layer {
+    transition: opacity 80ms linear;
+  }
+
+  .transition-forward .incoming-page,
+  .transition-forward.is-animating .outgoing-page,
+  .transition-back .incoming-page,
+  .transition-back.is-animating .outgoing-page,
+  .transition-forward.is-animating .incoming-page,
+  .transition-back.is-animating .incoming-page {
+    transform: none;
+  }
 }
 
 .file-input {
@@ -671,7 +750,8 @@ button {
 
 .canvas-item {
   position: absolute;
-  transform: rotate(var(--rotation));
+  --lift-scale: 1;
+  transform: rotate(var(--rotation)) scale(var(--scale, 1)) scale(var(--lift-scale));
   transform-origin: center center;
   touch-action: none;
   user-select: none;
@@ -683,7 +763,12 @@ button {
 }
 
 .canvas-item.is-selected {
-  transform: rotate(var(--rotation)) scale(1.01);
+  --lift-scale: 1.01;
+}
+
+.canvas-item.is-gesturing {
+  --lift-scale: 1.015;
+  will-change: transform, left, top;
 }
 
 .free-canvas:has(.canvas-item.is-selected) .canvas-item:not(.is-selected) {
@@ -692,6 +777,7 @@ button {
 
 .canvas-item.is-dragging {
   opacity: 0.96;
+  --lift-scale: 1.02;
 }
 
 .canvas-item.is-over-delete {

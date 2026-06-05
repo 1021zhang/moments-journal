@@ -12,6 +12,11 @@ const stackPreviewWidth = 358;
 const stackPreviewHeight = 390;
 const deleteRevealHeight = 180;
 const deleteActiveHeight = 110;
+const minItemScale = 0.25;
+const maxItemScale = 4;
+const minTextScale = 0.4;
+const maxTextScale = 3.5;
+const pageTransitionMs = 260;
 
 const mockPhotos = [
   { id: "mock-cafe", type: "mock", caption: "cafe", src: "https://picsum.photos/seed/moments-cafe/320/320" },
@@ -59,11 +64,14 @@ const gesture = {
   startWidth: 0,
   startHeight: 0,
   startFontSize: 0,
+  startScale: 1,
   aspectRatio: 1,
   startRotation: 0,
   startAngle: 0,
   startPinchDistance: 0,
   startPinchAngle: 0,
+  startPinchCenterX: 0,
+  startPinchCenterY: 0,
   pointerId: null,
   overDeleteZone: false,
   dragging: false,
@@ -72,6 +80,7 @@ const gesture = {
 };
 
 const activePointers = new Map();
+let isPageTransitioning = false;
 const dayPress = {
   element: null,
   dayId: "",
@@ -211,6 +220,7 @@ function defaultTextElement(dateKey, content = "Text") {
     width: size.width,
     height: size.height,
     rotation: 0,
+    scale: 1,
     zIndex: maxCanvasZIndex(dateKey) + 1,
     fontSize,
     fontFamily: "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
@@ -239,6 +249,7 @@ function defaultStickerElement(dateKey, sticker) {
     width: isTextSticker ? 142 : isImageSticker ? imageWidth : 70,
     height: isTextSticker ? 58 : isImageSticker ? imageHeight : 70,
     rotation: 0,
+    scale: 1,
     zIndex: maxCanvasZIndex(dateKey) + 1,
     fontSize: isTextSticker ? 22 : 48,
     color: sticker.color || "#222222",
@@ -281,6 +292,7 @@ function generateLayout(photo, index) {
     width,
     height,
     rotation: rotations[index % rotations.length],
+    scale: 1,
     zIndex: index + 1
   };
 }
@@ -354,7 +366,7 @@ function stackPhotos() {
     .map(normalizeUserPhoto);
 }
 
-function ensureLayoutsForPhotos() {
+async function ensureLayoutsForPhotos() {
   let changed = false;
   const groups = new Map();
 
@@ -371,13 +383,55 @@ function ensureLayoutsForPhotos() {
         const needsLayout = [photo.x, photo.y, photo.width, photo.height, photo.rotation, photo.zIndex]
           .some((value) => typeof value !== "number");
 
-        if (!needsLayout) return;
-        Object.assign(photo, generateLayout(photo, index));
-        changed = true;
+        if (needsLayout) {
+          Object.assign(photo, generateLayout(photo, index));
+          changed = true;
+        }
+
+        if (typeof photo.scale !== "number") {
+          photo.scale = 1;
+          changed = true;
+        }
       });
   });
 
-  if (changed) persistAllUserPhotos();
+  if (changed) await persistAllUserPhotos();
+}
+
+async function ensureLayoutsForCanvasElements() {
+  let changed = false;
+
+  state.canvasElements.forEach((element) => {
+    if (typeof element.scale !== "number") {
+      element.scale = 1;
+      changed = true;
+    }
+
+    if (typeof element.rotation !== "number") {
+      element.rotation = 0;
+      changed = true;
+    }
+
+    if (typeof element.zIndex !== "number") {
+      element.zIndex = 1;
+      changed = true;
+    }
+
+    if (element.type === "text") {
+      const fontSize = element.fontSize || 34;
+      const size = measureTextLayout(element.content, fontSize);
+      if (typeof element.width !== "number") {
+        element.width = size.width;
+        changed = true;
+      }
+      if (typeof element.height !== "number") {
+        element.height = size.height;
+        changed = true;
+      }
+    }
+  });
+
+  if (changed) await Promise.all(state.canvasElements.map((element) => saveCanvasElement(element)));
 }
 
 function buildUserDayModels() {
@@ -539,7 +593,8 @@ function freeCanvasPhoto(photo) {
     `width:${photo.width}px`,
     `height:${photo.height}px`,
     `z-index:${photo.zIndex}`,
-    `--rotation:${photo.rotation}deg`
+    `--rotation:${photo.rotation}deg`,
+    `--scale:${photo.scale || 1}`
   ].join(";");
 
   return `
@@ -558,7 +613,8 @@ function canvasElement(element) {
     `left:${element.x}px`,
     `top:${element.y}px`,
     `z-index:${element.zIndex}`,
-    `--rotation:${element.rotation}deg`
+    `--rotation:${element.rotation}deg`,
+    `--scale:${element.scale || 1}`
   ];
 
   if (element.type !== "text") {
@@ -731,21 +787,84 @@ function renderSingleDay() {
   `;
 }
 
-function render() {
-  const app = document.querySelector("#app");
-  app.innerHTML = {
+function renderView(view) {
+  return {
     home: renderHome,
     daybook: renderDaybook,
     single: renderSingleDay
-  }[state.view]();
+  }[view]();
+}
+
+function render() {
+  const app = document.querySelector("#app");
+  app.innerHTML = renderView(state.view);
+}
+
+function preparePageState(targetView, options = {}) {
+  clearSelection();
+  activePointers.clear();
+  setDeleteZoneVisible(false);
+  state.activePanel = "";
+  state.textComposer = { active: false, editingId: "", value: "" };
+
+  if (targetView === "single" && options.dayId) {
+    state.activeDayId = options.dayId;
+  }
+
+  if (targetView !== "single" && options.clearDay !== false) {
+    state.activeDayId = "";
+  }
+
+  state.view = targetView;
+}
+
+function navigateToPage(targetView, direction = "forward", options = {}) {
+  const app = document.querySelector("#app");
+  if (!app || isPageTransitioning) return;
+
+  if (state.view === targetView && (!options.dayId || options.dayId === state.activeDayId)) {
+    return;
+  }
+
+  const fromView = state.view;
+  const outgoingHtml = app.innerHTML || renderView(fromView);
+  preparePageState(targetView, options);
+  const incomingHtml = renderView(targetView);
+  const transitionClass = direction === "back" ? "transition-back" : "transition-forward";
+
+  isPageTransitioning = true;
+  console.log("[moments-journal] page transition start", { from: fromView, to: targetView, direction });
+  app.innerHTML = `
+    <div class="app-stage ${transitionClass}" aria-live="polite">
+      <section class="page-layer outgoing-page" aria-hidden="true">${outgoingHtml}</section>
+      <section class="page-layer incoming-page">${incomingHtml}</section>
+    </div>
+  `;
+
+  const stage = app.querySelector(".app-stage");
+  const finish = () => {
+    if (!isPageTransitioning) return;
+    isPageTransitioning = false;
+    render();
+    console.log("[moments-journal] page transition end", { to: targetView });
+  };
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => stage?.classList.add("is-animating"));
+  });
+
+  const incoming = app.querySelector(".incoming-page");
+  const onIncomingTransitionEnd = (event) => {
+    if (event.target !== incoming) return;
+    incoming?.removeEventListener("transitionend", onIncomingTransitionEnd);
+    finish();
+  };
+  incoming?.addEventListener("transitionend", onIncomingTransitionEnd);
+  window.setTimeout(finish, pageTransitionMs + 80);
 }
 
 function openDay(dayId) {
-  state.activeDayId = dayId;
-  clearSelection();
-  state.activePanel = "";
-  state.view = "single";
-  render();
+  navigateToPage("single", "forward", { dayId, clearDay: false });
 }
 
 function clearDayPress() {
@@ -1347,6 +1466,40 @@ function angleBetween(pointerA, pointerB) {
   return Math.atan2(pointerB.y - pointerA.y, pointerB.x - pointerA.x);
 }
 
+function centerBetween(pointerA, pointerB) {
+  return {
+    x: (pointerA.x + pointerB.x) / 2,
+    y: (pointerA.y + pointerB.y) / 2
+  };
+}
+
+function normalizeAngleDelta(degrees) {
+  return ((degrees + 180) % 360 + 360) % 360 - 180;
+}
+
+function scaleBoundsForItem(itemType) {
+  return itemType === "text"
+    ? { min: minTextScale, max: maxTextScale }
+    : { min: minItemScale, max: maxItemScale };
+}
+
+function applyInteractiveStyle(element, layout, itemType) {
+  if (!element || !layout) return;
+
+  element.style.left = `${layout.x}px`;
+  element.style.top = `${layout.y}px`;
+  element.style.zIndex = String(layout.zIndex || 1);
+  element.style.setProperty("--rotation", `${layout.rotation || 0}deg`);
+  element.style.setProperty("--scale", layout.scale || 1);
+
+  if (itemType !== "text") {
+    element.style.width = `${layout.width}px`;
+    element.style.height = `${layout.height}px`;
+  }
+
+  if (layout.fontSize) element.style.setProperty("--font-size", `${layout.fontSize}px`);
+}
+
 function deleteZoneElement() {
   return document.querySelector(".delete-zone");
 }
@@ -1418,29 +1571,46 @@ async function deleteInteractiveItem(itemId, itemType) {
   render();
 }
 
-function startTextPinchGesture(event, itemId) {
-  const layout = getCanvasElement(itemId);
-  const pointers = activePointersForItem(itemId, "text");
+function startPinchGesture(event, itemId, itemType) {
+  const layout = getInteractiveLayout(itemId, itemType);
+  const pointers = activePointersForItem(itemId, itemType);
   if (!layout || pointers.length < 2) return false;
 
   event.preventDefault();
-  selectItem("text", itemId);
+  selectItem(itemType, itemId);
   setDeleteZoneVisible(false);
 
+  const center = centerBetween(pointers[0], pointers[1]);
   gesture.active = true;
   gesture.mode = "pinch";
   gesture.itemId = itemId;
-  gesture.itemType = "text";
+  gesture.itemType = itemType;
   gesture.surface = "day";
-  gesture.startFontSize = layout.fontSize || 34;
+  gesture.startX = layout.x || 0;
+  gesture.startY = layout.y || 0;
+  gesture.startScale = layout.scale || 1;
   gesture.startRotation = layout.rotation || 0;
   gesture.startPinchDistance = Math.max(1, distanceBetween(pointers[0], pointers[1]));
   gesture.startPinchAngle = angleBetween(pointers[0], pointers[1]);
+  gesture.startPinchCenterX = center.x;
+  gesture.startPinchCenterY = center.y;
   gesture.overDeleteZone = false;
   gesture.dragging = false;
 
-  const element = elementForItem(itemId, "text");
+  const day = getDay();
+  layout.zIndex = maxCanvasZIndex(day?.dateKey || layout.dateKey) + 1;
+  const element = elementForItem(itemId, itemType);
   element?.classList.remove("is-dragging", "is-over-delete");
+  element?.classList.add("is-selected", "is-gesturing");
+  applyInteractiveStyle(element, layout, itemType);
+
+  console.log("[moments-journal] gesture start", {
+    mode: "pinch",
+    itemId,
+    itemType,
+    scale: layout.scale || 1,
+    rotation: layout.rotation || 0
+  });
   return true;
 }
 
@@ -1465,6 +1635,7 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   gesture.startWidth = layout.width;
   gesture.startHeight = layout.height;
   gesture.startFontSize = layout.fontSize || 0;
+  gesture.startScale = layout.scale || 1;
   gesture.aspectRatio = itemAspectRatio(layout, itemType);
   gesture.startRotation = layout.rotation || 0;
   gesture.pointerId = event.pointerId;
@@ -1486,6 +1657,7 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
     photoElement.classList.remove("is-selected");
   });
   element?.classList.add("is-selected");
+  element?.classList.add("is-gesturing");
   if (element) element.style.zIndex = String(layout.zIndex);
   if (mode === "drag") {
     debugInteraction("start drag elementId", { elementId: itemId, itemType });
@@ -1512,22 +1684,27 @@ function updateGesture(event) {
   const element = elementForItem(gesture.itemId, gesture.itemType);
   if (!layout || !element) return;
 
-  if (gesture.mode === "pinch" && gesture.itemType === "text") {
-    const pointers = activePointersForItem(gesture.itemId, "text");
+  if (gesture.mode === "pinch") {
+    const pointers = activePointersForItem(gesture.itemId, gesture.itemType);
     if (pointers.length < 2) return;
 
     const distance = Math.max(1, distanceBetween(pointers[0], pointers[1]));
     const angle = angleBetween(pointers[0], pointers[1]);
-    const scale = distance / gesture.startPinchDistance;
-    const angleDelta = (angle - gesture.startPinchAngle) * 180 / Math.PI;
-    layout.fontSize = clamp(Math.round(gesture.startFontSize * scale), 14, 96);
+    const center = centerBetween(pointers[0], pointers[1]);
+    const scaleRatio = distance / gesture.startPinchDistance;
+    const scaleBounds = scaleBoundsForItem(gesture.itemType);
+    const angleDelta = normalizeAngleDelta((angle - gesture.startPinchAngle) * 180 / Math.PI);
+    layout.scale = clamp(gesture.startScale * scaleRatio, scaleBounds.min, scaleBounds.max);
     layout.rotation = Math.round((gesture.startRotation + angleDelta) * 10) / 10;
-
-    const size = measureTextLayout(layout.content, layout.fontSize);
-    layout.width = size.width;
-    layout.height = size.height;
-    element.style.setProperty("--font-size", `${layout.fontSize}px`);
-    element.style.setProperty("--rotation", `${layout.rotation}deg`);
+    layout.x = clamp(gesture.startX + center.x - gesture.startPinchCenterX, -40, canvasWidth - 40);
+    layout.y = clamp(gesture.startY + center.y - gesture.startPinchCenterY, -40, canvasHeight - 40);
+    applyInteractiveStyle(element, layout, gesture.itemType);
+    console.log("[moments-journal] gesture scale/rotation", {
+      itemId: gesture.itemId,
+      itemType: gesture.itemType,
+      scale: Math.round(layout.scale * 1000) / 1000,
+      rotation: layout.rotation
+    });
     return;
   }
 
@@ -1549,19 +1726,9 @@ function updateGesture(event) {
 
   if (gesture.mode === "resize") {
     const projectedDelta = Math.max(dx, dy * gesture.aspectRatio);
-    layout.width = clamp(gesture.startWidth + projectedDelta, 72, dimensions.width - 24);
-    layout.height = layout.width / gesture.aspectRatio;
-    if (gesture.itemType === "text" || gesture.itemType === "emoji" || gesture.itemType === "sticker") {
-      const scale = layout.width / gesture.startWidth;
-      layout.fontSize = clamp(Math.round((gesture.startFontSize || 24) * scale), 12, 96);
-      if (gesture.itemType === "text") {
-        const size = measureTextLayout(layout.content, layout.fontSize);
-        layout.width = size.width;
-        layout.height = size.height;
-      } else {
-        layout.height = layout.fontSize * 1.25;
-      }
-    }
+    const base = Math.max(gesture.startWidth, gesture.startHeight, 1);
+    const scaleBounds = scaleBoundsForItem(gesture.itemType);
+    layout.scale = clamp(gesture.startScale * (1 + projectedDelta / base), scaleBounds.min, scaleBounds.max);
     layout.x = clamp(layout.x, -40, dimensions.width - 40);
     layout.y = clamp(layout.y, -40, dimensions.height - 40);
   }
@@ -1572,14 +1739,7 @@ function updateGesture(event) {
     layout.rotation = Math.round((gesture.startRotation + delta) * 10) / 10;
   }
 
-  element.style.left = `${layout.x}px`;
-  element.style.top = `${layout.y}px`;
-  if (gesture.itemType !== "text") {
-    element.style.width = `${layout.width}px`;
-    element.style.height = `${layout.height}px`;
-  }
-  element.style.setProperty("--rotation", `${layout.rotation}deg`);
-  if (layout.fontSize) element.style.setProperty("--font-size", `${layout.fontSize}px`);
+  applyInteractiveStyle(element, layout, gesture.itemType);
 }
 
 function moveElementDrag(event) {
@@ -1604,13 +1764,14 @@ async function endGesture(event) {
   const element = elementForItem(itemId, itemType);
 
   setDeleteZoneVisible(false);
-  element?.classList.remove("is-dragging", "is-over-delete");
+  element?.classList.remove("is-dragging", "is-over-delete", "is-gesturing");
 
   gesture.active = false;
   gesture.mode = "";
   gesture.itemId = "";
   gesture.itemType = "";
   gesture.startFontSize = 0;
+  gesture.startScale = 1;
   gesture.pointerId = null;
   gesture.overDeleteZone = false;
   gesture.dragging = false;
@@ -1626,6 +1787,16 @@ async function endGesture(event) {
   if (itemId) await persistInteractiveLayout(itemId, itemType);
   if (pointer) activePointers.delete(pointerId);
   if (mode === "drag") debugInteraction("end drag", { elementId: itemId, itemType, deleted: false });
+  if (mode === "pinch") {
+    const layout = getInteractiveLayout(itemId, itemType);
+    console.log("[moments-journal] gesture end", {
+      mode: "pinch",
+      itemId,
+      itemType,
+      scale: layout?.scale || 1,
+      rotation: layout?.rotation || 0
+    });
+  }
 }
 
 function endElementDrag(event) {
@@ -1633,6 +1804,7 @@ function endElementDrag(event) {
 }
 
 document.addEventListener("pointerdown", (event) => {
+  if (isPageTransitioning) return;
   if (stopDaybookNavPointerEvent(event)) return;
   if (startDayPress(event)) return;
 
@@ -1677,8 +1849,8 @@ document.addEventListener("pointerdown", (event) => {
     const itemId = canvasItem.dataset.itemId;
     const itemType = canvasItem.dataset.itemType || "photo";
     activePointers.set(event.pointerId, { itemId, itemType, x: event.clientX, y: event.clientY });
-    if (itemType === "text" && activePointersForItem(itemId, "text").length >= 2) {
-      startTextPinchGesture(event, itemId);
+    if (activePointersForItem(itemId, itemType).length >= 2) {
+      startPinchGesture(event, itemId, itemType);
       return;
     }
     startElementDrag(event, itemId, itemType);
@@ -1704,6 +1876,8 @@ document.addEventListener("pointercancel", stopDaybookNavPointerEvent);
 document.addEventListener("touchcancel", stopDaybookNavPointerEvent);
 
 document.addEventListener("click", async (event) => {
+  if (isPageTransitioning) return;
+
   const dayTarget = event.target.closest("[data-day]");
   const actionTarget = event.target.closest("[data-action]");
 
@@ -1721,23 +1895,18 @@ document.addEventListener("click", async (event) => {
 
   const action = actionTarget.dataset.action;
   if (action === "open-daybook") {
-    clearSelection();
-    state.activePanel = "";
     window.setTimeout(() => {
-      state.view = "daybook";
-      render();
-    }, 120);
+      navigateToPage("daybook", "forward");
+    }, 70);
     return;
   }
   if (action === "home") {
-    clearSelection();
-    state.activePanel = "";
-    state.view = "home";
+    navigateToPage("home", "back");
+    return;
   }
   if (action === "daybook") {
-    clearSelection();
-    state.activePanel = "";
-    state.view = "daybook";
+    navigateToPage("daybook", "back");
+    return;
   }
   if (action === "edit-note") {
     editNote();
@@ -1862,7 +2031,8 @@ async function initApp() {
   state.userPhotos = await loadUserPhotos();
   state.canvasElements = await loadCanvasElements();
   state.customStickers = await loadCustomStickers();
-  ensureLayoutsForPhotos();
+  await ensureLayoutsForPhotos();
+  await ensureLayoutsForCanvasElements();
   render();
 }
 
