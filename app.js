@@ -72,6 +72,11 @@ const gesture = {
 };
 
 const activePointers = new Map();
+const dayPress = {
+  element: null,
+  dayId: "",
+  pointerId: null
+};
 
 function loadNotes() {
   try {
@@ -736,6 +741,61 @@ function openDay(dayId) {
   state.activePanel = "";
   state.view = "single";
   render();
+}
+
+function clearDayPress() {
+  dayPress.element?.classList.remove("is-pressing");
+  dayPress.element = null;
+  dayPress.dayId = "";
+  dayPress.pointerId = null;
+}
+
+function startDayPress(event) {
+  const section = event.target.closest(".day-section[data-day]");
+  if (!section || state.view !== "daybook") return false;
+
+  event.preventDefault();
+  clearDayPress();
+  dayPress.element = section;
+  dayPress.dayId = section.dataset.day;
+  dayPress.pointerId = event.pointerId;
+  section.setPointerCapture?.(event.pointerId);
+  section.classList.add("is-pressing");
+  return true;
+}
+
+function endDayPress(event) {
+  if (!dayPress.element || event.pointerId !== dayPress.pointerId) return;
+
+  const section = dayPress.element;
+  const dayId = dayPress.dayId;
+  const rect = section.getBoundingClientRect();
+  const isInside = event.clientX >= rect.left
+    && event.clientX <= rect.right
+    && event.clientY >= rect.top
+    && event.clientY <= rect.bottom;
+
+  clearDayPress();
+  if (!isInside) return;
+
+  window.setTimeout(() => openDay(dayId), 100);
+}
+
+function moveDayPress(event) {
+  if (!dayPress.element || event.pointerId !== dayPress.pointerId) return;
+
+  const rect = dayPress.element.getBoundingClientRect();
+  const isInside = event.clientX >= rect.left
+    && event.clientX <= rect.right
+    && event.clientY >= rect.top
+    && event.clientY <= rect.bottom;
+
+  if (!isInside) clearDayPress();
+}
+
+function cancelDayPress(event) {
+  if (!dayPress.element || (event.pointerId && event.pointerId !== dayPress.pointerId)) return;
+  clearDayPress();
 }
 
 function editNote() {
@@ -1557,6 +1617,8 @@ function endElementDrag(event) {
 }
 
 document.addEventListener("pointerdown", (event) => {
+  if (startDayPress(event)) return;
+
   if (event.target.closest(".text-composer-overlay, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-add-button")) return;
 
   const deleteButton = event.target.closest(".delete-photo");
@@ -1616,13 +1678,17 @@ document.addEventListener("pointerdown", (event) => {
 window.addEventListener("pointermove", moveElementDrag);
 window.addEventListener("pointerup", endElementDrag);
 window.addEventListener("pointercancel", endElementDrag);
+window.addEventListener("pointermove", moveDayPress);
+window.addEventListener("pointerup", endDayPress);
+window.addEventListener("pointercancel", cancelDayPress);
+window.addEventListener("pointerleave", cancelDayPress);
 
 document.addEventListener("click", async (event) => {
   const dayTarget = event.target.closest("[data-day]");
   const actionTarget = event.target.closest("[data-action]");
 
   if (dayTarget) {
-    openDay(dayTarget.dataset.day);
+    if (event.detail === 0) openDay(dayTarget.dataset.day);
     return;
   }
 

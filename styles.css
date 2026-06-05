@@ -321,6 +321,7 @@ button {
 }
 
 .day-section {
+  appearance: none;
   display: block;
   width: 100%;
   min-height: 0;
@@ -329,6 +330,34 @@ button {
   background: transparent;
   color: var(--ink);
   text-align: left;
+  box-shadow: none;
+  outline: none;
+  filter: none;
+  opacity: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.day-section::before,
+.day-section::after {
+  display: none;
+  content: none;
+}
+
+.day-section:active {
+  background: transparent;
+  color: var(--ink);
+  box-shadow: none;
+  filter: none;
+  opacity: 1;
+}
+
+.day-section:focus {
+  outline: none;
+}
+
+.day-section:focus-visible {
+  outline: 1px solid rgba(0, 0, 0, 0.12);
+  outline-offset: 8px;
 }
 
 .date-heading {
@@ -372,11 +401,17 @@ button {
   min-height: 126px;
   padding: 0 0 0 2px;
   overflow: visible;
+  transform: scale(1);
+  transform-origin: center;
+  transition:
+    transform 150ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    filter 150ms ease;
 }
 
 .photo-strip .polaroid {
   flex: 0 0 auto;
   margin-right: -18px;
+  transition: box-shadow 150ms ease;
 }
 
 .photo-strip .polaroid:last-child {
@@ -385,6 +420,19 @@ button {
 
 .strip-photo {
   width: 104px;
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.09),
+    0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.day-section.is-pressing .photo-strip {
+  transform: scale(0.99);
+}
+
+.day-section.is-pressing .strip-photo {
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.075),
+    0 1px 4px rgba(0, 0, 0, 0.045);
 }
 
 .day-note {
