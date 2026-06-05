@@ -126,18 +126,28 @@ function todayDateKey() {
   return dateKeyFromDate(new Date());
 }
 
+function dayMonthText(date, includeYear = false) {
+  const day = date.getDate();
+  const month = new Intl.DateTimeFormat("en", { month: "long" }).format(date);
+  return includeYear ? `${day} ${month} ${date.getFullYear()}` : `${day} ${month}`;
+}
+
 function relativeLabel(dateKey) {
   const todayKey = todayDateKey();
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-
-  if (dateKey === todayKey) return { label: "Today" };
-  if (dateKey === dateKeyFromDate(yesterday)) return { label: "Yesterday" };
-
   const date = dateFromKey(dateKey);
+  const currentYear = new Date().getFullYear();
+  const dateText = dayMonthText(date, date.getFullYear() !== currentYear);
+  const weekday = new Intl.DateTimeFormat("en", { weekday: "long" }).format(date);
+
+  if (dateKey === todayKey) {
+    return { date: "Today", detail: dateText };
+  }
+
   return {
-    date: new Intl.DateTimeFormat("en", { day: "numeric", month: "long" }).format(date),
-    weekday: new Intl.DateTimeFormat("en", { weekday: "long" }).format(date)
+    date: dateKey === dateKeyFromDate(yesterday) ? "Yesterday" : dateText,
+    detail: dateKey === dateKeyFromDate(yesterday) ? dateText : weekday
   };
 }
 
@@ -387,7 +397,7 @@ function buildUserDayModels() {
       id: `user-${dateKey}`,
       dateKey,
       isUserDay: true,
-      note: `${photos.length} photo${photos.length === 1 ? "" : "s"} added on this day.`,
+      note: "",
       photos,
       ...relativeLabel(dateKey)
     }));
@@ -413,15 +423,11 @@ function polaroid(photo, options = {}) {
 }
 
 function dateTitle(day) {
-  if (day.label) {
-    return `<h2 class="date-heading solo-label">${escapeHtml(day.label)}</h2>`;
-  }
-
   return `
     <h2 class="date-heading">
       <span>${escapeHtml(day.date)}</span>
       <i></i>
-      <em>${escapeHtml(day.weekday)}</em>
+      <em>${escapeHtml(day.detail)}</em>
     </h2>
   `;
 }
@@ -508,7 +514,7 @@ function renderDaybook() {
 
       <div class="day-feed">
         ${days.map((day) => `
-          <button class="day-section" type="button" data-day="${day.id}" aria-label="Open ${day.label || day.date}">
+          <button class="day-section" type="button" data-day="${day.id}" aria-label="Open ${day.date}">
             ${dateTitle(day)}
             <div class="photo-strip">
               ${day.photos.slice(0, 4).map((photo, index) =>
@@ -518,7 +524,6 @@ function renderDaybook() {
                 })
               ).join("")}
             </div>
-            <p class="day-note">${escapeHtml(noteFor(day))}</p>
           </button>
         `).join("")}
       </div>
