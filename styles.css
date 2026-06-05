@@ -321,14 +321,20 @@ button {
 }
 
 .day-section {
+  -webkit-appearance: none;
   appearance: none;
   display: block;
   width: 100%;
   min-height: 0;
+  margin: 0;
   padding: 0 0 2px;
   border: 0;
+  border-radius: 0;
   background: transparent;
+  background-color: transparent;
+  background-image: none;
   color: var(--ink);
+  font: inherit;
   text-align: left;
   box-shadow: none;
   outline: none;
@@ -345,6 +351,8 @@ button {
 
 .day-section:active {
   background: transparent;
+  background-color: transparent;
+  background-image: none;
   color: var(--ink);
   box-shadow: none;
   filter: none;
@@ -1109,4 +1117,57 @@ button {
   .date-heading em {
     font-size: 17px;
   }
+}
+
+/* Daybook must never render as a gray card. */
+button.day-section,
+button.day-section:active,
+button.day-section:focus,
+button.day-section:focus-visible,
+button.day-section.is-pressing,
+button.day-section.is-active,
+button.day-section.selected {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  display: block !important;
+  width: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline: none;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  filter: none !important;
+  opacity: 1 !important;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button.day-section::before,
+button.day-section::after {
+  display: none !important;
+  content: none !important;
+}
+
+.day-section .date-heading,
+.day-section .photo-strip,
+.day-section .day-note {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none;
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.day-section.is-pressing .photo-strip {
+  transform: scale(0.99);
+}
+
+.day-section.is-pressing .strip-photo {
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.075),
+    0 1px 4px rgba(0, 0, 0, 0.045);
 }
