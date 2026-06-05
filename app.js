@@ -481,9 +481,9 @@ function renderEmptyDaybook() {
   return `
     <main class="phone-screen daybook-view" aria-label="Daybook">
       <header class="daybook-header">
-        <button class="icon-text-button" type="button" data-action="home">Pile</button>
+        <button class="icon-text-button daybook-pile-button" type="button" data-action="home">Pile</button>
         <h1>Daybook</h1>
-        <button class="round-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
+        <button class="round-button daybook-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
       </header>
 
       <section class="empty-daybook">
@@ -501,9 +501,9 @@ function renderDaybook() {
   return `
     <main class="phone-screen daybook-view" aria-label="Daybook">
       <header class="daybook-header">
-        <button class="icon-text-button" type="button" data-action="home">Pile</button>
+        <button class="icon-text-button daybook-pile-button" type="button" data-action="home">Pile</button>
         <h1>Daybook</h1>
-        <button class="round-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
+        <button class="round-button daybook-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
       </header>
 
       <div class="day-feed">
@@ -796,6 +796,17 @@ function moveDayPress(event) {
 function cancelDayPress(event) {
   if (!dayPress.element || (event.pointerId && event.pointerId !== dayPress.pointerId)) return;
   clearDayPress();
+}
+
+function daybookNavButtonTarget(event) {
+  return event.target.closest(".daybook-pile-button, .daybook-add-button");
+}
+
+function stopDaybookNavPointerEvent(event) {
+  if (!daybookNavButtonTarget(event)) return false;
+  event.stopPropagation();
+  clearDayPress();
+  return true;
 }
 
 function editNote() {
@@ -1617,6 +1628,7 @@ function endElementDrag(event) {
 }
 
 document.addEventListener("pointerdown", (event) => {
+  if (stopDaybookNavPointerEvent(event)) return;
   if (startDayPress(event)) return;
 
   if (event.target.closest(".text-composer-overlay, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-add-button")) return;
@@ -1682,10 +1694,18 @@ window.addEventListener("pointermove", moveDayPress);
 window.addEventListener("pointerup", endDayPress);
 window.addEventListener("pointercancel", cancelDayPress);
 window.addEventListener("pointerleave", cancelDayPress);
+document.addEventListener("pointerup", stopDaybookNavPointerEvent);
+document.addEventListener("pointercancel", stopDaybookNavPointerEvent);
+document.addEventListener("touchcancel", stopDaybookNavPointerEvent);
 
 document.addEventListener("click", async (event) => {
   const dayTarget = event.target.closest("[data-day]");
   const actionTarget = event.target.closest("[data-action]");
+
+  if (daybookNavButtonTarget(event)) {
+    event.stopPropagation();
+    clearDayPress();
+  }
 
   if (dayTarget) {
     if (event.detail === 0) openDay(dayTarget.dataset.day);

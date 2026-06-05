@@ -75,6 +75,24 @@ button {
   align-items: center;
   min-height: 36px;
   padding: 2px 0 26px;
+  background: transparent;
+  box-shadow: none;
+  filter: none;
+  opacity: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.daybook-header:active {
+  background: transparent;
+  box-shadow: none;
+  filter: none;
+  opacity: 1;
+}
+
+.daybook-header::before,
+.daybook-header::after {
+  display: none;
+  content: none;
 }
 
 .daybook-header h1 {
@@ -135,6 +153,58 @@ button {
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.daybook-pile-button,
+.daybook-add-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  background-color: transparent;
+  background-image: none;
+  box-shadow: none;
+  filter: none;
+  opacity: 1;
+  color: inherit;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.daybook-pile-button::before,
+.daybook-pile-button::after,
+.daybook-add-button::before,
+.daybook-add-button::after {
+  display: none;
+  content: none;
+}
+
+.daybook-pile-button:active,
+.daybook-add-button:active {
+  background: transparent;
+  background-color: transparent;
+  background-image: none;
+  box-shadow: none;
+  filter: none;
+  opacity: 1;
+  transform: scale(0.96);
+}
+
+.daybook-pile-button:focus,
+.daybook-add-button:focus {
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.daybook-pile-button:focus-visible,
+.daybook-add-button:focus-visible {
+  outline: 1px solid rgba(0, 0, 0, 0.18);
+  outline-offset: 4px;
 }
 
 .daybook-header .icon-text-button::before,
