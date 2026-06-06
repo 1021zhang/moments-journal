@@ -171,7 +171,13 @@ function relativeLabel(dateKey) {
 }
 
 function noteFor(day) {
-  return state.notes[day.id] || day.note || "";
+  return Object.prototype.hasOwnProperty.call(state.notes, day.id)
+    ? state.notes[day.id]
+    : day.note || "";
+}
+
+function notePreviewFor(day) {
+  return noteFor(day).replace(/\s+/g, " ").trim();
 }
 
 function selectedItem(type, id) {
@@ -580,6 +586,34 @@ function undoIcon() {
   `;
 }
 
+function editIcon() {
+  return `
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M5.2 18.8 6 15l9.7-9.7c.9-.9 2.2-.9 3.1 0s.9 2.2 0 3.1L9.1 18.1l-3.9.7Z" />
+      <path d="m14.4 6.6 3 3" />
+    </svg>
+  `;
+}
+
+function noteIcon() {
+  return `
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M7 4.8h7.4l3.6 3.6v10.8H7V4.8Z" />
+      <path d="M14.2 4.9v3.7h3.7" />
+      <path d="M9.7 12h5.1" />
+      <path d="M9.7 15.2h4.2" />
+    </svg>
+  `;
+}
+
+function moodIcon() {
+  return `
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M12 19.3s-6.7-3.9-8.2-8.2c-.9-2.6.7-5.2 3.4-5.2 1.7 0 3.1 1 3.8 2.3.7-1.3 2.1-2.3 3.8-2.3 2.7 0 4.3 2.6 3.4 5.2C18.7 15.4 12 19.3 12 19.3Z" />
+    </svg>
+  `;
+}
+
 function settingsButton() {
   return `
     <button class="settings-button" type="button" data-action="open-settings" aria-label="Settings">
@@ -696,6 +730,9 @@ function renderDaybook() {
                 })
               ).join("")}
             </div>
+            ${notePreviewFor(day)
+              ? `<p class="day-note-preview">${escapeHtml(notePreviewFor(day))}</p>`
+              : ""}
           </button>
         `).join("")}
       </div>
@@ -845,7 +882,9 @@ function renderSingleDay() {
   const day = getDay();
   if (!day) return renderEmptyDaybook();
 
-  const safeNote = escapeHtml(noteFor(day));
+  const note = noteFor(day);
+  const safeNote = escapeHtml(note);
+  const noteDialogTitle = note.trim() ? "Edit note" : "Add note";
   const dayElements = elementsForDate(day.dateKey);
   const canUndo = undoStackForDate(day.dateKey).length > 0;
 
@@ -863,21 +902,21 @@ function renderSingleDay() {
           <button class="header-icon-action export-day-button" type="button" data-action="export-day" aria-label="Export day" ${state.isExportingDay ? "disabled" : ""}>
             ${exportIcon()}
           </button>
-          <button class="header-action edit-button" type="button" data-action="edit-note">Edit</button>
         </div>
       </header>
 
       <header class="single-header">
         ${dateTitle(day)}
-        <p>${safeNote}</p>
+        ${note ? `<p class="single-note">${safeNote}</p>` : ""}
       </header>
 
       <section class="free-canvas" aria-label="Free layout canvas">
         ${day.photos.map(freeCanvasPhoto).join("")}
         ${dayElements.map(canvasElement).join("")}
         <div class="floating-toolbox" aria-label="Canvas tools">
-          <button type="button" data-action="add-text" aria-label="Add text">Aa</button>
-          <button type="button" data-action="open-sticker-panel" aria-label="Add stickers">☺</button>
+          <button type="button" data-action="edit-note" aria-label="Edit" title="Edit">${editIcon()}</button>
+          <button type="button" data-action="edit-note" aria-label="Note" title="Note">${noteIcon()}</button>
+          <button type="button" data-action="open-sticker-panel" aria-label="Mood" title="Mood">${moodIcon()}</button>
         </div>
         <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
       </section>
@@ -900,10 +939,12 @@ function renderSingleDay() {
       ${toastMarkup()}
     </main>
 
-    <dialog class="note-dialog" id="noteDialog">
+    <dialog class="note-dialog" id="noteDialog" aria-labelledby="noteDialogTitle">
       <form method="dialog">
-        <label for="noteInput">Edit note</label>
-        <textarea id="noteInput" maxlength="90">${safeNote}</textarea>
+        <h2 id="noteDialogTitle">${noteDialogTitle}</h2>
+        <p class="note-dialog-description">Shown below this day’s photos.</p>
+        <label class="sr-only" for="noteInput">Note</label>
+        <textarea id="noteInput">${safeNote}</textarea>
         <div class="dialog-actions">
           <button class="ghost-button" value="cancel" type="submit">Cancel</button>
           <button class="add-button" value="save" type="submit">Save</button>
@@ -1070,7 +1111,7 @@ function editNote() {
 
   dialog.addEventListener("close", () => {
     if (dialog.returnValue !== "save") return;
-    state.notes[day.id] = input.value.trim() || day.note;
+    state.notes[day.id] = input.value.trim() ? input.value : "";
     saveNotes();
     render();
   }, { once: true });

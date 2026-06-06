@@ -786,6 +786,22 @@ button {
     filter 150ms ease;
 }
 
+.day-note-preview {
+  display: -webkit-box;
+  max-width: 306px;
+  margin: 15px 0 0 2px;
+  overflow: hidden;
+  color: #858585;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.42;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .photo-strip .polaroid {
   flex: 0 0 auto;
   margin-right: -18px;
@@ -909,7 +925,6 @@ button {
 .single-header {
   display: grid;
   justify-items: center;
-  gap: 8px;
   padding-bottom: 20px;
   text-align: center;
 }
@@ -919,13 +934,15 @@ button {
   padding-left: 0;
 }
 
-.single-header p {
+.single-note {
   max-width: 290px;
-  margin: 0;
+  margin: 20px 0 2px;
   color: #777777;
   font-size: 14px;
   font-weight: 400;
   line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .single-collage {
@@ -1156,26 +1173,59 @@ button {
 .floating-toolbox {
   position: absolute;
   top: 92px;
-  right: 4px;
+  right: max(6px, env(safe-area-inset-right));
   z-index: 1200;
   display: grid;
   gap: 10px;
 }
 
 .floating-toolbox button {
+  -webkit-appearance: none;
+  appearance: none;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 50%;
   background: rgba(248, 248, 248, 0.92);
   color: #2d2d2d;
-  font-size: 16px;
-  font-weight: 500;
   line-height: 1;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.floating-toolbox button svg {
+  display: block;
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.floating-toolbox button:active {
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.07);
+  transform: scale(0.96);
+}
+
+.floating-toolbox button:focus {
+  outline: 0;
+}
+
+.floating-toolbox button:focus-visible {
+  outline: 1px solid rgba(0, 0, 0, 0.18);
+  outline-offset: 2px;
 }
 
 .canvas-add-button {
@@ -1456,31 +1506,51 @@ button {
 
 .note-dialog {
   width: min(340px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: max(16px, env(safe-area-inset-top)) auto max(16px, env(safe-area-inset-bottom));
+  padding: 18px;
   border: 0;
   border-radius: 14px;
   box-shadow: 0 18px 42px rgba(0, 0, 0, 0.16);
+  overflow-y: auto;
 }
 
 .note-dialog::backdrop {
   background: rgba(0, 0, 0, 0.16);
 }
 
-.note-dialog label {
-  display: block;
-  margin-bottom: 8px;
+.note-dialog form {
+  display: grid;
+}
+
+.note-dialog h2 {
+  margin: 0;
   color: var(--ink);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
+  line-height: 1.2;
+}
+
+.note-dialog-description {
+  margin: 6px 0 14px;
+  color: #8a8a8a;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.35;
 }
 
 .note-dialog textarea {
   width: 100%;
-  min-height: 106px;
+  min-height: 132px;
+  max-height: min(42dvh, 300px);
   padding: 12px;
   border: 1px solid var(--faint);
   border-radius: 8px;
   outline: none;
   resize: vertical;
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.45;
 }
 
 .dialog-actions {
