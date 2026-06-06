@@ -606,10 +606,13 @@ function noteIcon() {
   `;
 }
 
-function moodIcon() {
+function stickerIcon() {
   return `
     <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="M12 19.3s-6.7-3.9-8.2-8.2c-.9-2.6.7-5.2 3.4-5.2 1.7 0 3.1 1 3.8 2.3.7-1.3 2.1-2.3 3.8-2.3 2.7 0 4.3 2.6 3.4 5.2C18.7 15.4 12 19.3 12 19.3Z" />
+      <path d="M6.7 5.2h8.7l3 3v10.6H6.7V5.2Z" />
+      <path d="M15.2 5.3v3.1h3.1" />
+      <path d="m8.9 16 2.6-2.8 1.8 1.8 1.4-1.5 2.1 2.5" />
+      <path d="M10 9.7h.1" />
     </svg>
   `;
 }
@@ -916,7 +919,7 @@ function renderSingleDay() {
         <div class="floating-toolbox" aria-label="Canvas tools">
           <button type="button" data-action="add-text" aria-label="Add text to page" title="Add text to page">${editIcon()}</button>
           <button type="button" data-action="edit-note" aria-label="Daily note" title="Daily note">${noteIcon()}</button>
-          <button type="button" data-action="open-sticker-panel" aria-label="Mood" title="Mood">${moodIcon()}</button>
+          <button type="button" data-action="open-sticker-panel" aria-label="Stickers" title="Stickers">${stickerIcon()}</button>
         </div>
         <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
       </section>
