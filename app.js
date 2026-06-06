@@ -45,13 +45,6 @@ const state = {
   isExportingDay: false,
   toast: "",
   toastTimer: null,
-  canvasMenu: {
-    open: false,
-    x: 0,
-    y: 0,
-    canvasX: 0,
-    canvasY: 0
-  },
   addMenuOpen: false,
   pendingInsertPoint: null,
   textComposer: {
@@ -105,15 +98,6 @@ const dayPress = {
   dayId: "",
   pointerId: null
 };
-const blankPress = {
-  timer: null,
-  pointerId: null,
-  clientX: 0,
-  clientY: 0,
-  canvasPoint: null
-};
-let suppressMenuCloseUntil = 0;
-
 function loadNotes() {
   try {
     return JSON.parse(localStorage.getItem(noteStorageKey) || "{}");
@@ -894,24 +878,6 @@ function textComposerOverlay() {
   `;
 }
 
-function menuPositionStyle(menu) {
-  return `left:${Math.round(menu.x)}px;top:${Math.round(menu.y)}px`;
-}
-
-function canvasContextMenu() {
-  if (!state.canvasMenu.open) return "";
-
-  return `
-    <button class="canvas-menu-backdrop" type="button" data-action="close-canvas-menu" aria-label="Close menu"></button>
-    <div class="canvas-context-menu" style="${menuPositionStyle(state.canvasMenu)}" role="menu" aria-label="Canvas menu">
-      <button type="button" data-action="canvas-menu-paste" role="menuitem">Paste</button>
-      <button type="button" data-action="canvas-menu-add-photo" role="menuitem">Add photo</button>
-      <button type="button" data-action="canvas-menu-add-text" role="menuitem">Add text</button>
-      <button type="button" data-action="close-canvas-menu" role="menuitem">Cancel</button>
-    </div>
-  `;
-}
-
 function addMenu() {
   if (!state.addMenuOpen) return "";
 
@@ -991,7 +957,6 @@ function renderSingleDay() {
       </div>
       ${stickerSheet()}
       ${textComposerOverlay()}
-      ${canvasContextMenu()}
       ${addMenu()}
       ${toastMarkup()}
     </main>
@@ -1033,25 +998,12 @@ function render() {
 }
 
 function closeCanvasMenus() {
-  state.canvasMenu.open = false;
   state.addMenuOpen = false;
 }
 
 function closeCanvasMenusAndResetPoint() {
   closeCanvasMenus();
   state.pendingInsertPoint = null;
-}
-
-function editableTarget(target) {
-  return Boolean(target.closest("input, textarea, [contenteditable='true'], [contenteditable='']"));
-}
-
-function blankCanvasTarget(target) {
-  if (!target?.classList?.contains("free-canvas")) return false;
-  if (target.closest(".canvas-item, .floating-toolbox, .canvas-add-button, .delete-zone")) return false;
-  if (target.closest(".canvas-context-menu, .canvas-menu-backdrop, .add-menu-sheet, .add-menu-backdrop")) return false;
-  if (target.closest(".note-dialog, .text-composer-overlay, .sticker-sheet, .sticker-backdrop")) return false;
-  return true;
 }
 
 function canvasPointFromClient(clientX, clientY) {
@@ -1079,39 +1031,11 @@ function visibleCanvasCenterPoint() {
   return canvasPointFromClient(clientX, clientY);
 }
 
-function clampMenuPosition(clientX, clientY, width = 168, height = 206) {
-  const margin = 12;
-  return {
-    x: clamp(clientX, margin, Math.max(margin, window.innerWidth - width - margin)),
-    y: clamp(clientY, margin + (window.visualViewport?.offsetTop || 0), Math.max(margin, window.innerHeight - height - margin))
-  };
-}
-
-function openCanvasMenu(clientX, clientY, canvasPoint = canvasPointFromClient(clientX, clientY)) {
-  const position = clampMenuPosition(clientX, clientY);
-  state.canvasMenu = {
-    open: true,
-    x: position.x,
-    y: position.y,
-    canvasX: canvasPoint.x,
-    canvasY: canvasPoint.y
-  };
-  state.addMenuOpen = false;
-  render();
-}
-
 function openAddMenu() {
   state.addMenuOpen = true;
-  state.canvasMenu.open = false;
   state.activePanel = "";
   state.pendingInsertPoint = visibleCanvasCenterPoint();
   render();
-}
-
-function contextMenuPoint() {
-  return state.canvasMenu.open
-    ? { x: state.canvasMenu.canvasX, y: state.canvasMenu.canvasY }
-    : visibleCanvasCenterPoint();
 }
 
 function preparePageState(targetView, options = {}) {
@@ -1187,48 +1111,6 @@ function clearDayPress() {
   dayPress.element = null;
   dayPress.dayId = "";
   dayPress.pointerId = null;
-}
-
-function clearBlankPress() {
-  if (blankPress.timer) window.clearTimeout(blankPress.timer);
-  blankPress.timer = null;
-  blankPress.pointerId = null;
-  blankPress.clientX = 0;
-  blankPress.clientY = 0;
-  blankPress.canvasPoint = null;
-}
-
-function startBlankPress(event) {
-  if (state.view !== "single" || !event.isPrimary || event.pointerType === "mouse") return false;
-  if (!blankCanvasTarget(event.target)) return false;
-
-  clearBlankPress();
-  blankPress.pointerId = event.pointerId;
-  blankPress.clientX = event.clientX;
-  blankPress.clientY = event.clientY;
-  blankPress.canvasPoint = canvasPointFromClient(event.clientX, event.clientY);
-  blankPress.timer = window.setTimeout(() => {
-    if (blankPress.pointerId !== event.pointerId) return;
-    clearSelection();
-    state.activePanel = "";
-    suppressMenuCloseUntil = Date.now() + 450;
-    openCanvasMenu(blankPress.clientX, blankPress.clientY, blankPress.canvasPoint);
-    clearBlankPress();
-  }, 550);
-
-  return true;
-}
-
-function moveBlankPress(event) {
-  if (!blankPress.pointerId || event.pointerId !== blankPress.pointerId) return;
-  if (Math.hypot(event.clientX - blankPress.clientX, event.clientY - blankPress.clientY) > 9) {
-    clearBlankPress();
-  }
-}
-
-function endBlankPress(event) {
-  if (!blankPress.pointerId || event.pointerId !== blankPress.pointerId) return;
-  clearBlankPress();
 }
 
 function startDayPress(event) {
@@ -1926,23 +1808,9 @@ async function createPastedImage(blob, point = visibleCanvasCenterPoint()) {
   return true;
 }
 
-async function pasteClipboardContent(source, point = visibleCanvasCenterPoint()) {
-  const imageItem = Array.from(source?.items || [])
-    .find((item) => item.kind === "file" && item.type.startsWith("image/"));
-  if (imageItem) {
-    const file = imageItem.getAsFile();
-    if (file) return createPastedImage(file, point);
-  }
-
-  const text = source?.getData?.("text/plain") || "";
-  if (text) return createPastedText(text, point);
-
-  return false;
-}
-
 async function pasteFromClipboard(point = visibleCanvasCenterPoint()) {
   if (!navigator.clipboard?.read && !navigator.clipboard?.readText) {
-    showToast("Paste isn’t supported here. Try copying again or use Command/Ctrl + V.");
+    showToast("Direct paste isn’t supported on this device");
     return;
   }
 
@@ -1979,7 +1847,7 @@ async function pasteFromClipboard(point = visibleCanvasCenterPoint()) {
       showToast("Clipboard access wasn’t allowed");
       return;
     }
-    showToast("Paste isn’t supported here. Try copying again or use Command/Ctrl + V.");
+    showToast("Direct paste isn’t supported on this device");
   }
 }
 
@@ -2975,13 +2843,10 @@ function preventViewportGesture(event) {
 
 document.addEventListener("pointerdown", (event) => {
   if (isPageTransitioning) return;
-  if (!event.isPrimary) clearBlankPress();
   if (stopDaybookNavPointerEvent(event)) return;
   if (startDayPress(event)) return;
 
-  if (event.target.closest(".text-composer-overlay, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-add-button, .canvas-context-menu, .canvas-menu-backdrop, .add-menu-sheet, .add-menu-backdrop, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
-
-  startBlankPress(event);
+  if (event.target.closest(".text-composer-overlay, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-add-button, .add-menu-sheet, .add-menu-backdrop, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
 
   const deleteButton = event.target.closest(".delete-photo");
   if (deleteButton) {
@@ -3030,7 +2895,7 @@ document.addEventListener("pointerdown", (event) => {
     return;
   }
 
-  if (event.target.classList.contains("free-canvas") && (state.selectedPhotoId || state.canvasMenu.open || state.addMenuOpen)) {
+  if (event.target.classList.contains("free-canvas") && (state.selectedPhotoId || state.addMenuOpen)) {
     clearSelection();
     state.activePanel = "";
     closeCanvasMenus();
@@ -3041,9 +2906,6 @@ document.addEventListener("pointerdown", (event) => {
 window.addEventListener("pointermove", moveElementDrag);
 window.addEventListener("pointerup", endElementDrag);
 window.addEventListener("pointercancel", endElementDrag);
-window.addEventListener("pointermove", moveBlankPress);
-window.addEventListener("pointerup", endBlankPress);
-window.addEventListener("pointercancel", endBlankPress);
 window.addEventListener("pointermove", moveDayPress);
 window.addEventListener("pointerup", endDayPress);
 window.addEventListener("pointercancel", cancelDayPress);
@@ -3054,34 +2916,6 @@ document.addEventListener("gestureend", preventViewportGesture, { passive: false
 document.addEventListener("pointerup", stopDaybookNavPointerEvent);
 document.addEventListener("pointercancel", stopDaybookNavPointerEvent);
 document.addEventListener("touchcancel", stopDaybookNavPointerEvent);
-
-document.addEventListener("contextmenu", (event) => {
-  if (state.view !== "single" || editableTarget(event.target)) return;
-  if (!blankCanvasTarget(event.target)) return;
-
-  event.preventDefault();
-  clearSelection();
-  state.activePanel = "";
-  openCanvasMenu(event.clientX, event.clientY, canvasPointFromClient(event.clientX, event.clientY));
-});
-
-document.addEventListener("paste", async (event) => {
-  if (state.view !== "single" || editableTarget(event.target) || state.textComposer.active) return;
-  const data = event.clipboardData;
-  if (!data) return;
-
-  const canPaste = Array.from(data.items || []).some((item) => item.kind === "file" && item.type.startsWith("image/"))
-    || Boolean(data.getData("text/plain"));
-  if (!canPaste) return;
-
-  event.preventDefault();
-  try {
-    const pasted = await pasteClipboardContent(data, visibleCanvasCenterPoint());
-    if (!pasted) showToast("Nothing to paste");
-  } catch {
-    showToast("Paste isn’t supported here. Try copying again or use Command/Ctrl + V.");
-  }
-});
 
 document.addEventListener("click", async (event) => {
   if (isPageTransitioning) return;
@@ -3120,31 +2954,6 @@ document.addEventListener("click", async (event) => {
     editNote();
     return;
   }
-  if (action === "close-canvas-menu") {
-    if (actionTarget.classList.contains("canvas-menu-backdrop") && Date.now() < suppressMenuCloseUntil) return;
-    closeCanvasMenusAndResetPoint();
-    render();
-    return;
-  }
-  if (action === "canvas-menu-paste") {
-    const point = contextMenuPoint();
-    closeCanvasMenus();
-    await pasteFromClipboard(point);
-    return;
-  }
-  if (action === "canvas-menu-add-photo") {
-    const point = contextMenuPoint();
-    closeCanvasMenus();
-    render();
-    openPhotoPicker(point);
-    return;
-  }
-  if (action === "canvas-menu-add-text") {
-    const point = contextMenuPoint();
-    closeCanvasMenus();
-    addTextElement(point);
-    return;
-  }
   if (action === "open-add-menu") {
     event.stopPropagation();
     openAddMenu();
@@ -3164,8 +2973,10 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "add-menu-paste") {
     const point = state.pendingInsertPoint || visibleCanvasCenterPoint();
-    closeCanvasMenus();
-    await pasteFromClipboard(point);
+    const pastePromise = pasteFromClipboard(point);
+    closeCanvasMenusAndResetPoint();
+    render();
+    await pastePromise;
     return;
   }
   if (action === "open-settings") {
