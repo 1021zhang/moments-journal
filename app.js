@@ -47,6 +47,7 @@ const state = {
   toastTimer: null,
   addMenuOpen: false,
   pendingInsertPoint: null,
+  nativePastePoint: null,
   textComposer: {
     active: false,
     editingId: "",
@@ -878,6 +879,22 @@ function textComposerOverlay() {
   `;
 }
 
+function nativePasteTarget() {
+  return `
+    <div
+      class="native-paste-target"
+      contenteditable="plaintext-only"
+      inputmode="none"
+      spellcheck="false"
+      autocapitalize="off"
+      autocomplete="off"
+      role="textbox"
+      aria-label="Paste into page"
+      data-native-paste-target
+    ></div>
+  `;
+}
+
 function addMenu() {
   if (!state.addMenuOpen) return "";
 
@@ -885,7 +902,6 @@ function addMenu() {
     <button class="add-menu-backdrop" type="button" data-action="close-add-menu" aria-label="Close add menu"></button>
     <div class="add-menu-sheet" role="menu" aria-label="Add menu">
       <button type="button" data-action="add-menu-photo" role="menuitem">Add photo</button>
-      <button type="button" data-action="add-menu-paste" role="menuitem">Paste</button>
       <button type="button" data-action="close-add-menu" role="menuitem">Cancel</button>
     </div>
   `;
@@ -924,6 +940,7 @@ function renderSingleDay() {
       </header>
 
       <section class="free-canvas" aria-label="Free layout canvas">
+        ${nativePasteTarget()}
         ${day.photos.map(freeCanvasPhoto).join("")}
         ${dayElements.map(canvasElement).join("")}
         <div class="floating-toolbox" aria-label="Canvas tools">
@@ -993,6 +1010,7 @@ function resetHorizontalScroll() {
 function render() {
   const app = document.querySelector("#app");
   app.innerHTML = renderView(state.view);
+  bindNativePasteTarget();
   document.body.classList.toggle("settings-open", state.settingsSheetOpen);
   resetHorizontalScroll();
 }
@@ -1808,47 +1826,54 @@ async function createPastedImage(blob, point = visibleCanvasCenterPoint()) {
   return true;
 }
 
-async function pasteFromClipboard(point = visibleCanvasCenterPoint()) {
-  if (!navigator.clipboard?.read && !navigator.clipboard?.readText) {
-    showToast("Direct paste isn’t supported on this device");
-    return;
-  }
+function nativePasteTargetElement() {
+  return document.querySelector("[data-native-paste-target]");
+}
 
+function clearNativeSelection() {
+  const selection = window.getSelection?.();
+  selection?.removeAllRanges?.();
+}
+
+function clearNativePasteTarget(target = nativePasteTargetElement()) {
+  if (!target) return;
+  target.textContent = "";
+  target.innerHTML = "";
+}
+
+function resetNativePasteTarget(target = nativePasteTargetElement()) {
+  clearNativePasteTarget(target);
+  target?.blur?.();
+  clearNativeSelection();
+}
+
+function focusNativePasteTarget(target) {
+  if (!target || document.activeElement === target) return;
   try {
-    if (navigator.clipboard.read) {
-      const items = await navigator.clipboard.read();
-      for (const item of items) {
-        const imageType = item.types.find((type) => type.startsWith("image/"));
-        if (imageType) {
-          await createPastedImage(await item.getType(imageType), point);
-          return;
-        }
-      }
-
-      const textItem = items.find((item) => item.types.includes("text/plain"));
-      if (textItem) {
-        await createPastedText(await (await textItem.getType("text/plain")).text(), point);
-        return;
-      }
-    }
-
-    if (navigator.clipboard.readText) {
-      const text = await navigator.clipboard.readText();
-      if (text) {
-        await createPastedText(text, point);
-        return;
-      }
-    }
-
-    showToast("Nothing to paste");
-  } catch (error) {
-    const name = error?.name || "";
-    if (name === "NotAllowedError" || name === "SecurityError") {
-      showToast("Clipboard access wasn’t allowed");
-      return;
-    }
-    showToast("Direct paste isn’t supported on this device");
+    target.focus({ preventScroll: true });
+  } catch {
+    target.focus();
   }
+}
+
+function imageBlobFromPasteData(data) {
+  const items = Array.from(data?.items || []);
+  const imageItem = items.find((item) => item.kind === "file" && item.type.startsWith("image/"));
+  if (imageItem) return imageItem.getAsFile();
+
+  const files = Array.from(data?.files || []);
+  return files.find((file) => file.type.startsWith("image/")) || null;
+}
+
+async function createPastedContentFromData(data, point = visibleCanvasCenterPoint()) {
+  const imageBlob = imageBlobFromPasteData(data);
+  if (imageBlob) return createPastedImage(imageBlob, point);
+
+  const text = data?.getData?.("text/plain") || "";
+  if (text) return createPastedText(text, point);
+
+  showToast("Nothing to paste");
+  return false;
 }
 
 async function handlePhotoSelection(event) {
@@ -2841,6 +2866,88 @@ function preventViewportGesture(event) {
   if (event.cancelable) event.preventDefault();
 }
 
+function isNativePasteTarget(target) {
+  return Boolean(target?.closest?.("[data-native-paste-target]"));
+}
+
+function handleNativePastePointerDown(event) {
+  const target = event.target.closest("[data-native-paste-target]");
+  if (!target || state.view !== "single") return;
+
+  state.nativePastePoint = canvasPointFromClient(event.clientX, event.clientY);
+  focusNativePasteTarget(target);
+}
+
+function handleNativePasteClick(event) {
+  const target = event.target.closest("[data-native-paste-target]");
+  if (!target || state.view !== "single") return;
+
+  if (state.selectedPhotoId || state.activePanel || state.addMenuOpen) {
+    clearSelection();
+    state.activePanel = "";
+    closeCanvasMenusAndResetPoint();
+    resetNativePasteTarget(target);
+    render();
+    return;
+  }
+
+  resetNativePasteTarget(target);
+}
+
+async function handleNativePaste(event) {
+  const target = event.target.closest("[data-native-paste-target]");
+  if (!target || state.view !== "single") return;
+
+  event.preventDefault();
+  const point = state.nativePastePoint || visibleCanvasCenterPoint();
+  state.nativePastePoint = null;
+
+  try {
+    await createPastedContentFromData(event.clipboardData, point);
+  } finally {
+    resetNativePasteTarget(target);
+  }
+}
+
+function handleNativePasteBeforeInput(event) {
+  const target = event.target.closest("[data-native-paste-target]");
+  if (!target) return;
+
+  if (event.inputType !== "insertFromPaste" && event.inputType !== "insertFromPasteAsQuotation") {
+    event.preventDefault();
+  }
+}
+
+function handleNativePasteInput(event) {
+  const target = event.target.closest("[data-native-paste-target]");
+  if (!target) return;
+
+  clearNativePasteTarget(target);
+}
+
+function handleNativePasteBlur(event) {
+  const target = event.target.closest("[data-native-paste-target]");
+  if (!target) return;
+
+  resetNativePasteTarget(target);
+}
+
+function bindNativePasteTarget() {
+  const target = nativePasteTargetElement();
+  if (!target) return;
+
+  if (target.contentEditable !== "plaintext-only") {
+    target.contentEditable = "true";
+  }
+
+  target.addEventListener("pointerdown", handleNativePastePointerDown);
+  target.addEventListener("click", handleNativePasteClick);
+  target.addEventListener("paste", handleNativePaste);
+  target.addEventListener("beforeinput", handleNativePasteBeforeInput);
+  target.addEventListener("input", handleNativePasteInput);
+  target.addEventListener("blur", handleNativePasteBlur);
+}
+
 document.addEventListener("pointerdown", (event) => {
   if (isPageTransitioning) return;
   if (stopDaybookNavPointerEvent(event)) return;
@@ -2969,14 +3076,6 @@ document.addEventListener("click", async (event) => {
     closeCanvasMenus();
     render();
     openPhotoPicker(point);
-    return;
-  }
-  if (action === "add-menu-paste") {
-    const point = state.pendingInsertPoint || visibleCanvasCenterPoint();
-    const pastePromise = pasteFromClipboard(point);
-    closeCanvasMenusAndResetPoint();
-    render();
-    await pastePromise;
     return;
   }
   if (action === "open-settings") {

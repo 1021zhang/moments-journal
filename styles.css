@@ -1094,13 +1094,41 @@ button {
   min-height: 560px;
   background: #ffffff;
   touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
+}
+
+.native-paste-target {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  -webkit-text-fill-color: transparent;
+  font-size: 16px;
+  line-height: 1;
+  user-select: text;
+  -webkit-user-select: text;
+  -webkit-touch-callout: default;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.native-paste-target:focus {
+  outline: 0;
 }
 
 .canvas-item {
   position: absolute;
+  z-index: 1;
   --lift-scale: 1;
   transform: rotate(var(--rotation)) scale(var(--scale, 1)) scale(var(--lift-scale));
   transform-origin: center center;
@@ -1353,6 +1381,7 @@ button {
   position: absolute;
   right: 4px;
   bottom: 4px;
+  z-index: 1200;
   display: grid;
   place-items: center;
   width: 38px;
