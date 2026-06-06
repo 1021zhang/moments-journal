@@ -645,69 +645,6 @@ button {
   pointer-events: none;
 }
 
-.add-menu-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1490;
-  border: 0;
-  background: transparent;
-  -webkit-appearance: none;
-  appearance: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.add-menu-sheet button {
-  min-height: 46px;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: #242424;
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1;
-  text-align: left;
-  -webkit-appearance: none;
-  appearance: none;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  transition:
-    background 140ms ease,
-    transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.add-menu-sheet button + button {
-  border-top: 1px solid rgba(0, 0, 0, 0.055);
-}
-
-.add-menu-sheet button:active {
-  background: rgba(0, 0, 0, 0.04);
-  transform: scale(0.99);
-}
-
-.add-menu-sheet {
-  position: fixed;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 1500;
-  display: grid;
-  width: min(390px, 100%);
-  max-width: 100%;
-  margin: 0 auto;
-  padding: 10px 12px calc(env(safe-area-inset-bottom) + 12px);
-  overflow: hidden;
-  border-radius: 22px 22px 0 0;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 -18px 46px rgba(0, 0, 0, 0.14);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  animation: sheet-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -1096,39 +1033,8 @@ button {
   touch-action: none;
 }
 
-.native-paste-target {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  display: block;
-  overflow: hidden;
-  box-sizing: border-box;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: transparent;
-  caret-color: transparent;
-  -webkit-text-fill-color: transparent;
-  font-size: 16px;
-  line-height: 1;
-  user-select: text;
-  -webkit-user-select: text;
-  -webkit-touch-callout: default;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.native-paste-target:focus {
-  outline: 0;
-}
-
 .canvas-item {
   position: absolute;
-  z-index: 1;
   --lift-scale: 1;
   transform: rotate(var(--rotation)) scale(var(--scale, 1)) scale(var(--lift-scale));
   transform-origin: center center;
@@ -1384,8 +1290,8 @@ button {
   z-index: 1200;
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 50%;
   background: #ffffff;

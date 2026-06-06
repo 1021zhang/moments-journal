@@ -45,9 +45,7 @@ const state = {
   isExportingDay: false,
   toast: "",
   toastTimer: null,
-  addMenuOpen: false,
   pendingInsertPoint: null,
-  nativePastePoint: null,
   textComposer: {
     active: false,
     editingId: "",
@@ -879,34 +877,6 @@ function textComposerOverlay() {
   `;
 }
 
-function nativePasteTarget() {
-  return `
-    <div
-      class="native-paste-target"
-      contenteditable="plaintext-only"
-      inputmode="none"
-      spellcheck="false"
-      autocapitalize="off"
-      autocomplete="off"
-      role="textbox"
-      aria-label="Paste into page"
-      data-native-paste-target
-    ></div>
-  `;
-}
-
-function addMenu() {
-  if (!state.addMenuOpen) return "";
-
-  return `
-    <button class="add-menu-backdrop" type="button" data-action="close-add-menu" aria-label="Close add menu"></button>
-    <div class="add-menu-sheet" role="menu" aria-label="Add menu">
-      <button type="button" data-action="add-menu-photo" role="menuitem">Add photo</button>
-      <button type="button" data-action="close-add-menu" role="menuitem">Cancel</button>
-    </div>
-  `;
-}
-
 function renderSingleDay() {
   const day = getDay();
   if (!day) return renderEmptyDaybook();
@@ -940,7 +910,6 @@ function renderSingleDay() {
       </header>
 
       <section class="free-canvas" aria-label="Free layout canvas">
-        ${nativePasteTarget()}
         ${day.photos.map(freeCanvasPhoto).join("")}
         ${dayElements.map(canvasElement).join("")}
         <div class="floating-toolbox" aria-label="Canvas tools">
@@ -956,7 +925,7 @@ function renderSingleDay() {
           </button>
           <button type="button" data-action="edit-note" aria-label="Daily note" title="Daily note">${noteIcon()}</button>
         </div>
-        <button class="canvas-add-button" type="button" data-action="open-add-menu" aria-label="Add">+</button>
+        <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
       </section>
       <div class="delete-zone" aria-hidden="true">
         <div class="delete-zone-inner">
@@ -974,7 +943,6 @@ function renderSingleDay() {
       </div>
       ${stickerSheet()}
       ${textComposerOverlay()}
-      ${addMenu()}
       ${toastMarkup()}
     </main>
 
@@ -1010,18 +978,8 @@ function resetHorizontalScroll() {
 function render() {
   const app = document.querySelector("#app");
   app.innerHTML = renderView(state.view);
-  bindNativePasteTarget();
   document.body.classList.toggle("settings-open", state.settingsSheetOpen);
   resetHorizontalScroll();
-}
-
-function closeCanvasMenus() {
-  state.addMenuOpen = false;
-}
-
-function closeCanvasMenusAndResetPoint() {
-  closeCanvasMenus();
-  state.pendingInsertPoint = null;
 }
 
 function canvasPointFromClient(clientX, clientY) {
@@ -1049,20 +1007,12 @@ function visibleCanvasCenterPoint() {
   return canvasPointFromClient(clientX, clientY);
 }
 
-function openAddMenu() {
-  state.addMenuOpen = true;
-  state.activePanel = "";
-  state.pendingInsertPoint = visibleCanvasCenterPoint();
-  render();
-}
-
 function preparePageState(targetView, options = {}) {
   clearSelection();
   activePointers.clear();
   setDeleteZoneVisible(false);
   state.activePanel = "";
   state.settingsSheetOpen = false;
-  closeCanvasMenus();
   state.pendingInsertPoint = null;
   state.textComposer = { active: false, editingId: "", value: "" };
 
@@ -1716,164 +1666,6 @@ async function compressImage(file) {
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
-}
-
-async function clipboardImageData(blob) {
-  const objectUrl = URL.createObjectURL(blob);
-
-  try {
-    const image = await loadImage(objectUrl);
-    const maxSide = 1600;
-    const longestSide = Math.max(image.naturalWidth, image.naturalHeight);
-    const scale = Math.min(1, maxSide / longestSide);
-    const width = Math.max(1, Math.round(image.naturalWidth * scale));
-    const height = Math.max(1, Math.round(image.naturalHeight * scale));
-
-    if (scale >= 1) {
-      return {
-        imageDataUrl: await blobToDataUrl(blob),
-        aspectRatio: image.naturalWidth / image.naturalHeight,
-        naturalWidth: image.naturalWidth,
-        naturalHeight: image.naturalHeight
-      };
-    }
-
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    context.drawImage(image, 0, 0, width, height);
-    const imageDataUrl = blob.type === "image/jpeg"
-      ? canvas.toDataURL("image/jpeg", 0.9)
-      : canvas.toDataURL("image/png");
-
-    return {
-      imageDataUrl,
-      aspectRatio: width / height,
-      naturalWidth: width,
-      naturalHeight: height
-    };
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-}
-
-function photoSizeForImage(naturalWidth, naturalHeight) {
-  const aspectRatio = naturalWidth / naturalHeight || 1;
-  const maxWidth = Math.round(canvasWidth * 0.66);
-  const maxHeight = Math.round(canvasHeight * 0.55);
-  let width = Math.min(naturalWidth, maxWidth);
-  let height = width / aspectRatio;
-
-  if (height > maxHeight) {
-    height = Math.min(naturalHeight, maxHeight);
-    width = height * aspectRatio;
-  }
-
-  return {
-    width: Math.max(1, Math.round(width)),
-    height: Math.max(1, Math.round(height))
-  };
-}
-
-async function createPastedText(text, point = visibleCanvasCenterPoint()) {
-  const day = getDay();
-  const value = String(text || "").replace(/^\s+|\s+$/g, "");
-  if (!day || !value) {
-    showToast("Nothing to paste");
-    return false;
-  }
-
-  const undoBefore = snapshotForDate(day.dateKey);
-  const element = positionTextElement(defaultTextElement(day.dateKey, value), point);
-  await saveCanvasElement(element);
-  selectItem("text", element.id);
-  commitUndoSnapshot(undoBefore);
-  closeCanvasMenus();
-  render();
-  return true;
-}
-
-async function createPastedImage(blob, point = visibleCanvasCenterPoint()) {
-  const day = getDay();
-  if (!day || !blob) return false;
-
-  const undoBefore = snapshotForDate(day.dateKey);
-  const image = await clipboardImageData(blob);
-  const size = photoSizeForImage(image.naturalWidth, image.naturalHeight);
-  const photo = positionPhotoElement({
-    id: uid(),
-    imageDataUrl: image.imageDataUrl,
-    aspectRatio: image.aspectRatio,
-    addedAt: new Date().toISOString(),
-    dateKey: day.dateKey,
-    label: "",
-    x: 0,
-    y: 0,
-    width: size.width,
-    height: size.height,
-    rotation: 0,
-    scale: 1,
-    zIndex: maxCanvasZIndex(day.dateKey) + 1
-  }, point);
-
-  await saveUserPhotos([photo]);
-  state.activeDayId = `user-${day.dateKey}`;
-  selectItem("photo", photo.id);
-  commitUndoSnapshot(undoBefore);
-  closeCanvasMenus();
-  render();
-  return true;
-}
-
-function nativePasteTargetElement() {
-  return document.querySelector("[data-native-paste-target]");
-}
-
-function clearNativeSelection() {
-  const selection = window.getSelection?.();
-  selection?.removeAllRanges?.();
-}
-
-function clearNativePasteTarget(target = nativePasteTargetElement()) {
-  if (!target) return;
-  target.textContent = "";
-  target.innerHTML = "";
-}
-
-function resetNativePasteTarget(target = nativePasteTargetElement()) {
-  clearNativePasteTarget(target);
-  target?.blur?.();
-  clearNativeSelection();
-}
-
-function focusNativePasteTarget(target) {
-  if (!target || document.activeElement === target) return;
-  try {
-    target.focus({ preventScroll: true });
-  } catch {
-    target.focus();
-  }
-}
-
-function imageBlobFromPasteData(data) {
-  const items = Array.from(data?.items || []);
-  const imageItem = items.find((item) => item.kind === "file" && item.type.startsWith("image/"));
-  if (imageItem) return imageItem.getAsFile();
-
-  const files = Array.from(data?.files || []);
-  return files.find((file) => file.type.startsWith("image/")) || null;
-}
-
-async function createPastedContentFromData(data, point = visibleCanvasCenterPoint()) {
-  const imageBlob = imageBlobFromPasteData(data);
-  if (imageBlob) return createPastedImage(imageBlob, point);
-
-  const text = data?.getData?.("text/plain") || "";
-  if (text) return createPastedText(text, point);
-
-  showToast("Nothing to paste");
-  return false;
 }
 
 async function handlePhotoSelection(event) {
@@ -2866,94 +2658,12 @@ function preventViewportGesture(event) {
   if (event.cancelable) event.preventDefault();
 }
 
-function isNativePasteTarget(target) {
-  return Boolean(target?.closest?.("[data-native-paste-target]"));
-}
-
-function handleNativePastePointerDown(event) {
-  const target = event.target.closest("[data-native-paste-target]");
-  if (!target || state.view !== "single") return;
-
-  state.nativePastePoint = canvasPointFromClient(event.clientX, event.clientY);
-  focusNativePasteTarget(target);
-}
-
-function handleNativePasteClick(event) {
-  const target = event.target.closest("[data-native-paste-target]");
-  if (!target || state.view !== "single") return;
-
-  if (state.selectedPhotoId || state.activePanel || state.addMenuOpen) {
-    clearSelection();
-    state.activePanel = "";
-    closeCanvasMenusAndResetPoint();
-    resetNativePasteTarget(target);
-    render();
-    return;
-  }
-
-  resetNativePasteTarget(target);
-}
-
-async function handleNativePaste(event) {
-  const target = event.target.closest("[data-native-paste-target]");
-  if (!target || state.view !== "single") return;
-
-  event.preventDefault();
-  const point = state.nativePastePoint || visibleCanvasCenterPoint();
-  state.nativePastePoint = null;
-
-  try {
-    await createPastedContentFromData(event.clipboardData, point);
-  } finally {
-    resetNativePasteTarget(target);
-  }
-}
-
-function handleNativePasteBeforeInput(event) {
-  const target = event.target.closest("[data-native-paste-target]");
-  if (!target) return;
-
-  if (event.inputType !== "insertFromPaste" && event.inputType !== "insertFromPasteAsQuotation") {
-    event.preventDefault();
-  }
-}
-
-function handleNativePasteInput(event) {
-  const target = event.target.closest("[data-native-paste-target]");
-  if (!target) return;
-
-  clearNativePasteTarget(target);
-}
-
-function handleNativePasteBlur(event) {
-  const target = event.target.closest("[data-native-paste-target]");
-  if (!target) return;
-
-  resetNativePasteTarget(target);
-}
-
-function bindNativePasteTarget() {
-  const target = nativePasteTargetElement();
-  if (!target) return;
-
-  if (target.contentEditable !== "plaintext-only") {
-    target.contentEditable = "true";
-  }
-
-  target.addEventListener("pointerdown", handleNativePastePointerDown);
-  target.addEventListener("click", handleNativePasteClick);
-  target.addEventListener("paste", handleNativePaste);
-  target.addEventListener("beforeinput", handleNativePasteBeforeInput);
-  target.addEventListener("input", handleNativePasteInput);
-  target.addEventListener("blur", handleNativePasteBlur);
-}
-
 document.addEventListener("pointerdown", (event) => {
   if (isPageTransitioning) return;
   if (stopDaybookNavPointerEvent(event)) return;
   if (startDayPress(event)) return;
 
-  if (event.target.closest(".text-composer-overlay, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-add-button, .add-menu-sheet, .add-menu-backdrop, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
+  if (event.target.closest(".text-composer-overlay, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-add-button, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
 
   const deleteButton = event.target.closest(".delete-photo");
   if (deleteButton) {
@@ -3002,10 +2712,9 @@ document.addEventListener("pointerdown", (event) => {
     return;
   }
 
-  if (event.target.classList.contains("free-canvas") && (state.selectedPhotoId || state.addMenuOpen)) {
+  if (event.target.classList.contains("free-canvas") && state.selectedPhotoId) {
     clearSelection();
     state.activePanel = "";
-    closeCanvasMenus();
     render();
   }
 });
@@ -3059,23 +2768,6 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "edit-note") {
     editNote();
-    return;
-  }
-  if (action === "open-add-menu") {
-    event.stopPropagation();
-    openAddMenu();
-    return;
-  }
-  if (action === "close-add-menu") {
-    closeCanvasMenusAndResetPoint();
-    render();
-    return;
-  }
-  if (action === "add-menu-photo") {
-    const point = state.pendingInsertPoint || visibleCanvasCenterPoint();
-    closeCanvasMenus();
-    render();
-    openPhotoPicker(point);
     return;
   }
   if (action === "open-settings") {
