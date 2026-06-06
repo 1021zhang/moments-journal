@@ -609,10 +609,12 @@ function noteIcon() {
 function stickerIcon() {
   return `
     <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="M6.7 5.2h8.7l3 3v10.6H6.7V5.2Z" />
-      <path d="M15.2 5.3v3.1h3.1" />
-      <path d="m8.9 16 2.6-2.8 1.8 1.8 1.4-1.5 2.1 2.5" />
-      <path d="M10 9.7h.1" />
+      <path d="M6.3 5.4h9.1l3.2 3.2v5.6c0 2.4-2 4.4-4.4 4.4H6.3V5.4Z" />
+      <path d="M15.3 5.5v3.2h3.2" />
+      <path d="M10 10.8h.1" />
+      <path d="M14 10.8h.1" />
+      <path d="M10.2 14.1c.7.7 2.9.7 3.6 0" />
+      <path d="M14.2 18.6c0-2.4 2-4.4 4.4-4.4" />
     </svg>
   `;
 }
@@ -917,9 +919,9 @@ function renderSingleDay() {
         ${day.photos.map(freeCanvasPhoto).join("")}
         ${dayElements.map(canvasElement).join("")}
         <div class="floating-toolbox" aria-label="Canvas tools">
-          <button type="button" data-action="add-text" aria-label="Add text to page" title="Add text to page">${editIcon()}</button>
-          <button type="button" data-action="edit-note" aria-label="Daily note" title="Daily note">${noteIcon()}</button>
+          <button type="button" data-action="add-text" aria-label="Add text to page" title="Add text to page"><span class="toolbox-text-mark" aria-hidden="true">Aa</span></button>
           <button type="button" data-action="open-sticker-panel" aria-label="Stickers" title="Stickers">${stickerIcon()}</button>
+          <button type="button" data-action="edit-note" aria-label="Daily note" title="Daily note">${noteIcon()}</button>
         </div>
         <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
       </section>

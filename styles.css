@@ -1259,6 +1259,15 @@ button {
   stroke-linejoin: round;
 }
 
+.toolbox-text-mark {
+  display: block;
+  color: currentColor;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
 .floating-toolbox button:active {
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 5px 12px rgba(0, 0, 0, 0.07);
