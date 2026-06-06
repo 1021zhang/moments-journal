@@ -38,6 +38,7 @@ const state = {
   selectedPhotoId: "",
   selectedSurface: "",
   selectedItemType: "",
+  photoEditMode: false,
   activePanel: "",
   stickerSheetState: "half",
   settingsSheetOpen: false,
@@ -561,8 +562,15 @@ function memoryStackPhoto(photo, index, count) {
 function settingsIcon() {
   return `
     <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="M12 8.4a3.6 3.6 0 1 0 0 7.2 3.6 3.6 0 0 0 0-7.2Z" />
-      <path d="M19.3 13.7c.1-.6.1-1.1 0-1.7l1.6-1.2-1.8-3.1-1.9.8c-.4-.3-.9-.6-1.5-.8L15.5 5h-3.6l-.3 2.1c-.5.2-1 .4-1.5.8l-1.9-.8-1.8 3.1L8 11.4a6.6 6.6 0 0 0 0 1.7l-1.6 1.2 1.8 3.1 1.9-.8c.4.3.9.6 1.5.8l.3 2.1h3.6l.3-2.1c.5-.2 1-.4 1.5-.8l1.9.8 1.8-3.1-1.7-1.3Z" />
+      <path d="M4.8 7.2h8.1" />
+      <path d="M16.1 7.2h3.1" />
+      <path d="M4.8 12h3.1" />
+      <path d="M11.1 12h8.1" />
+      <path d="M4.8 16.8h8.1" />
+      <path d="M16.1 16.8h3.1" />
+      <path d="M12.9 5.6v3.2" />
+      <path d="M7.9 10.4v3.2" />
+      <path d="M12.9 15.2v3.2" />
     </svg>
   `;
 }
@@ -616,7 +624,7 @@ function moodIcon() {
 
 function settingsButton() {
   return `
-    <button class="settings-button" type="button" data-action="open-settings" aria-label="Settings">
+    <button class="settings-button" type="button" data-action="open-settings" aria-label="Settings" title="Settings">
       ${settingsIcon()}
     </button>
   `;
@@ -629,9 +637,9 @@ function settingsSheet() {
     <button class="settings-backdrop" type="button" data-action="close-settings" aria-label="Close settings"></button>
     <section class="settings-sheet" aria-label="Settings">
       <div class="settings-sheet-handle" aria-hidden="true"></div>
-      <button class="settings-close-button" type="button" data-action="close-settings" aria-label="Close settings">Cancel</button>
       <button class="settings-option" type="button" data-action="export-backup" ${state.isExportingBackup ? "disabled" : ""}>Export backup</button>
       <button class="settings-option" type="button" data-action="restore-backup">Restore backup</button>
+      <button class="settings-close-button" type="button" data-action="close-settings" aria-label="Close settings">Cancel</button>
     </section>
   `;
 }
@@ -889,7 +897,7 @@ function renderSingleDay() {
   const canUndo = undoStackForDate(day.dateKey).length > 0;
 
   return `
-    <main class="phone-screen single-day-view" aria-label="Single Day Page">
+    <main class="phone-screen single-day-view ${state.photoEditMode ? "is-photo-editing" : ""}" aria-label="Single Day Page">
       <header class="day-page-header">
         <div class="header-side header-left">
           <button class="header-action back-button" type="button" data-action="daybook">Back</button>
@@ -914,7 +922,7 @@ function renderSingleDay() {
         ${day.photos.map(freeCanvasPhoto).join("")}
         ${dayElements.map(canvasElement).join("")}
         <div class="floating-toolbox" aria-label="Canvas tools">
-          <button type="button" data-action="edit-note" aria-label="Edit" title="Edit">${editIcon()}</button>
+          <button type="button" data-action="toggle-photo-editing" aria-label="Edit photos" title="Edit photos" aria-pressed="${state.photoEditMode ? "true" : "false"}">${editIcon()}</button>
           <button type="button" data-action="edit-note" aria-label="Note" title="Note">${noteIcon()}</button>
           <button type="button" data-action="open-sticker-panel" aria-label="Mood" title="Mood">${moodIcon()}</button>
         </div>
@@ -965,6 +973,7 @@ function renderView(view) {
 function render() {
   const app = document.querySelector("#app");
   app.innerHTML = renderView(state.view);
+  document.body.classList.toggle("settings-open", state.settingsSheetOpen);
 }
 
 function preparePageState(targetView, options = {}) {
@@ -973,6 +982,7 @@ function preparePageState(targetView, options = {}) {
   setDeleteZoneVisible(false);
   state.activePanel = "";
   state.settingsSheetOpen = false;
+  state.photoEditMode = false;
   state.textComposer = { active: false, editingId: "", value: "" };
 
   if (targetView === "single" && options.dayId) {
@@ -1115,6 +1125,19 @@ function editNote() {
     saveNotes();
     render();
   }, { once: true });
+}
+
+function togglePhotoEditMode() {
+  state.photoEditMode = !state.photoEditMode;
+  state.activePanel = "";
+
+  if (!state.photoEditMode) {
+    clearSelection();
+    activePointers.clear();
+    setDeleteZoneVisible(false);
+  }
+
+  render();
 }
 
 function openPhotoPicker() {
@@ -1670,6 +1693,7 @@ async function handlePhotoSelection(event) {
 
   if (state.view === "single") {
     state.activeDayId = `user-${dateKey}`;
+    state.photoEditMode = true;
     selectItem("photo", imported[0].id);
     commitUndoSnapshot(undoBefore);
   }
@@ -2608,6 +2632,7 @@ document.addEventListener("pointerdown", (event) => {
     const owner = deleteButton.closest(".canvas-item");
     const itemId = owner?.dataset.itemId;
     const itemType = owner?.dataset.itemType;
+    if (itemType === "photo" && !state.photoEditMode) return;
     if (itemType === "photo" && itemId) deleteSelectedPhoto(itemId);
     if ((itemType === "text" || itemType === "emoji" || itemType === "sticker") && itemId) deleteSelectedElement(itemId);
     return;
@@ -2618,6 +2643,7 @@ document.addEventListener("pointerdown", (event) => {
     const owner = resizeHandle.closest(".canvas-item");
     const itemId = owner?.dataset.itemId;
     const itemType = owner?.dataset.itemType || "photo";
+    if (itemType === "photo" && !state.photoEditMode) return;
     if (itemId) {
       activePointers.set(event.pointerId, { itemId, itemType, x: event.clientX, y: event.clientY });
       startItemGesture(event, "resize", itemId, itemType);
@@ -2630,6 +2656,7 @@ document.addEventListener("pointerdown", (event) => {
     const owner = rotateHandle.closest(".canvas-item");
     const itemId = owner?.dataset.itemId;
     const itemType = owner?.dataset.itemType || "photo";
+    if (itemType === "photo" && !state.photoEditMode) return;
     if (itemId) {
       activePointers.set(event.pointerId, { itemId, itemType, x: event.clientX, y: event.clientY });
       startItemGesture(event, "rotate", itemId, itemType);
@@ -2641,6 +2668,7 @@ document.addEventListener("pointerdown", (event) => {
   if (canvasItem) {
     const itemId = canvasItem.dataset.itemId;
     const itemType = canvasItem.dataset.itemType || "photo";
+    if (itemType === "photo" && !state.photoEditMode) return;
     activePointers.set(event.pointerId, { itemId, itemType, x: event.clientX, y: event.clientY });
     if (activePointersForItem(itemId, itemType).length >= 2) {
       startPinchGesture(event, itemId, itemType);
@@ -2699,6 +2727,10 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "daybook") {
     navigateToPage("daybook", "back");
+    return;
+  }
+  if (action === "toggle-photo-editing") {
+    togglePhotoEditMode();
     return;
   }
   if (action === "edit-note") {
