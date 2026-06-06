@@ -13,18 +13,30 @@
 }
 
 html {
+  width: 100%;
+  max-width: 100%;
   min-height: 100%;
+  min-width: 0;
+  overflow-x: clip;
   background: #ffffff;
+  touch-action: pan-y;
 }
 
 body {
+  width: 100%;
+  max-width: 100%;
   min-height: 100%;
+  min-width: 0;
   margin: 0;
+  overflow-x: clip;
   background: #ffffff;
   color: var(--ink);
   font-family:
     -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
     "Helvetica Neue", Arial, sans-serif;
+  touch-action: pan-y;
+  overscroll-behavior-x: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 body.settings-open {
@@ -42,18 +54,25 @@ button {
 }
 
 .app-shell {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 100vh;
   display: grid;
   place-items: start center;
   background: #ffffff;
-  overflow-x: hidden;
+  overflow-x: clip;
+  touch-action: pan-y;
 }
 
 .app-stage {
   position: relative;
-  width: min(390px, 100vw);
+  width: min(390px, 100%);
+  max-width: 100%;
+  min-width: 0;
   min-height: 100svh;
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: hidden;
   background: #ffffff;
 }
 
@@ -63,7 +82,11 @@ button {
   display: grid;
   justify-items: center;
   align-items: start;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 100%;
+  overflow-x: clip;
   background: #ffffff;
   backface-visibility: hidden;
   will-change: transform, opacity;
@@ -137,11 +160,15 @@ button {
 }
 
 .phone-screen {
-  width: min(390px, 100vw);
+  width: min(390px, 100%);
+  max-width: 100%;
+  min-width: 0;
   min-height: min(844px, 100vh);
   padding: 24px 16px 32px;
-  overflow: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
   background: #ffffff;
+  touch-action: pan-y;
 }
 
 .sr-only {
@@ -326,12 +353,13 @@ button {
 .memory-home {
   position: relative;
   min-height: 100svh;
-  width: min(390px, 100vw);
-  max-width: 390px;
+  width: min(390px, 100%);
+  max-width: 100%;
+  min-width: 0;
   margin: 0 auto;
   padding: 14vh 16px 36px;
   box-sizing: border-box;
-  overflow-x: hidden;
+  overflow-x: clip;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -367,7 +395,7 @@ button {
   height: 20px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.6;
+  stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
@@ -532,7 +560,9 @@ button {
   bottom: 0;
   z-index: 1810;
   display: grid;
-  width: min(390px, 100vw);
+  width: min(390px, 100%);
+  max-width: 100%;
+  min-width: 0;
   max-height: min(70svh, 360px);
   margin: 0 auto;
   padding: 10px 12px calc(env(safe-area-inset-bottom) + 12px);
@@ -600,7 +630,7 @@ button {
   left: 50%;
   bottom: max(24px, calc(env(safe-area-inset-bottom) + 20px));
   z-index: 10000;
-  max-width: min(320px, calc(100vw - 48px));
+  max-width: min(320px, calc(100% - 48px));
   padding: 10px 14px;
   border-radius: 999px;
   background: rgba(28, 28, 32, 0.86);
@@ -1235,11 +1265,6 @@ button {
   transform: scale(0.96);
 }
 
-.floating-toolbox button[aria-pressed="true"] {
-  background: rgba(242, 242, 242, 0.98);
-  color: #111111;
-}
-
 .floating-toolbox button:focus {
   outline: 0;
 }
@@ -1379,7 +1404,9 @@ button {
   right: 50%;
   bottom: 0;
   z-index: 1400;
-  width: min(390px, 100vw);
+  width: min(390px, 100%);
+  max-width: 100%;
+  min-width: 0;
   height: 55svh;
   padding: 10px 16px 22px;
   border: 1px solid rgba(0, 0, 0, 0.06);
@@ -1504,7 +1531,7 @@ button {
 }
 
 .text-composer-input {
-  width: min(340px, 80vw);
+  width: min(340px, 80%);
   min-height: 56px;
   padding: 0;
   border: 0;
@@ -1570,7 +1597,7 @@ button {
   outline: none;
   resize: vertical;
   color: var(--ink);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.45;
 }
 

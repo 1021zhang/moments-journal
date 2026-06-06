@@ -38,7 +38,6 @@ const state = {
   selectedPhotoId: "",
   selectedSurface: "",
   selectedItemType: "",
-  photoEditMode: false,
   activePanel: "",
   stickerSheetState: "half",
   settingsSheetOpen: false,
@@ -562,15 +561,8 @@ function memoryStackPhoto(photo, index, count) {
 function settingsIcon() {
   return `
     <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="M4.8 7.2h8.1" />
-      <path d="M16.1 7.2h3.1" />
-      <path d="M4.8 12h3.1" />
-      <path d="M11.1 12h8.1" />
-      <path d="M4.8 16.8h8.1" />
-      <path d="M16.1 16.8h3.1" />
-      <path d="M12.9 5.6v3.2" />
-      <path d="M7.9 10.4v3.2" />
-      <path d="M12.9 15.2v3.2" />
+      <path d="M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8Z" />
+      <path d="M19.1 13.4c.1-.5.1-.9 0-1.4l1.4-1.1-1.7-2.9-1.7.7c-.4-.3-.8-.5-1.3-.7L15.6 6h-3.2l-.3 2c-.5.2-.9.4-1.3.7L9.1 8l-1.6 2.9L8.9 12a4.9 4.9 0 0 0 0 1.4l-1.4 1.1 1.6 2.9 1.7-.7c.4.3.8.5 1.3.7l.3 2h3.2l.3-2c.5-.2.9-.4 1.3-.7l1.7.7 1.7-2.9-1.5-1.1Z" />
     </svg>
   `;
 }
@@ -897,7 +889,7 @@ function renderSingleDay() {
   const canUndo = undoStackForDate(day.dateKey).length > 0;
 
   return `
-    <main class="phone-screen single-day-view ${state.photoEditMode ? "is-photo-editing" : ""}" aria-label="Single Day Page">
+    <main class="phone-screen single-day-view" aria-label="Single Day Page">
       <header class="day-page-header">
         <div class="header-side header-left">
           <button class="header-action back-button" type="button" data-action="daybook">Back</button>
@@ -922,8 +914,8 @@ function renderSingleDay() {
         ${day.photos.map(freeCanvasPhoto).join("")}
         ${dayElements.map(canvasElement).join("")}
         <div class="floating-toolbox" aria-label="Canvas tools">
-          <button type="button" data-action="toggle-photo-editing" aria-label="Edit photos" title="Edit photos" aria-pressed="${state.photoEditMode ? "true" : "false"}">${editIcon()}</button>
-          <button type="button" data-action="edit-note" aria-label="Note" title="Note">${noteIcon()}</button>
+          <button type="button" data-action="add-text" aria-label="Add text to page" title="Add text to page">${editIcon()}</button>
+          <button type="button" data-action="edit-note" aria-label="Daily note" title="Daily note">${noteIcon()}</button>
           <button type="button" data-action="open-sticker-panel" aria-label="Mood" title="Mood">${moodIcon()}</button>
         </div>
         <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
@@ -970,10 +962,17 @@ function renderView(view) {
   }[view]();
 }
 
+function resetHorizontalScroll() {
+  document.documentElement.scrollLeft = 0;
+  document.body.scrollLeft = 0;
+  document.querySelector("#app")?.scrollTo?.({ left: 0 });
+}
+
 function render() {
   const app = document.querySelector("#app");
   app.innerHTML = renderView(state.view);
   document.body.classList.toggle("settings-open", state.settingsSheetOpen);
+  resetHorizontalScroll();
 }
 
 function preparePageState(targetView, options = {}) {
@@ -982,7 +981,6 @@ function preparePageState(targetView, options = {}) {
   setDeleteZoneVisible(false);
   state.activePanel = "";
   state.settingsSheetOpen = false;
-  state.photoEditMode = false;
   state.textComposer = { active: false, editingId: "", value: "" };
 
   if (targetView === "single" && options.dayId) {
@@ -1125,19 +1123,6 @@ function editNote() {
     saveNotes();
     render();
   }, { once: true });
-}
-
-function togglePhotoEditMode() {
-  state.photoEditMode = !state.photoEditMode;
-  state.activePanel = "";
-
-  if (!state.photoEditMode) {
-    clearSelection();
-    activePointers.clear();
-    setDeleteZoneVisible(false);
-  }
-
-  render();
 }
 
 function openPhotoPicker() {
@@ -1693,7 +1678,6 @@ async function handlePhotoSelection(event) {
 
   if (state.view === "single") {
     state.activeDayId = `user-${dateKey}`;
-    state.photoEditMode = true;
     selectItem("photo", imported[0].id);
     commitUndoSnapshot(undoBefore);
   }
@@ -2620,6 +2604,10 @@ function endElementDrag(event) {
   endGesture(event);
 }
 
+function preventViewportGesture(event) {
+  if (event.cancelable) event.preventDefault();
+}
+
 document.addEventListener("pointerdown", (event) => {
   if (isPageTransitioning) return;
   if (stopDaybookNavPointerEvent(event)) return;
@@ -2632,7 +2620,6 @@ document.addEventListener("pointerdown", (event) => {
     const owner = deleteButton.closest(".canvas-item");
     const itemId = owner?.dataset.itemId;
     const itemType = owner?.dataset.itemType;
-    if (itemType === "photo" && !state.photoEditMode) return;
     if (itemType === "photo" && itemId) deleteSelectedPhoto(itemId);
     if ((itemType === "text" || itemType === "emoji" || itemType === "sticker") && itemId) deleteSelectedElement(itemId);
     return;
@@ -2643,7 +2630,6 @@ document.addEventListener("pointerdown", (event) => {
     const owner = resizeHandle.closest(".canvas-item");
     const itemId = owner?.dataset.itemId;
     const itemType = owner?.dataset.itemType || "photo";
-    if (itemType === "photo" && !state.photoEditMode) return;
     if (itemId) {
       activePointers.set(event.pointerId, { itemId, itemType, x: event.clientX, y: event.clientY });
       startItemGesture(event, "resize", itemId, itemType);
@@ -2656,7 +2642,6 @@ document.addEventListener("pointerdown", (event) => {
     const owner = rotateHandle.closest(".canvas-item");
     const itemId = owner?.dataset.itemId;
     const itemType = owner?.dataset.itemType || "photo";
-    if (itemType === "photo" && !state.photoEditMode) return;
     if (itemId) {
       activePointers.set(event.pointerId, { itemId, itemType, x: event.clientX, y: event.clientY });
       startItemGesture(event, "rotate", itemId, itemType);
@@ -2668,7 +2653,6 @@ document.addEventListener("pointerdown", (event) => {
   if (canvasItem) {
     const itemId = canvasItem.dataset.itemId;
     const itemType = canvasItem.dataset.itemType || "photo";
-    if (itemType === "photo" && !state.photoEditMode) return;
     activePointers.set(event.pointerId, { itemId, itemType, x: event.clientX, y: event.clientY });
     if (activePointersForItem(itemId, itemType).length >= 2) {
       startPinchGesture(event, itemId, itemType);
@@ -2692,6 +2676,9 @@ window.addEventListener("pointermove", moveDayPress);
 window.addEventListener("pointerup", endDayPress);
 window.addEventListener("pointercancel", cancelDayPress);
 window.addEventListener("pointerleave", cancelDayPress);
+document.addEventListener("gesturestart", preventViewportGesture, { passive: false });
+document.addEventListener("gesturechange", preventViewportGesture, { passive: false });
+document.addEventListener("gestureend", preventViewportGesture, { passive: false });
 document.addEventListener("pointerup", stopDaybookNavPointerEvent);
 document.addEventListener("pointercancel", stopDaybookNavPointerEvent);
 document.addEventListener("touchcancel", stopDaybookNavPointerEvent);
@@ -2727,10 +2714,6 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "daybook") {
     navigateToPage("daybook", "back");
-    return;
-  }
-  if (action === "toggle-photo-editing") {
-    togglePhotoEditMode();
     return;
   }
   if (action === "edit-note") {
