@@ -254,14 +254,14 @@ function currentUndoSnapshot() {
 }
 
 function measureTextLayout(content, fontSize = 34) {
-  const lines = String(content || "Text").split("\n");
+  const lines = String(content || "文字").split("\n");
   const longestLine = lines.reduce((longest, line) => Math.max(longest, Array.from(line || " ").length), 1);
   const width = clamp(Math.ceil(longestLine * fontSize * 0.62), 44, 300);
   const height = Math.ceil(lines.length * fontSize * 1.18);
   return { width, height };
 }
 
-function defaultTextElement(dateKey, content = "Text") {
+function defaultTextElement(dateKey, content = "文字") {
   const fontSize = 34;
   const size = measureTextLayout(content, fontSize);
   return {
@@ -615,7 +615,7 @@ function noteIcon() {
 
 function settingsButton() {
   return `
-    <button class="settings-button" type="button" data-action="open-settings" aria-label="Settings" title="Settings">
+    <button class="settings-button" type="button" data-action="open-settings" aria-label="设置" title="设置">
       ${settingsIcon()}
     </button>
   `;
@@ -625,12 +625,12 @@ function settingsSheet() {
   if (!state.settingsSheetOpen) return "";
 
   return `
-    <button class="settings-backdrop" type="button" data-action="close-settings" aria-label="Close settings"></button>
-    <section class="settings-sheet" aria-label="Settings">
+    <button class="settings-backdrop" type="button" data-action="close-settings" aria-label="关闭设置"></button>
+    <section class="settings-sheet" aria-label="设置">
       <div class="settings-sheet-handle" aria-hidden="true"></div>
-      <button class="settings-option" type="button" data-action="export-backup" ${state.isExportingBackup ? "disabled" : ""}>Export backup</button>
-      <button class="settings-option" type="button" data-action="restore-backup">Restore backup</button>
-      <button class="settings-close-button" type="button" data-action="close-settings" aria-label="Close settings">Cancel</button>
+      <button class="settings-option" type="button" data-action="export-backup" ${state.isExportingBackup ? "disabled" : ""}>${state.isExportingBackup ? "正在导出…" : "导出备份"}</button>
+      <button class="settings-option" type="button" data-action="restore-backup">恢复备份</button>
+      <button class="settings-close-button" type="button" data-action="close-settings" aria-label="关闭设置">取消</button>
     </section>
   `;
 }
@@ -653,12 +653,12 @@ function showToast(message) {
 
 function renderEmptyHome() {
   return `
-    <main class="memory-home memory-home-empty" aria-label="Memory Stack">
-      <h1 class="sr-only">Memory Stack</h1>
+    <main class="memory-home memory-home-empty" aria-label="回忆照片堆">
+      <h1 class="sr-only">回忆照片堆</h1>
       ${settingsButton()}
 
       <section class="memory-empty-state">
-        <p>Add your first memory.</p>
+        <p>添加第一张回忆照片。</p>
       </section>
       ${settingsSheet()}
       ${toastMarkup()}
@@ -671,17 +671,17 @@ function renderHome() {
   if (!photos.length) return renderEmptyHome();
 
   return `
-    <main class="memory-home" aria-label="Memory Stack">
-      <h1 class="sr-only">Memory Stack</h1>
+    <main class="memory-home" aria-label="回忆照片堆">
+      <h1 class="sr-only">回忆照片堆</h1>
       ${settingsButton()}
 
-      <button class="memory-stack-area" type="button" data-action="open-daybook" aria-label="Open daybook">
+      <button class="memory-stack-area" type="button" data-action="open-daybook" aria-label="打开 Daybook">
         <span class="memory-stack-stage">
           ${photos.map((photo, index) => memoryStackPhoto(photo, index, photos.length)).join("")}
         </span>
       </button>
 
-      <button class="memory-caption" type="button" data-action="open-daybook">A lot happened recently.</button>
+      <button class="memory-caption" type="button" data-action="open-daybook">最近发生了很多事。</button>
       ${settingsSheet()}
       ${toastMarkup()}
     </main>
@@ -694,12 +694,12 @@ function renderEmptyDaybook() {
       <header class="daybook-header">
         <button class="icon-text-button daybook-pile-button" type="button" data-action="home">Pile</button>
         <h1>Daybook</h1>
-        <button class="round-button daybook-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
+        <button class="round-button daybook-add-button" type="button" data-action="add-photo" aria-label="添加照片" title="添加照片">+</button>
       </header>
 
       <section class="empty-daybook">
-        <p>Add photos to start your daybook.</p>
-        <button class="home-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
+        <p>添加照片，开始记录你的 Daybook。</p>
+        <button class="home-add-button" type="button" data-action="add-photo" aria-label="添加照片" title="添加照片">+</button>
       </section>
     </main>
   `;
@@ -714,12 +714,12 @@ function renderDaybook() {
       <header class="daybook-header">
         <button class="icon-text-button daybook-pile-button" type="button" data-action="home">Pile</button>
         <h1>Daybook</h1>
-        <button class="round-button daybook-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
+        <button class="round-button daybook-add-button" type="button" data-action="add-photo" aria-label="添加照片" title="添加照片">+</button>
       </header>
 
       <div class="day-feed">
         ${days.map((day) => `
-          <button class="day-section" type="button" data-day="${day.id}" aria-label="Open ${day.date}">
+          <button class="day-section" type="button" data-day="${day.id}" aria-label="打开 ${day.date}">
             ${dateTitle(day)}
             <div class="photo-strip">
               ${day.photos.slice(0, 4).map((photo, index) =>
@@ -754,7 +754,7 @@ function freeCanvasPhoto(photo) {
   return `
     <div class="canvas-item free-photo ${selected}" data-item-type="photo" data-item-id="${photo.id}" data-surface="day" data-photo-id="${photo.id}" style="${style}">
       <img src="${photo.src}" alt="" draggable="false" />
-      <button class="delete-photo" type="button" data-action="delete-photo" aria-label="Delete photo">×</button>
+      <button class="delete-photo" type="button" data-action="delete-photo" aria-label="删除照片" title="删除照片">×</button>
       <span class="rotate-handle" aria-hidden="true">↻</span>
       <span class="resize-handle" aria-hidden="true"></span>
     </div>
@@ -805,7 +805,7 @@ function canvasElement(element) {
       ${stickerType === "image"
         ? `<img src="${element.imageDataUrl}" alt="" draggable="false" />`
         : `<span>${escapeHtml(element.content)}</span>`}
-      <button class="delete-photo" type="button" data-action="delete-element" aria-label="Delete sticker">×</button>
+      <button class="delete-photo" type="button" data-action="delete-element" aria-label="删除贴纸" title="删除贴纸">×</button>
       <span class="rotate-handle" aria-hidden="true">↻</span>
       <span class="resize-handle" aria-hidden="true"></span>
     </div>
@@ -831,11 +831,11 @@ function stickerSheet() {
   const stickers = stickerLibrary();
 
   return `
-    <button class="sticker-backdrop" type="button" data-action="close-panel" aria-label="Close stickers"></button>
-    <section class="sticker-sheet ${state.stickerSheetState}" aria-label="Sticker library">
+    <button class="sticker-backdrop" type="button" data-action="close-panel" aria-label="关闭贴纸"></button>
+    <section class="sticker-sheet ${state.stickerSheetState}" aria-label="贴纸库">
       <header class="sticker-sheet-header">
-        <button class="sheet-grabber" type="button" data-action="toggle-sticker-sheet" aria-label="Expand stickers"></button>
-        <h2>Stickers</h2>
+        <button class="sheet-grabber" type="button" data-action="toggle-sticker-sheet" aria-label="展开或收起贴纸"></button>
+        <h2>贴纸</h2>
         <span aria-hidden="true"></span>
       </header>
       <div class="sticker-grid">
@@ -848,6 +848,7 @@ function stickerSheet() {
             data-sticker-id="${sticker.id || ""}"
             data-sticker-content="${escapeHtml(sticker.content || "")}"
             data-sticker-color="${sticker.color || "#222222"}"
+            aria-label="添加贴纸"
             style="--sticker-color:${sticker.color || "#222222"}"
           >
             ${sticker.stickerType === "image"
@@ -864,13 +865,13 @@ function textComposerOverlay() {
   if (!state.textComposer.active) return "";
 
   return `
-    <div class="text-composer-overlay" aria-label="Text input mode">
+    <div class="text-composer-overlay" aria-label="文字输入模式">
       <button class="text-composer-done" type="button" data-action="complete-text-compose">完成</button>
       <textarea
         id="textComposerInput"
         class="text-composer-input"
         data-text-composer
-        placeholder="Text"
+        placeholder="写点什么……"
         rows="2"
       >${escapeHtml(state.textComposer.value)}</textarea>
     </div>
@@ -883,22 +884,22 @@ function renderSingleDay() {
 
   const note = noteFor(day);
   const safeNote = escapeHtml(note);
-  const noteDialogTitle = note.trim() ? "Edit note" : "Add note";
+  const noteDialogTitle = note.trim() ? "编辑记录" : "添加记录";
   const dayElements = elementsForDate(day.dateKey);
   const canUndo = undoStackForDate(day.dateKey).length > 0;
 
   return `
-    <main class="phone-screen single-day-view" aria-label="Single Day Page">
+    <main class="phone-screen single-day-view" aria-label="单日编辑页面">
       <header class="day-page-header">
         <div class="header-side header-left">
-          <button class="header-action back-button" type="button" data-action="daybook">Back</button>
+          <button class="header-action back-button" type="button" data-action="daybook">返回</button>
         </div>
         <div class="header-center" aria-hidden="true"></div>
         <div class="header-side header-right">
-          <button class="header-icon-action undo-button" type="button" data-action="undo" aria-label="Undo" ${canUndo ? "" : "disabled"}>
+          <button class="header-icon-action undo-button" type="button" data-action="undo" aria-label="撤销" title="撤销" ${canUndo ? "" : "disabled"}>
             ${undoIcon()}
           </button>
-          <button class="header-icon-action export-day-button" type="button" data-action="export-day" aria-label="Export day" ${state.isExportingDay ? "disabled" : ""}>
+          <button class="header-icon-action export-day-button" type="button" data-action="export-day" aria-label="导出当天图片" title="导出当天图片" ${state.isExportingDay ? "disabled" : ""}>
             ${exportIcon()}
           </button>
         </div>
@@ -909,12 +910,12 @@ function renderSingleDay() {
         ${note ? `<p class="single-note">${safeNote}</p>` : ""}
       </header>
 
-      <section class="free-canvas" aria-label="Free layout canvas">
+      <section class="free-canvas" aria-label="自由排版画布">
         ${day.photos.map(freeCanvasPhoto).join("")}
         ${dayElements.map(canvasElement).join("")}
-        <div class="floating-toolbox" aria-label="Canvas tools">
-          <button type="button" data-action="add-text" aria-label="Add text to page" title="Add text to page"><span class="toolbox-text-mark" aria-hidden="true">Aa</span></button>
-          <button type="button" data-action="open-sticker-panel" aria-label="Stickers" title="Stickers">
+        <div class="floating-toolbox" aria-label="画布工具">
+          <button type="button" data-action="add-text" aria-label="添加文字" title="添加文字"><span class="toolbox-text-mark" aria-hidden="true">Aa</span></button>
+          <button type="button" data-action="open-sticker-panel" aria-label="添加贴纸" title="添加贴纸">
             <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
               <path d="M7.2 5.5h8.2c1.7 0 3.1 1.4 3.1 3.1v5.1c0 2.7-2.1 4.8-4.8 4.8H7.2v-13Z" />
               <path d="M13.7 18.5c0-2.7 2.1-4.8 4.8-4.8" />
@@ -923,9 +924,9 @@ function renderSingleDay() {
               <path d="M10.2 13.4c.7.8 2.9.8 3.6 0" />
             </svg>
           </button>
-          <button type="button" data-action="edit-note" aria-label="Daily note" title="Daily note">${noteIcon()}</button>
+          <button type="button" data-action="edit-note" aria-label="当天记录" title="当天记录">${noteIcon()}</button>
         </div>
-        <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
+        <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="添加照片" title="添加照片">+</button>
       </section>
       <div class="delete-zone" aria-hidden="true">
         <div class="delete-zone-inner">
@@ -949,12 +950,12 @@ function renderSingleDay() {
     <dialog class="note-dialog" id="noteDialog" aria-labelledby="noteDialogTitle">
       <form method="dialog">
         <h2 id="noteDialogTitle">${noteDialogTitle}</h2>
-        <p class="note-dialog-description">Shown below this day’s photos.</p>
-        <label class="sr-only" for="noteInput">Note</label>
+        <p class="note-dialog-description">将显示在当天照片下方。</p>
+        <label class="sr-only" for="noteInput">记录</label>
         <textarea id="noteInput">${safeNote}</textarea>
         <div class="dialog-actions">
-          <button class="ghost-button" value="cancel" type="submit">Cancel</button>
-          <button class="add-button" value="save" type="submit">Save</button>
+          <button class="ghost-button" value="cancel" type="submit">取消</button>
+          <button class="add-button" value="save" type="submit">保存</button>
         </div>
       </form>
     </dialog>
@@ -1607,14 +1608,14 @@ async function readZip(file) {
       break;
     }
   }
-  if (endOffset < 0) throw new Error("Backup zip is missing its directory.");
+  if (endOffset < 0) throw new Error("备份文件不完整，请检查文件。");
 
   const fileCount = readUint16(bytes, endOffset + 10);
   let directoryOffset = readUint32(bytes, endOffset + 16);
   const files = new Map();
 
   for (let index = 0; index < fileCount; index += 1) {
-    if (readUint32(bytes, directoryOffset) !== 0x02014b50) throw new Error("Backup zip directory is invalid.");
+    if (readUint32(bytes, directoryOffset) !== 0x02014b50) throw new Error("备份文件目录无效，请检查文件。");
 
     const method = readUint16(bytes, directoryOffset + 10);
     const size = readUint32(bytes, directoryOffset + 24);
@@ -1624,8 +1625,8 @@ async function readZip(file) {
     const localOffset = readUint32(bytes, directoryOffset + 42);
     const name = decoder.decode(bytes.slice(directoryOffset + 46, directoryOffset + 46 + nameLength));
 
-    if (method !== 0) throw new Error("Compressed backup entries are not supported yet.");
-    if (readUint32(bytes, localOffset) !== 0x04034b50) throw new Error("Backup zip file entry is invalid.");
+    if (method !== 0) throw new Error("暂不支持压缩格式的备份条目。");
+    if (readUint32(bytes, localOffset) !== 0x04034b50) throw new Error("备份文件条目无效，请检查文件。");
 
     const localNameLength = readUint16(bytes, localOffset + 26);
     const localExtraLength = readUint16(bytes, localOffset + 28);
@@ -1658,7 +1659,7 @@ async function compressImage(file) {
       canvas.toBlob(resolve, "image/jpeg", 0.82);
     });
 
-    if (!blob) throw new Error("Could not compress image");
+    if (!blob) throw new Error("图片处理失败");
     return {
       imageDataUrl: await blobToDataUrl(blob),
       aspectRatio: width / height
@@ -1710,7 +1711,7 @@ async function handlePhotoSelection(event) {
 
   if (!imported.length) {
     state.pendingInsertPoint = null;
-    window.alert("No photos could be imported.");
+    window.alert("未能导入照片。");
     return;
   }
 
@@ -1718,7 +1719,7 @@ async function handlePhotoSelection(event) {
     await saveUserPhotos(imported);
   } catch {
     state.pendingInsertPoint = null;
-    window.alert("Photos were compressed, but could not be saved locally.");
+    window.alert("照片已处理，但无法保存到本地。");
     return;
   }
 
@@ -1888,7 +1889,7 @@ async function handleCustomStickerSelection(event) {
     await saveCustomSticker(sticker);
     await addStickerElement(sticker);
   } catch {
-    window.alert("This sticker could not be added.");
+    window.alert("无法添加这个贴纸。");
   }
 }
 
@@ -1935,7 +1936,7 @@ function hydrateImageRecord(record, files) {
   if (!clone.imagePath) return clone;
 
   const imageBytes = files.get(clone.imagePath);
-  if (!imageBytes) throw new Error(`Missing image file: ${clone.imagePath}`);
+  if (!imageBytes) throw new Error(`备份缺少图片文件：${clone.imagePath}`);
 
   clone.imageDataUrl = bytesToDataUrl(imageBytes, clone.imageMime || extensionMime(clone.imagePath));
   delete clone.imagePath;
@@ -1944,15 +1945,15 @@ function hydrateImageRecord(record, files) {
 }
 
 function validateBackupPayload(backup) {
-  if (!backup || typeof backup !== "object") throw new Error("Backup file is not valid.");
-  if (!backup.schemaVersion) throw new Error("Backup is missing schemaVersion.");
-  if (!Array.isArray(backup.photos)) throw new Error("Backup is missing photos.");
-  if (!Array.isArray(backup.canvasElements)) throw new Error("Backup is missing canvas elements.");
-  if (!Array.isArray(backup.customStickers)) throw new Error("Backup is missing stickers.");
+  if (!backup || typeof backup !== "object") throw new Error("备份文件无效。");
+  if (!backup.schemaVersion) throw new Error("备份文件缺少版本信息。");
+  if (!Array.isArray(backup.photos)) throw new Error("备份文件缺少照片数据。");
+  if (!Array.isArray(backup.canvasElements)) throw new Error("备份文件缺少页面元素数据。");
+  if (!Array.isArray(backup.customStickers)) throw new Error("备份文件缺少贴纸数据。");
 
   backup.photos.forEach((photo) => {
     if (!photo.id || !photo.dateKey || !photo.addedAt || !photo.imageDataUrl) {
-      throw new Error("Backup has an incomplete photo record.");
+      throw new Error("备份文件中有不完整的照片记录。");
     }
   });
 }
@@ -1960,7 +1961,7 @@ function validateBackupPayload(backup) {
 async function parseBackupFile(file) {
   const files = await readZip(file);
   const backupBytes = files.get("backup.json");
-  if (!backupBytes) throw new Error("Backup zip is missing backup.json.");
+  if (!backupBytes) throw new Error("备份文件缺少 backup.json。");
 
   const backup = JSON.parse(new TextDecoder().decode(backupBytes));
   const hydrated = {
@@ -2010,9 +2011,9 @@ async function exportBackup() {
     const filename = `Photo-Journal-Backup-${isoDateStamp()}.zip`;
     const zipBlob = createZip(buildBackupFiles());
     downloadBlob(zipBlob, filename);
-    showToast("Backup exported.");
+    showToast("备份已导出");
   } catch (error) {
-    showToast(error?.message || "Backup export failed.");
+    showToast(error?.message || "备份导出失败，请重试");
   } finally {
     state.isExportingBackup = false;
     state.settingsSheetOpen = false;
@@ -2034,11 +2035,11 @@ async function handleBackupRestoreSelection(event) {
   try {
     parsed = await parseBackupFile(file);
   } catch (error) {
-    showToast(error?.message || "Backup file is invalid.");
+    showToast(error?.message || "恢复失败，请检查备份文件");
     return;
   }
 
-  const confirmed = window.confirm("Restore this backup? Your current journal data will be replaced.");
+  const confirmed = window.confirm("确认恢复备份？\n\n恢复后，当前数据将被备份文件中的内容替换。此操作无法撤销。");
   if (!confirmed) return;
 
   const previousData = {
@@ -2061,7 +2062,7 @@ async function handleBackupRestoreSelection(event) {
     state.activeDayId = "";
     clearSelection();
     render();
-    showToast("Backup restored.");
+    showToast("备份恢复成功");
   } catch (error) {
     state.userPhotos = previousData.photos;
     state.canvasElements = previousData.canvasElements;
@@ -2074,7 +2075,7 @@ async function handleBackupRestoreSelection(event) {
       // Keep in-memory state intact if the rollback write also fails.
     }
     render();
-    showToast(error?.message || "Restore failed. Current data was kept.");
+    showToast(error?.message || "恢复失败，请检查备份文件");
   }
 }
 
@@ -2193,7 +2194,7 @@ async function dayCanvasBlob(day) {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
       if (blob) resolve(blob);
-      else reject(new Error("Could not create PNG."));
+      else reject(new Error("导出图片失败，请重试"));
     }, "image/png");
   });
 }
@@ -2224,9 +2225,9 @@ async function exportCurrentDayImage() {
       downloadBlob(blob, filename);
     }
 
-    showToast("Day image exported.");
+    showToast("导出完成");
   } catch (error) {
-    showToast(error?.message || "Day export failed.");
+    showToast(error?.message || "导出失败，请重试");
   } finally {
     state.isExportingDay = false;
     state.selectedPhotoId = previousSelection.selectedPhotoId;

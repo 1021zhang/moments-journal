@@ -1,7 +1,7 @@
 {
   "name": "Moments Journal",
   "short_name": "Moments",
-  "description": "A minimal photo journal for everyday memories.",
+  "description": "用于记录日常回忆的简洁照片手帐。",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
