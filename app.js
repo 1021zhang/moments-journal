@@ -586,15 +586,6 @@ function undoIcon() {
   `;
 }
 
-function editIcon() {
-  return `
-    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="M5.2 18.8 6 15l9.7-9.7c.9-.9 2.2-.9 3.1 0s.9 2.2 0 3.1L9.1 18.1l-3.9.7Z" />
-      <path d="m14.4 6.6 3 3" />
-    </svg>
-  `;
-}
-
 function noteIcon() {
   return `
     <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
@@ -602,19 +593,6 @@ function noteIcon() {
       <path d="M14.2 4.9v3.7h3.7" />
       <path d="M9.7 12h5.1" />
       <path d="M9.7 15.2h4.2" />
-    </svg>
-  `;
-}
-
-function stickerIcon() {
-  return `
-    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="M6.3 5.4h9.1l3.2 3.2v5.6c0 2.4-2 4.4-4.4 4.4H6.3V5.4Z" />
-      <path d="M15.3 5.5v3.2h3.2" />
-      <path d="M10 10.8h.1" />
-      <path d="M14 10.8h.1" />
-      <path d="M10.2 14.1c.7.7 2.9.7 3.6 0" />
-      <path d="M14.2 18.6c0-2.4 2-4.4 4.4-4.4" />
     </svg>
   `;
 }
@@ -920,7 +898,15 @@ function renderSingleDay() {
         ${dayElements.map(canvasElement).join("")}
         <div class="floating-toolbox" aria-label="Canvas tools">
           <button type="button" data-action="add-text" aria-label="Add text to page" title="Add text to page"><span class="toolbox-text-mark" aria-hidden="true">Aa</span></button>
-          <button type="button" data-action="open-sticker-panel" aria-label="Stickers" title="Stickers">${stickerIcon()}</button>
+          <button type="button" data-action="open-sticker-panel" aria-label="Stickers" title="Stickers">
+            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+              <path d="M7.2 5.5h8.2c1.7 0 3.1 1.4 3.1 3.1v5.1c0 2.7-2.1 4.8-4.8 4.8H7.2v-13Z" />
+              <path d="M13.7 18.5c0-2.7 2.1-4.8 4.8-4.8" />
+              <path d="M9.9 10.1h.1" />
+              <path d="M14.1 10.1h.1" />
+              <path d="M10.2 13.4c.7.8 2.9.8 3.6 0" />
+            </svg>
+          </button>
           <button type="button" data-action="edit-note" aria-label="Daily note" title="Daily note">${noteIcon()}</button>
         </div>
         <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="Add photos">+</button>
