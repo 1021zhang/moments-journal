@@ -83,6 +83,8 @@ const gesture = {
   startPinchCenterX: 0,
   startPinchCenterY: 0,
   pointerId: null,
+  capturedElement: null,
+  capturedPointers: [],
   overDeleteZone: false,
   dragging: false,
   centerX: 0,
@@ -92,6 +94,7 @@ const gesture = {
 
 const activePointers = new Map();
 let isPageTransitioning = false;
+let canvasSafetyRepairFrame = 0;
 const dayPress = {
   element: null,
   dayId: "",
@@ -981,6 +984,7 @@ function render() {
   app.innerHTML = renderView(state.view);
   document.body.classList.toggle("settings-open", state.settingsSheetOpen);
   resetHorizontalScroll();
+  scheduleCanvasSafetyRepair();
 }
 
 function canvasPointFromClient(clientX, clientY) {
@@ -2352,7 +2356,10 @@ function applyInteractiveStyle(element, layout, itemType) {
 
   element.style.left = `${layout.x}px`;
   element.style.top = `${layout.y}px`;
-  element.style.zIndex = String(layout.zIndex || 1);
+  const visualZIndex = element.classList.contains("is-gesturing")
+    ? Math.max(layout.zIndex || 1, 1300)
+    : layout.zIndex || 1;
+  element.style.zIndex = String(visualZIndex);
   element.style.setProperty("--rotation", `${layout.rotation || 0}deg`);
   element.style.setProperty("--scale", layout.scale || 1);
 
@@ -2362,6 +2369,127 @@ function applyInteractiveStyle(element, layout, itemType) {
   }
 
   if (layout.fontSize) element.style.setProperty("--font-size", `${layout.fontSize}px`);
+}
+
+function overlapSize(rect, bounds) {
+  return {
+    width: Math.max(0, Math.min(rect.right, bounds.right) - Math.max(rect.left, bounds.left)),
+    height: Math.max(0, Math.min(rect.bottom, bounds.bottom) - Math.max(rect.top, bounds.top))
+  };
+}
+
+function getEditableSafeBounds(options = {}) {
+  const canvas = document.querySelector(".free-canvas");
+  const canvasRect = canvas?.getBoundingClientRect();
+  if (!canvasRect?.width || !canvasRect?.height) return null;
+
+  const toolboxRects = Array.from(document.querySelectorAll(".floating-toolbox button"))
+    .map((button) => button.getBoundingClientRect())
+    .filter((rect) => rect.width && rect.height);
+  if (options.requireToolbox && !toolboxRects.length) return null;
+
+  const overlappingToolboxRects = toolboxRects.filter((rect) => (
+    rect.bottom > canvasRect.top
+    && rect.top < canvasRect.bottom
+    && rect.right > canvasRect.left
+    && rect.left < canvasRect.right
+  ));
+  const toolboxLeft = overlappingToolboxRects.length
+    ? Math.min(...overlappingToolboxRects.map((rect) => rect.left))
+    : canvasRect.right;
+  const rightInset = 10;
+  const right = clamp(
+    Math.min(canvasRect.right, toolboxLeft - rightInset),
+    canvasRect.left + 72,
+    canvasRect.right
+  );
+
+  return {
+    left: canvasRect.left,
+    top: canvasRect.top,
+    right,
+    bottom: canvasRect.bottom,
+    canvasRect,
+    scaleX: canvasWidth / canvasRect.width,
+    scaleY: canvasHeight / canvasRect.height
+  };
+}
+
+function requiredVisibleSize(rect) {
+  return {
+    width: Math.min(44, Math.max(24, rect.width <= 44 ? rect.width * 0.75 : 44)),
+    height: Math.min(44, Math.max(24, rect.height <= 44 ? rect.height * 0.75 : 44))
+  };
+}
+
+function isElementRecoverable(rect, bounds) {
+  const overlap = overlapSize(rect, bounds);
+  const required = requiredVisibleSize(rect);
+  return overlap.width >= Math.min(required.width, bounds.right - bounds.left)
+    && overlap.height >= Math.min(required.height, bounds.bottom - bounds.top);
+}
+
+function clampElementToSafeBounds(itemId, itemType, options = {}) {
+  const layout = getInteractiveLayout(itemId, itemType);
+  const element = elementForItem(itemId, itemType);
+  const bounds = getEditableSafeBounds(options);
+  if (!layout || !element || !bounds) return false;
+
+  let changed = false;
+  for (let index = 0; index < 2; index += 1) {
+    const rect = element.getBoundingClientRect();
+    if (isElementRecoverable(rect, bounds)) break;
+
+    const required = requiredVisibleSize(rect);
+    let dx = 0;
+    let dy = 0;
+
+    if (rect.right < bounds.left + required.width) {
+      dx = bounds.left + required.width - rect.right;
+    } else if (rect.left > bounds.right - required.width) {
+      dx = bounds.right - required.width - rect.left;
+    }
+
+    if (rect.bottom < bounds.top + required.height) {
+      dy = bounds.top + required.height - rect.bottom;
+    } else if (rect.top > bounds.bottom - required.height) {
+      dy = bounds.bottom - required.height - rect.top;
+    }
+
+    if (!dx && !dy) break;
+    layout.x = Math.round((layout.x || 0) + dx * bounds.scaleX);
+    layout.y = Math.round((layout.y || 0) + dy * bounds.scaleY);
+    applyInteractiveStyle(element, layout, itemType);
+    changed = true;
+  }
+
+  return changed;
+}
+
+async function repairUnsafeCanvasItems(options = {}) {
+  const day = getDay();
+  if (!day || state.view !== "single") return;
+
+  const repairs = [];
+  day.photos.forEach((photo) => {
+    if (clampElementToSafeBounds(photo.id, "photo", options)) {
+      const currentPhoto = getUserPhoto(photo.id);
+      if (currentPhoto) repairs.push(updateUserPhoto(currentPhoto));
+    }
+  });
+  elementsForDate(day.dateKey).forEach((element) => {
+    if (clampElementToSafeBounds(element.id, element.type, options)) repairs.push(saveCanvasElement(element));
+  });
+
+  if (repairs.length) await Promise.all(repairs);
+}
+
+function scheduleCanvasSafetyRepair() {
+  if (state.view !== "single" || canvasSafetyRepairFrame) return;
+  canvasSafetyRepairFrame = requestAnimationFrame(() => {
+    canvasSafetyRepairFrame = 0;
+    repairUnsafeCanvasItems({ requireToolbox: true });
+  });
 }
 
 function deleteZoneElement() {
@@ -2436,12 +2564,23 @@ async function deleteInteractiveItem(itemId, itemType, beforeSnapshot = currentU
   render();
 }
 
+function capturePointerForGesture(element, pointerId) {
+  if (!element || pointerId === undefined) return;
+  element.setPointerCapture?.(pointerId);
+  if (!gesture.capturedPointers.some((pointer) => pointer.element === element && pointer.pointerId === pointerId)) {
+    gesture.capturedPointers.push({ element, pointerId });
+  }
+  gesture.capturedElement = gesture.capturedElement || element;
+}
+
 function startPinchGesture(event, itemId, itemType) {
   const layout = getInteractiveLayout(itemId, itemType);
   const pointers = activePointersForItem(itemId, itemType);
   if (!layout || pointers.length < 2) return false;
 
   event.preventDefault();
+  const gestureElement = event.target.closest(".canvas-item") || elementForItem(itemId, itemType);
+  capturePointerForGesture(gestureElement, event.pointerId);
   selectItem(itemType, itemId);
   setDeleteZoneVisible(false);
 
@@ -2481,7 +2620,9 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
 
   event.preventDefault();
   const gestureElement = event.target.closest(".canvas-item");
-  gestureElement?.setPointerCapture?.(event.pointerId);
+  gesture.capturedPointers = [];
+  gesture.capturedElement = null;
+  capturePointerForGesture(gestureElement, event.pointerId);
   selectItem(itemType, itemId);
   if (itemType === "text") state.activePanel = "text";
   gesture.active = true;
@@ -2521,7 +2662,7 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   });
   element?.classList.add("is-selected");
   element?.classList.add("is-gesturing");
-  if (element) element.style.zIndex = String(layout.zIndex);
+  applyInteractiveStyle(element, layout, itemType);
   if (mode === "drag") {
     debugInteraction("start drag elementId", { elementId: itemId, itemType });
     setDeleteZoneVisible(false);
@@ -2619,9 +2760,20 @@ async function endGesture(event) {
     gesture.overDeleteZone || (event ? isPointerInDeleteZone(event.clientY) : false)
   );
   const element = elementForItem(itemId, itemType);
+  const capturedPointers = gesture.capturedPointers.slice();
 
   setDeleteZoneVisible(false);
   element?.classList.remove("is-dragging", "is-over-delete", "is-gesturing");
+  capturedPointers.forEach(({ element: capturedElement, pointerId: capturedPointerId }) => {
+    if (capturedElement?.hasPointerCapture?.(capturedPointerId)) {
+      try {
+        capturedElement.releasePointerCapture(capturedPointerId);
+      } catch {
+        // Ignore release errors from browsers that already dropped capture.
+      }
+    }
+    activePointers.delete(capturedPointerId);
+  });
 
   gesture.active = false;
   gesture.mode = "";
@@ -2632,6 +2784,8 @@ async function endGesture(event) {
   const beforeSnapshot = gesture.beforeSnapshot;
   gesture.beforeSnapshot = null;
   gesture.pointerId = null;
+  gesture.capturedElement = null;
+  gesture.capturedPointers = [];
   gesture.overDeleteZone = false;
   gesture.dragging = false;
   gesture.surface = "";
@@ -2644,6 +2798,8 @@ async function endGesture(event) {
   }
 
   if (itemId) {
+    clampElementToSafeBounds(itemId, itemType);
+    applyInteractiveStyle(elementForItem(itemId, itemType), getInteractiveLayout(itemId, itemType), itemType);
     await persistInteractiveLayout(itemId, itemType);
     commitUndoSnapshot(beforeSnapshot);
   }
@@ -2727,6 +2883,7 @@ window.addEventListener("pointermove", moveDayPress);
 window.addEventListener("pointerup", endDayPress);
 window.addEventListener("pointercancel", cancelDayPress);
 window.addEventListener("pointerleave", cancelDayPress);
+window.addEventListener("resize", scheduleCanvasSafetyRepair);
 document.addEventListener("gesturestart", preventViewportGesture, { passive: false });
 document.addEventListener("gesturechange", preventViewportGesture, { passive: false });
 document.addEventListener("gestureend", preventViewportGesture, { passive: false });

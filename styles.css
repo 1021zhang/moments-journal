@@ -1223,6 +1223,7 @@ button {
   z-index: 1200;
   display: grid;
   gap: 10px;
+  pointer-events: none;
 }
 
 .floating-toolbox button {
@@ -1239,6 +1240,7 @@ button {
   color: #2d2d2d;
   line-height: 1;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
+  pointer-events: auto;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
