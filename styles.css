@@ -1337,8 +1337,9 @@ button {
   bottom: 4px;
   z-index: 1200;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 13px;
 }
 
 .canvas-add-button,
