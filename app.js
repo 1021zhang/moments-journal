@@ -164,12 +164,19 @@ function relativeLabel(dateKey) {
   const weekday = new Intl.DateTimeFormat("en", { weekday: "long" }).format(date);
 
   if (dateKey === todayKey) {
-    return { date: "Today", detail: dateText };
+    return { date: "Today", detail: dateText, relativeLabel: "Today", formattedDate: dateText, weekday };
+  }
+
+  if (dateKey === dateKeyFromDate(yesterday)) {
+    return { date: "Yesterday", detail: dateText, relativeLabel: "Yesterday", formattedDate: dateText, weekday };
   }
 
   return {
-    date: dateKey === dateKeyFromDate(yesterday) ? "Yesterday" : dateText,
-    detail: dateKey === dateKeyFromDate(yesterday) ? dateText : weekday
+    date: dateText,
+    detail: weekday,
+    relativeLabel: "",
+    formattedDate: dateText,
+    weekday
   };
 }
 
@@ -549,7 +556,23 @@ function polaroid(photo, options = {}) {
   `;
 }
 
-function dateTitle(day) {
+function dateTitle(day, options = {}) {
+  if (options.includeWeekday) {
+    const hasRelativeLabel = Boolean(day.relativeLabel);
+    const primary = hasRelativeLabel ? day.relativeLabel : day.formattedDate || day.date;
+    const secondary = hasRelativeLabel ? day.formattedDate || day.detail : day.weekday || day.detail;
+    const weekday = hasRelativeLabel ? day.weekday : "";
+
+    return `
+      <h2 class="date-heading">
+        <span>${escapeHtml(primary)}</span>
+        <i></i>
+        <em>${escapeHtml(secondary)}</em>
+        ${weekday ? `<i></i><em>${escapeHtml(weekday)}</em>` : ""}
+      </h2>
+    `;
+  }
+
   return `
     <h2 class="date-heading">
       <span>${escapeHtml(day.date)}</span>
@@ -723,7 +746,7 @@ function renderDaybook() {
       <div class="day-feed">
         ${days.map((day) => `
           <button class="day-section" type="button" data-day="${day.id}" aria-label="打开 ${day.date}">
-            ${dateTitle(day)}
+            ${dateTitle(day, { includeWeekday: true })}
             <div class="photo-strip">
               ${day.photos.slice(0, 4).map((photo, index) =>
                 polaroid(photo, {

@@ -812,6 +812,22 @@ button {
   font-weight: 400;
 }
 
+.day-section .date-heading {
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.day-section .date-heading span,
+.day-section .date-heading em {
+  min-width: 0;
+}
+
+.day-section .date-heading em {
+  font-size: 17px;
+}
+
 .yesterday-label {
   display: flex;
   padding: 0 0 0 2px;
