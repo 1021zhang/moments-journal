@@ -47,6 +47,7 @@ const state = {
   toast: "",
   toastTimer: null,
   pendingInsertPoint: null,
+  pendingPhotoSource: "",
   textComposer: {
     active: false,
     editingId: "",
@@ -738,9 +739,9 @@ function renderEmptyHome() {
       <h1 class="sr-only">回忆照片堆</h1>
       ${settingsButton()}
 
-      <section class="memory-empty-state">
+      <button class="memory-empty-state" type="button" data-action="add-first-photo" aria-label="添加第一张照片" title="添加第一张照片">
         <p>添加第一张回忆照片。</p>
-      </section>
+      </button>
       ${settingsSheet()}
       ${toastMarkup()}
     </main>
@@ -1105,6 +1106,7 @@ function preparePageState(targetView, options = {}) {
   state.activePanel = "";
   state.settingsSheetOpen = false;
   state.pendingInsertPoint = null;
+  state.pendingPhotoSource = "";
   state.textComposer = { active: false, editingId: "", value: "" };
 
   if (targetView === "single" && options.dayId) {
@@ -1249,10 +1251,11 @@ function editNote() {
   }, { once: true });
 }
 
-function openPhotoPicker(point = null) {
+function openPhotoPicker(point = null, options = {}) {
   const day = getDay();
   state.pendingImportDateKey = state.view === "single" && day?.dateKey ? day.dateKey : todayDateKey();
   state.pendingInsertPoint = point;
+  state.pendingPhotoSource = options.source || "";
   const input = document.querySelector("#photoInput");
   input.value = "";
   input.click();
@@ -1932,8 +1935,10 @@ async function pasteFromClipboard() {
 
 async function handlePhotoSelection(event) {
   const files = Array.from(event.target.files || []).filter((file) => file.type.startsWith("image/"));
+  const importSource = state.pendingPhotoSource;
   if (!files.length) {
     state.pendingInsertPoint = null;
+    state.pendingPhotoSource = "";
     return;
   }
 
@@ -1972,6 +1977,7 @@ async function handlePhotoSelection(event) {
 
   if (!imported.length) {
     state.pendingInsertPoint = null;
+    state.pendingPhotoSource = "";
     window.alert("未能导入照片。");
     return;
   }
@@ -1980,17 +1986,23 @@ async function handlePhotoSelection(event) {
     await saveUserPhotos(imported);
   } catch {
     state.pendingInsertPoint = null;
+    state.pendingPhotoSource = "";
     window.alert("照片已处理，但无法保存到本地。");
     return;
   }
 
-  if (state.view === "single") {
+  if (importSource === "empty-home") {
+    state.view = "single";
+    state.activeDayId = `user-${dateKey}`;
+    selectItem("photo", imported[0].id);
+  } else if (state.view === "single") {
     state.activeDayId = `user-${dateKey}`;
     selectItem("photo", imported[0].id);
     commitUndoSnapshot(undoBefore);
   }
 
   state.pendingInsertPoint = null;
+  state.pendingPhotoSource = "";
   render();
 }
 
@@ -3171,6 +3183,11 @@ document.addEventListener("click", async (event) => {
     window.setTimeout(() => {
       navigateToPage("daybook", "forward");
     }, 70);
+    return;
+  }
+  if (action === "add-first-photo") {
+    event.stopPropagation();
+    openPhotoPicker(null, { source: "empty-home" });
     return;
   }
   if (action === "home") {

@@ -508,12 +508,23 @@ button {
 }
 
 .memory-empty-state {
+  -webkit-appearance: none;
+  appearance: none;
   display: grid;
   justify-items: center;
   align-content: center;
   gap: 24px;
   flex: 1;
   width: 100%;
+  min-height: 44px;
+  padding: 18px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: opacity 140ms ease, transform 140ms ease;
 }
 
 .memory-empty-state p {
@@ -522,6 +533,20 @@ button {
   font-size: 18px;
   font-weight: 400;
   line-height: 1.35;
+}
+
+.memory-empty-state:active {
+  opacity: 0.72;
+  transform: scale(0.99);
+}
+
+.memory-empty-state:focus {
+  outline: 0;
+}
+
+.memory-empty-state:focus-visible {
+  outline: 1px solid rgba(0, 0, 0, 0.16);
+  outline-offset: 4px;
 }
 
 .home-add-button {
