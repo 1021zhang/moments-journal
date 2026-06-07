@@ -43,6 +43,7 @@ const state = {
   settingsSheetOpen: false,
   isExportingBackup: false,
   isExportingDay: false,
+  isReadingClipboard: false,
   toast: "",
   toastTimer: null,
   pendingInsertPoint: null,
@@ -335,6 +336,48 @@ function defaultStickerElement(dateKey, sticker) {
     color: sticker.color || "#222222",
     aspectRatio: sticker.aspectRatio || (isImageSticker ? imageWidth / imageHeight : 1)
   };
+}
+
+function defaultClipboardStickerElement(dateKey, image) {
+  const aspectRatio = image.aspectRatio || 1;
+  const maxWidth = Math.round(canvasWidth * 0.62);
+  const maxHeight = Math.round(canvasHeight * 0.62);
+  let width = Math.max(1, Math.round(Math.min(image.naturalWidth || maxWidth, maxWidth)));
+  let height = Math.max(1, Math.round(width / aspectRatio));
+
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = Math.max(1, Math.round(height * aspectRatio));
+  }
+
+  return {
+    id: uid("sticker"),
+    type: "sticker",
+    stickerType: "image",
+    assetType: "clipboard",
+    source: "clipboard",
+    imageDataUrl: image.imageDataUrl,
+    content: "",
+    dateKey,
+    x: Math.round((canvasWidth - width) / 2),
+    y: Math.round((canvasHeight - height) / 2),
+    width,
+    height,
+    rotation: 0,
+    scale: 1,
+    zIndex: maxCanvasZIndex(dateKey) + 1,
+    fontSize: 48,
+    color: "#222222",
+    aspectRatio
+  };
+}
+
+function positionCanvasElement(element, point) {
+  if (!point) return element;
+
+  element.x = clamp(Math.round(point.x - element.width / 2), 0, canvasWidth - element.width);
+  element.y = clamp(Math.round(point.y - element.height / 2), 0, canvasHeight - element.height);
+  return element;
 }
 
 function normalizeUserPhoto(photo) {
@@ -639,6 +682,18 @@ function noteIcon() {
   `;
 }
 
+function clipboardPasteIcon() {
+  return `
+    <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+      <path d="M9.1 5.2h5.8" />
+      <path d="M9.6 4.2h4.8c.6 0 1 .4 1 1v1.2c0 .6-.4 1-1 1H9.6c-.6 0-1-.4-1-1V5.2c0-.6.4-1 1-1Z" />
+      <path d="M8.2 6.2H7c-.8 0-1.4.6-1.4 1.4v10.7c0 .8.6 1.4 1.4 1.4h10c.8 0 1.4-.6 1.4-1.4V7.6c0-.8-.6-1.4-1.4-1.4h-1.2" />
+      <path d="M12 10.4v5.1" />
+      <path d="m9.8 13.4 2.2 2.2 2.2-2.2" />
+    </svg>
+  `;
+}
+
 function settingsButton() {
   return `
     <button class="settings-button" type="button" data-action="open-settings" aria-label="设置" title="设置">
@@ -820,7 +875,10 @@ function canvasElement(element) {
   }
 
   const stickerType = element.type === "emoji" ? "emoji" : element.stickerType;
-  const stickerClass = stickerType === "text" ? "text-sticker" : stickerType === "image" ? "image-sticker" : "emoji-sticker";
+  const stickerClass = [
+    stickerType === "text" ? "text-sticker" : stickerType === "image" ? "image-sticker" : "emoji-sticker",
+    element.assetType === "clipboard" ? "clipboard-sticker" : ""
+  ].filter(Boolean).join(" ");
   baseStyle.push(
     `--font-size:${element.fontSize}px`,
     `--sticker-color:${escapeHtml(element.color || "#222222")}`
@@ -952,7 +1010,12 @@ function renderSingleDay() {
           </button>
           <button type="button" data-action="edit-note" aria-label="当天记录" title="当天记录">${noteIcon()}</button>
         </div>
-        <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="添加照片" title="添加照片">+</button>
+        <div class="canvas-action-bar" aria-label="画布添加操作">
+          <button class="clipboard-paste-button" type="button" data-action="paste-clipboard" aria-label="粘贴抠图或文字" title="粘贴抠图或文字" ${state.isReadingClipboard ? "disabled" : ""}>
+            ${clipboardPasteIcon()}
+          </button>
+          <button class="canvas-add-button" type="button" data-action="add-photo" aria-label="添加照片" title="添加照片">+</button>
+        </div>
       </section>
       <div class="delete-zone" aria-hidden="true">
         <div class="delete-zone-inner">
@@ -1693,6 +1756,177 @@ async function compressImage(file) {
     };
   } finally {
     URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function clipboardImageDataFromBlob(blob) {
+  const [imageDataUrl, image] = await Promise.all([
+    blobToDataUrl(blob),
+    (async () => {
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        return await loadImage(objectUrl);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    })()
+  ]);
+  const naturalWidth = image.naturalWidth || 1;
+  const naturalHeight = image.naturalHeight || 1;
+
+  return {
+    imageDataUrl,
+    aspectRatio: naturalWidth / naturalHeight || 1,
+    naturalWidth,
+    naturalHeight
+  };
+}
+
+async function readClipboardPayload(items) {
+  items = Array.from(items || []);
+  const itemTypes = items.map((item) => Array.from(item.types || []));
+  let payload = null;
+
+  for (const item of items) {
+    const imageType = Array.from(item.types || []).find((type) => type.startsWith("image/"));
+    if (!imageType) continue;
+
+    try {
+      const blob = await item.getType(imageType);
+      payload = {
+        kind: "image",
+        mimeType: imageType,
+        blob,
+        blobSize: blob.size || 0
+      };
+      break;
+    } catch {
+      // Try the next available clipboard item/type.
+    }
+  }
+
+  if (!payload) {
+    for (const item of items) {
+      if (!Array.from(item.types || []).includes("text/plain")) continue;
+
+      try {
+        const blob = await item.getType("text/plain");
+        payload = {
+          kind: "text",
+          mimeType: "text/plain",
+          text: await blob.text(),
+          blobSize: blob.size || 0
+        };
+        break;
+      } catch {
+        // Try the next text item.
+      }
+    }
+  }
+
+  console.info("[Moments Journal clipboard]", {
+    itemCount: items.length,
+    itemTypes,
+    selectedType: payload?.mimeType || "",
+    blobSize: payload?.blobSize || 0
+  });
+
+  return payload;
+}
+
+async function addClipboardImageSticker(blob) {
+  const day = getDay();
+  if (!day) return false;
+
+  const undoBefore = snapshotForDate(day.dateKey);
+  const image = await clipboardImageDataFromBlob(blob);
+  const element = positionCanvasElement(
+    defaultClipboardStickerElement(day.dateKey, image),
+    visibleCanvasCenterPoint()
+  );
+
+  state.activePanel = "";
+  await saveCanvasElement(element);
+  selectItem("sticker", element.id);
+  render();
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  if (clampElementToSafeBounds(element.id, "sticker")) {
+    await saveCanvasElement(element);
+  }
+  commitUndoSnapshot(undoBefore);
+  render();
+  return true;
+}
+
+async function addClipboardTextElement(text) {
+  const day = getDay();
+  const value = String(text || "").trim();
+  if (!day || !value) return false;
+
+  const undoBefore = snapshotForDate(day.dateKey);
+  const element = positionTextElement(
+    defaultTextElement(day.dateKey, value),
+    visibleCanvasCenterPoint()
+  );
+
+  state.activePanel = "";
+  await saveCanvasElement(element);
+  selectItem("text", element.id);
+  render();
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  if (clampElementToSafeBounds(element.id, "text")) {
+    await saveCanvasElement(element);
+  }
+  commitUndoSnapshot(undoBefore);
+  render();
+  return true;
+}
+
+function showClipboardReadError(error) {
+  if (error?.name === "NotAllowedError" || error?.name === "SecurityError") {
+    showToast("未获得剪贴板读取权限");
+    return;
+  }
+
+  showToast("粘贴失败，请重试");
+}
+
+async function pasteFromClipboard() {
+  if (state.isReadingClipboard) return;
+
+  if (!navigator.clipboard?.read) {
+    showToast("当前设备暂不支持直接粘贴");
+    return;
+  }
+
+  let readPromise;
+  try {
+    readPromise = navigator.clipboard.read();
+  } catch (error) {
+    showClipboardReadError(error);
+    return;
+  }
+
+  state.isReadingClipboard = true;
+  render();
+
+  try {
+    const payload = await readClipboardPayload(await readPromise);
+    if (!payload) {
+      showToast("未找到可粘贴的图片或文字");
+      return;
+    }
+
+    const didPaste = payload.kind === "image"
+      ? await addClipboardImageSticker(payload.blob)
+      : await addClipboardTextElement(payload.text);
+
+    if (!didPaste) showToast("未找到可粘贴的图片或文字");
+  } catch (error) {
+    showClipboardReadError(error);
+  } finally {
+    state.isReadingClipboard = false;
+    render();
   }
 }
 
@@ -2843,7 +3077,7 @@ document.addEventListener("pointerdown", (event) => {
   if (stopDaybookNavPointerEvent(event)) return;
   if (startDayPress(event)) return;
 
-  if (event.target.closest(".text-composer-overlay, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-add-button, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
+  if (event.target.closest(".text-composer-overlay, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-action-bar, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
 
   const deleteButton = event.target.closest(".delete-photo");
   if (deleteButton) {
@@ -3073,6 +3307,11 @@ document.addEventListener("click", async (event) => {
   if (action === "add-photo") {
     event.stopPropagation();
     openPhotoPicker();
+    return;
+  }
+  if (action === "paste-clipboard") {
+    event.stopPropagation();
+    pasteFromClipboard();
     return;
   }
 

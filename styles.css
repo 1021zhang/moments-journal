@@ -1166,6 +1166,11 @@ button {
   transition: filter 180ms ease-out;
 }
 
+.canvas-sticker.image-sticker.clipboard-sticker img {
+  border-radius: 0;
+  filter: none;
+}
+
 .resize-handle,
 .rotate-handle,
 .delete-photo {
@@ -1301,23 +1306,67 @@ button {
   outline-offset: 2px;
 }
 
-.canvas-add-button {
+.canvas-action-bar {
   position: absolute;
   right: 4px;
   bottom: 4px;
   z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.canvas-add-button,
+.clipboard-paste-button {
+  -webkit-appearance: none;
+  appearance: none;
   display: grid;
   place-items: center;
   width: 44px;
   height: 44px;
+  padding: 0;
   border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 50%;
   background: #ffffff;
   color: #2d2d2d;
-  font-size: 22px;
-  font-weight: 300;
   line-height: 1;
   box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.canvas-add-button {
+  font-size: 22px;
+  font-weight: 300;
+}
+
+.clipboard-paste-button svg {
+  display: block;
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.clipboard-paste-button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.canvas-action-bar button:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.canvas-action-bar button:focus {
+  outline: 0;
+}
+
+.canvas-action-bar button:focus-visible {
+  outline: 1px solid rgba(0, 0, 0, 0.18);
+  outline-offset: 2px;
 }
 
 .delete-zone {
