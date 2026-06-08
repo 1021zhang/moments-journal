@@ -647,8 +647,9 @@ function memoryStackPhoto(photo, index, count) {
 function settingsIcon() {
   return `
     <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
-      <path d="M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8Z" />
-      <path d="M19.1 13.4c.1-.5.1-.9 0-1.4l1.4-1.1-1.7-2.9-1.7.7c-.4-.3-.8-.5-1.3-.7L15.6 6h-3.2l-.3 2c-.5.2-.9.4-1.3.7L9.1 8l-1.6 2.9L8.9 12a4.9 4.9 0 0 0 0 1.4l-1.4 1.1 1.6 2.9 1.7-.7c.4.3.8.5 1.3.7l.3 2h3.2l.3-2c.5-.2.9-.4 1.3-.7l1.7.7 1.7-2.9-1.5-1.1Z" />
+      <path d="M4.8 7.2h14.4" />
+      <path d="M4.8 12h14.4" />
+      <path d="M4.8 16.8h14.4" />
     </svg>
   `;
 }
@@ -697,7 +698,7 @@ function clipboardPasteIcon() {
 
 function settingsButton() {
   return `
-    <button class="settings-button" type="button" data-action="open-settings" aria-label="设置" title="设置">
+    <button class="settings-button" type="button" data-action="open-settings" aria-label="菜单" title="菜单">
       ${settingsIcon()}
     </button>
   `;
