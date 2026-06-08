@@ -1528,6 +1528,10 @@ button {
   will-change: height, transform;
 }
 
+.sticker-sheet.preview {
+  height: 35svh;
+}
+
 .sticker-sheet.expanded {
   height: 90svh;
 }

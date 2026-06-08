@@ -911,7 +911,9 @@ function canvasElement(element) {
 
 function stickerSheet() {
   if (state.activePanel !== "sticker") return "";
-  const sheetState = state.stickerSheetState === "expanded" ? "expanded" : "collapsed";
+  const sheetState = ["preview", "collapsed", "expanded"].includes(state.stickerSheetState)
+    ? state.stickerSheetState
+    : "collapsed";
   const day = getDay();
   const dateSticker = day ? dayMonthText(dateFromKey(day.dateKey)) : dayMonthText(new Date());
   const recentStickers = ["❤️", "✨", "☁️", "🎀", "☕", "📷", "🎂", "🧸"];
@@ -2806,9 +2808,19 @@ function stickerSheetElement() {
 function stickerSheetHeights() {
   const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1;
   return {
+    preview: viewportHeight * 0.35,
     collapsed: viewportHeight * 0.55,
     expanded: viewportHeight * 0.9
   };
+}
+
+function stickerSheetStateFromHeight(height, heights) {
+  return ["preview", "collapsed", "expanded"]
+    .map((stateName) => ({
+      stateName,
+      distance: Math.abs(height - heights[stateName])
+    }))
+    .sort((a, b) => a.distance - b.distance)[0].stateName;
 }
 
 function startStickerSheetDrag(event) {
@@ -2821,7 +2833,9 @@ function startStickerSheetDrag(event) {
   stickerSheetDrag.active = true;
   stickerSheetDrag.pointerId = event.pointerId;
   stickerSheetDrag.startY = event.clientY;
-  stickerSheetDrag.startState = state.stickerSheetState === "expanded" ? "expanded" : "collapsed";
+  stickerSheetDrag.startState = ["preview", "collapsed", "expanded"].includes(state.stickerSheetState)
+    ? state.stickerSheetState
+    : "collapsed";
   stickerSheetDrag.startHeight = rect.height || stickerSheetHeights()[stickerSheetDrag.startState];
   stickerSheetDrag.currentHeight = stickerSheetDrag.startHeight;
   stickerSheetDrag.currentOffset = 0;
@@ -2838,13 +2852,13 @@ function moveStickerSheetDrag(event) {
 
   const heights = stickerSheetHeights();
   const dy = event.clientY - stickerSheetDrag.startY;
-  const targetHeight = clamp(stickerSheetDrag.startHeight - dy, heights.collapsed, heights.expanded);
-  const shouldCloseDrag = stickerSheetDrag.startState === "collapsed" && dy > 0;
-  const offset = shouldCloseDrag ? clamp(dy, 0, heights.collapsed) : 0;
+  const rawHeight = stickerSheetDrag.startHeight - dy;
+  const targetHeight = clamp(rawHeight, heights.preview, heights.expanded);
+  const offset = clamp(heights.preview - rawHeight, 0, heights.preview);
 
   stickerSheetDrag.currentHeight = targetHeight;
   stickerSheetDrag.currentOffset = offset;
-  sheet.style.height = `${shouldCloseDrag ? heights.collapsed : targetHeight}px`;
+  sheet.style.height = `${targetHeight}px`;
   sheet.style.setProperty("--sheet-drag-y", `${offset}px`);
 }
 
@@ -2854,10 +2868,8 @@ function endStickerSheetDrag(event) {
   const sheet = stickerSheetElement();
   const heights = stickerSheetHeights();
   const totalDy = event.clientY - stickerSheetDrag.startY;
-  const midpoint = (heights.collapsed + heights.expanded) / 2;
-  const shouldClose = stickerSheetDrag.startState === "collapsed"
-    && stickerSheetDrag.currentOffset > heights.collapsed * 0.28;
-  const nextState = stickerSheetDrag.currentHeight > midpoint ? "expanded" : "collapsed";
+  const shouldClose = stickerSheetDrag.currentOffset > Math.min(96, heights.preview * 0.32);
+  const nextState = stickerSheetStateFromHeight(stickerSheetDrag.currentHeight, heights);
 
   sheet?.classList.remove("is-dragging");
   if (sheet) {
