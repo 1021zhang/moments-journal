@@ -39,7 +39,7 @@ const state = {
   selectedSurface: "",
   selectedItemType: "",
   activePanel: "",
-  stickerSheetState: "half",
+  stickerSheetState: "collapsed",
   settingsSheetOpen: false,
   isExportingBackup: false,
   isExportingDay: false,
@@ -101,6 +101,16 @@ const dayPress = {
   element: null,
   dayId: "",
   pointerId: null
+};
+const stickerSheetDrag = {
+  active: false,
+  pointerId: null,
+  startY: 0,
+  startState: "collapsed",
+  startHeight: 0,
+  currentHeight: 0,
+  currentOffset: 0,
+  ignoreNextToggle: false
 };
 function loadNotes() {
   try {
@@ -318,6 +328,7 @@ function defaultStickerElement(dateKey, sticker) {
   const isImageSticker = sticker.stickerType === "image";
   const imageWidth = 112;
   const imageHeight = imageWidth / (sticker.aspectRatio || 1);
+  const emojiSize = 76;
 
   return {
     id: uid("sticker"),
@@ -328,12 +339,12 @@ function defaultStickerElement(dateKey, sticker) {
     dateKey,
     x: isTextSticker ? 108 : isImageSticker ? 132 : 154,
     y: isTextSticker ? 188 : isImageSticker ? 168 : 176,
-    width: isTextSticker ? 142 : isImageSticker ? imageWidth : 70,
-    height: isTextSticker ? 58 : isImageSticker ? imageHeight : 70,
+    width: isTextSticker ? 142 : isImageSticker ? imageWidth : emojiSize,
+    height: isTextSticker ? 58 : isImageSticker ? imageHeight : emojiSize,
     rotation: 0,
     scale: 1,
     zIndex: maxCanvasZIndex(dateKey) + 1,
-    fontSize: isTextSticker ? 22 : 48,
+    fontSize: isTextSticker ? 22 : 56,
     color: sticker.color || "#222222",
     aspectRatio: sticker.aspectRatio || (isImageSticker ? imageWidth / imageHeight : 1)
   };
@@ -898,50 +909,69 @@ function canvasElement(element) {
   `;
 }
 
-function stickerLibrary() {
-  const customStickers = state.customStickers
-    .slice()
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .map((sticker) => ({ ...sticker, stickerType: "image" }));
-  const emojiStickers = ["✨", "❤️", "😊", "☕️", "🌿", "🍀", "📍", "🎀", "🐶", "🍰", "🌙", "📷", "🧸", "📝", "🔥", "💫", "🦋", "🌸"]
-    .map((content) => ({ stickerType: "emoji", content, color: "#222222" }));
-  const colors = ["#d94a4a", "#4f6f52", "#6f6f8f", "#222222", "#b47f48", "#7a5c9e"];
-  const textStickers = ["LOVE", "COOL", "WOW", "OMG", "SUMMER", "LUOLUO", "GOOD DAY", "HAPPY", "YUMMY", "FUN", "TODAY", "MEMORY"]
-    .map((content, index) => ({ stickerType: "text", content, color: colors[index % colors.length] }));
-
-  return [...customStickers, ...emojiStickers, ...textStickers];
-}
-
 function stickerSheet() {
   if (state.activePanel !== "sticker") return "";
-  const stickers = stickerLibrary();
+  const sheetState = state.stickerSheetState === "expanded" ? "expanded" : "collapsed";
+  const day = getDay();
+  const dateSticker = day ? dayMonthText(dateFromKey(day.dateKey)) : dayMonthText(new Date());
+  const recentStickers = ["❤️", "✨", "☁️", "🎀", "☕", "📷", "🎂", "🧸"];
+  const systemStickers = ["❤️", "✨", "🌷", "🎀", "☁️", "🌙", "☕", "📷", "🎂", "🧸", "⭐", "📍"];
+  const stickerButton = (content, classes = "") => `
+    <button
+      class="sticker-token-button ${classes}"
+      type="button"
+      data-action="add-sticker"
+      data-sticker-type="emoji"
+      data-sticker-content="${escapeHtml(content)}"
+      data-sticker-color="#222222"
+      aria-label="添加 ${escapeHtml(content)} 贴纸"
+    >${escapeHtml(content)}</button>
+  `;
 
   return `
     <button class="sticker-backdrop" type="button" data-action="close-panel" aria-label="关闭贴纸"></button>
-    <section class="sticker-sheet ${state.stickerSheetState}" aria-label="贴纸库">
+    <section class="sticker-sheet ${sheetState}" aria-label="贴纸库" data-sticker-sheet>
       <header class="sticker-sheet-header">
-        <button class="sheet-grabber" type="button" data-action="toggle-sticker-sheet" aria-label="展开或收起贴纸"></button>
-        <h2>贴纸</h2>
-        <span aria-hidden="true"></span>
+        <button class="sheet-grabber" type="button" data-action="toggle-sticker-sheet" data-sticker-sheet-handle aria-label="展开或收起贴纸"></button>
       </header>
-      <div class="sticker-grid">
-        ${stickers.map((sticker) => `
-          <button
-            class="sticker-choice ${sticker.stickerType === "text" ? "text-sticker-choice" : sticker.stickerType === "image" ? "image-sticker-choice" : "emoji-sticker-choice"}"
-            type="button"
-            data-action="add-sticker"
-            data-sticker-type="${sticker.stickerType}"
-            data-sticker-id="${sticker.id || ""}"
-            data-sticker-content="${escapeHtml(sticker.content || "")}"
-            data-sticker-color="${sticker.color || "#222222"}"
-            aria-label="添加贴纸"
-            style="--sticker-color:${sticker.color || "#222222"}"
-          >
-            ${sticker.stickerType === "image"
-              ? `<img src="${sticker.imageDataUrl}" alt="" draggable="false" />`
-              : escapeHtml(sticker.content)}
+      <div class="sticker-sheet-content">
+        <label class="sticker-search">
+          <span class="sr-only">搜索贴纸</span>
+          <input type="search" placeholder="搜索贴纸" autocomplete="off" />
+        </label>
+
+        <div class="sticker-feature-grid" aria-label="贴纸类型">
+          <button class="sticker-feature-card" type="button" data-action="add-sticker" data-sticker-type="text" data-sticker-content="${escapeHtml(dateSticker)}" data-sticker-color="#222222" aria-label="添加日期贴纸">
+            <span aria-hidden="true">📅</span>
+            <strong>日期</strong>
           </button>
-        `).join("")}
+          <button class="sticker-feature-card" type="button" data-action="add-sticker" data-sticker-type="emoji" data-sticker-content="📍" data-sticker-color="#222222" aria-label="添加位置贴纸">
+            <span aria-hidden="true">📍</span>
+            <strong>位置</strong>
+          </button>
+          <button class="sticker-feature-card" type="button" data-action="add-sticker" data-sticker-type="emoji" data-sticker-content="😊" data-sticker-color="#222222" aria-label="添加 Emoji 贴纸">
+            <span aria-hidden="true">😊</span>
+            <strong>Emoji</strong>
+          </button>
+          <button class="sticker-feature-card" type="button" data-action="open-custom-sticker-picker" aria-label="添加图片贴纸">
+            <span aria-hidden="true">🖼</span>
+            <strong>图片贴纸</strong>
+          </button>
+        </div>
+
+        <section class="sticker-section" aria-label="最近使用">
+          <h2>最近使用</h2>
+          <div class="recent-sticker-row">
+            ${recentStickers.map((content) => stickerButton(content, "recent-sticker")).join("")}
+          </div>
+        </section>
+
+        <section class="sticker-section" aria-label="系统贴纸">
+          <h2>系统贴纸</h2>
+          <div class="system-sticker-grid">
+            ${systemStickers.map((content) => stickerButton(content)).join("")}
+          </div>
+        </section>
       </div>
     </section>
   `;
@@ -2123,7 +2153,10 @@ async function addStickerElement(sticker) {
   const day = getDay();
   if (!day) return;
 
-  const element = defaultStickerElement(day.dateKey, sticker);
+  const element = positionCanvasElement(
+    defaultStickerElement(day.dateKey, sticker),
+    visibleCanvasCenterPoint()
+  );
   const undoBefore = snapshotForDate(day.dateKey);
   debugInteraction("add sticker", {
     stickerType: sticker.stickerType,
@@ -2131,10 +2164,14 @@ async function addStickerElement(sticker) {
     elementId: element.id
   });
   state.activePanel = "";
-  state.stickerSheetState = "half";
-  render();
+  state.stickerSheetState = "collapsed";
   await saveCanvasElement(element);
   selectItem("sticker", element.id);
+  render();
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  if (clampElementToSafeBounds(element.id, "sticker")) {
+    await saveCanvasElement(element);
+  }
   commitUndoSnapshot(undoBefore);
   setDeleteZoneVisible(false);
   debugInteraction("close sticker sheet after select", { elementId: element.id });
@@ -2762,6 +2799,85 @@ function scheduleCanvasSafetyRepair() {
   });
 }
 
+function stickerSheetElement() {
+  return document.querySelector("[data-sticker-sheet]");
+}
+
+function stickerSheetHeights() {
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 1;
+  return {
+    collapsed: viewportHeight * 0.55,
+    expanded: viewportHeight * 0.9
+  };
+}
+
+function startStickerSheetDrag(event) {
+  const sheet = stickerSheetElement();
+  if (!sheet || event.pointerId === undefined) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  const rect = sheet.getBoundingClientRect();
+  stickerSheetDrag.active = true;
+  stickerSheetDrag.pointerId = event.pointerId;
+  stickerSheetDrag.startY = event.clientY;
+  stickerSheetDrag.startState = state.stickerSheetState === "expanded" ? "expanded" : "collapsed";
+  stickerSheetDrag.startHeight = rect.height || stickerSheetHeights()[stickerSheetDrag.startState];
+  stickerSheetDrag.currentHeight = stickerSheetDrag.startHeight;
+  stickerSheetDrag.currentOffset = 0;
+  sheet.classList.add("is-dragging");
+  event.target.closest("[data-sticker-sheet-handle]")?.setPointerCapture?.(event.pointerId);
+}
+
+function moveStickerSheetDrag(event) {
+  if (!stickerSheetDrag.active || event.pointerId !== stickerSheetDrag.pointerId) return;
+
+  event.preventDefault();
+  const sheet = stickerSheetElement();
+  if (!sheet) return;
+
+  const heights = stickerSheetHeights();
+  const dy = event.clientY - stickerSheetDrag.startY;
+  const targetHeight = clamp(stickerSheetDrag.startHeight - dy, heights.collapsed, heights.expanded);
+  const shouldCloseDrag = stickerSheetDrag.startState === "collapsed" && dy > 0;
+  const offset = shouldCloseDrag ? clamp(dy, 0, heights.collapsed) : 0;
+
+  stickerSheetDrag.currentHeight = targetHeight;
+  stickerSheetDrag.currentOffset = offset;
+  sheet.style.height = `${shouldCloseDrag ? heights.collapsed : targetHeight}px`;
+  sheet.style.setProperty("--sheet-drag-y", `${offset}px`);
+}
+
+function endStickerSheetDrag(event) {
+  if (!stickerSheetDrag.active || event.pointerId !== stickerSheetDrag.pointerId) return;
+
+  const sheet = stickerSheetElement();
+  const heights = stickerSheetHeights();
+  const totalDy = event.clientY - stickerSheetDrag.startY;
+  const midpoint = (heights.collapsed + heights.expanded) / 2;
+  const shouldClose = stickerSheetDrag.startState === "collapsed"
+    && stickerSheetDrag.currentOffset > heights.collapsed * 0.28;
+  const nextState = stickerSheetDrag.currentHeight > midpoint ? "expanded" : "collapsed";
+
+  sheet?.classList.remove("is-dragging");
+  if (sheet) {
+    sheet.style.height = "";
+    sheet.style.removeProperty("--sheet-drag-y");
+  }
+
+  stickerSheetDrag.active = false;
+  stickerSheetDrag.pointerId = null;
+  stickerSheetDrag.currentOffset = 0;
+  stickerSheetDrag.ignoreNextToggle = Math.abs(totalDy) > 6;
+
+  if (shouldClose) {
+    state.activePanel = "";
+  } else {
+    state.stickerSheetState = nextState;
+  }
+  render();
+}
+
 function deleteZoneElement() {
   return document.querySelector(".delete-zone");
 }
@@ -3090,6 +3206,11 @@ document.addEventListener("pointerdown", (event) => {
   if (stopDaybookNavPointerEvent(event)) return;
   if (startDayPress(event)) return;
 
+  if (event.target.closest("[data-sticker-sheet-handle]")) {
+    startStickerSheetDrag(event);
+    return;
+  }
+
   if (event.target.closest(".text-composer-overlay, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-action-bar, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
 
   const deleteButton = event.target.closest(".delete-photo");
@@ -3149,6 +3270,9 @@ document.addEventListener("pointerdown", (event) => {
 window.addEventListener("pointermove", moveElementDrag);
 window.addEventListener("pointerup", endElementDrag);
 window.addEventListener("pointercancel", endElementDrag);
+window.addEventListener("pointermove", moveStickerSheetDrag);
+window.addEventListener("pointerup", endStickerSheetDrag);
+window.addEventListener("pointercancel", endStickerSheetDrag);
 window.addEventListener("pointermove", moveDayPress);
 window.addEventListener("pointerup", endDayPress);
 window.addEventListener("pointercancel", cancelDayPress);
@@ -3250,12 +3374,29 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "open-sticker-panel") {
-    state.activePanel = state.activePanel === "sticker" ? "" : "sticker";
+    if (state.activePanel === "sticker") {
+      state.activePanel = "";
+    } else {
+      state.activePanel = "sticker";
+      state.stickerSheetState = "collapsed";
+      stickerSheetDrag.ignoreNextToggle = false;
+    }
     render();
     return;
   }
   if (action === "toggle-sticker-sheet") {
-    state.stickerSheetState = state.stickerSheetState === "full" ? "half" : "full";
+    if (stickerSheetDrag.ignoreNextToggle) {
+      stickerSheetDrag.ignoreNextToggle = false;
+      return;
+    }
+    state.stickerSheetState = state.stickerSheetState === "expanded" ? "collapsed" : "expanded";
+    render();
+    return;
+  }
+  if (action === "open-custom-sticker-picker") {
+    state.activePanel = "";
+    state.stickerSheetState = "collapsed";
+    openCustomStickerPicker();
     render();
     return;
   }
@@ -3319,6 +3460,7 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "close-panel") {
     state.activePanel = "";
+    stickerSheetDrag.ignoreNextToggle = false;
     render();
     return;
   }

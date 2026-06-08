@@ -1498,8 +1498,8 @@ button {
   inset: 0;
   z-index: 1390;
   border: 0;
-  background: rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(2px);
+  background: rgba(0, 0, 0, 0.02);
+  -webkit-tap-highlight-color: transparent;
 }
 
 .sticker-sheet {
@@ -1511,103 +1511,194 @@ button {
   max-width: 100%;
   min-width: 0;
   height: 55svh;
-  padding: 10px 16px 22px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  max-height: 90svh;
+  padding: 10px 16px calc(env(safe-area-inset-bottom) + 18px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-bottom: 0;
-  border-radius: 24px 24px 0 0;
-  background: rgba(248, 248, 248, 0.96);
-  box-shadow: 0 -18px 42px rgba(0, 0, 0, 0.14);
-  transform: translateX(50%);
-  backdrop-filter: blur(18px);
-  transition: height 180ms ease;
+  border-radius: 28px 28px 0 0;
+  background: rgba(30, 30, 30, 0.75);
+  color: #ffffff;
+  box-shadow: 0 -16px 42px rgba(0, 0, 0, 0.18);
+  transform: translateX(50%) translateY(var(--sheet-drag-y, 0));
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  transition:
+    height 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: height, transform;
 }
 
-.sticker-sheet.full {
-  height: 88svh;
+.sticker-sheet.expanded {
+  height: 90svh;
+}
+
+.sticker-sheet.is-dragging {
+  transition: none;
 }
 
 .sticker-sheet-header {
-  display: grid;
-  grid-template-columns: 44px 1fr 44px;
-  align-items: center;
-  margin-bottom: 14px;
+  display: flex;
+  justify-content: center;
+  padding: 2px 0 14px;
 }
 
 .sheet-grabber {
-  justify-self: center;
-  width: 38px;
-  height: 28px;
+  width: 64px;
+  height: 26px;
   padding: 0;
   border: 0;
   border-radius: 999px;
   background: transparent;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .sheet-grabber::before {
   display: block;
-  width: 38px;
-  height: 4px;
-  margin: 12px auto;
+  width: 40px;
+  height: 5px;
+  margin: 10px auto;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.35);
   content: "";
 }
 
-.sticker-sheet-header h2 {
-  margin: 0;
-  color: #2d2d2d;
-  font-size: 16px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.sticker-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  max-height: calc(100% - 56px);
+.sticker-sheet-content {
+  height: calc(100% - 40px);
   overflow-y: auto;
-  padding-bottom: 8px;
+  padding: 0 0 12px;
+  scrollbar-width: none;
 }
 
-.sticker-choice {
+.sticker-sheet-content::-webkit-scrollbar {
+  display: none;
+}
+
+.sticker-search {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.sticker-search input {
+  width: 100%;
+  height: 42px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  outline: 0;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 16px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.sticker-search input::placeholder {
+  color: rgba(255, 255, 255, 0.58);
+}
+
+.sticker-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.sticker-feature-card,
+.sticker-token-button {
+  -webkit-appearance: none;
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sticker-feature-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  min-width: 0;
+  padding: 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  text-align: left;
+  box-shadow: none;
+  transition:
+    background 160ms ease,
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sticker-feature-card span {
   display: grid;
   place-items: center;
-  aspect-ratio: 1 / 1;
+  width: 36px;
+  height: 36px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 22px;
+}
+
+.sticker-feature-card strong {
   min-width: 0;
-  border: 1px solid rgba(0, 0, 0, 0.05);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.82);
-  color: var(--sticker-color);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
-.emoji-sticker-choice {
-  font-size: 28px;
+.sticker-section {
+  margin-top: 18px;
 }
 
-.image-sticker-choice img {
-  display: block;
-  width: 80%;
-  height: 80%;
-  object-fit: contain;
-  pointer-events: none;
+.sticker-section h2 {
+  margin: 0 0 10px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
 }
 
-.text-sticker-choice {
-  padding: 6px;
-  font-family: Georgia, serif;
-  font-size: 14px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  line-height: 1.05;
-  text-align: center;
-  text-shadow:
-    -1px -1px 0 #ffffff,
-    1px -1px 0 #ffffff,
-    -1px 1px 0 #ffffff,
-    1px 1px 0 #ffffff,
-    0 5px 10px rgba(0, 0, 0, 0.12);
+.recent-sticker-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.recent-sticker-row::-webkit-scrollbar {
+  display: none;
+}
+
+.system-sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sticker-token-button {
+  display: grid;
+  place-items: center;
+  min-width: 52px;
+  height: 52px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 26px;
+  line-height: 1;
+  box-shadow: none;
+  transition:
+    background 160ms ease,
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sticker-token-button.recent-sticker {
+  flex: 0 0 52px;
+}
+
+.sticker-feature-card:active,
+.sticker-token-button:active {
+  background: rgba(255, 255, 255, 0.16);
+  transform: scale(0.97);
 }
 
 .text-composer-overlay {
