@@ -914,21 +914,12 @@ function stickerSheet() {
   const sheetState = ["preview", "collapsed", "expanded"].includes(state.stickerSheetState)
     ? state.stickerSheetState
     : "collapsed";
-  const recentStickers = ["❤️", "✨", "☁️", "🎀", "☕", "📷", "🎂", "🧸"];
   const systemStickers = ["❤️", "✨", "🌷", "🎀", "☁️", "🌙", "☕", "📷", "🎂", "🧸", "⭐", "📍"];
   const featureStickers = [
     { icon: "📍", label: "位置", action: "add-sticker", stickerType: "emoji", content: "📍" },
-    { icon: "😊", label: "Emoji", action: "add-sticker", stickerType: "emoji", content: "😊" },
-    { icon: "🎵", label: "音乐" },
-    { icon: "🖼️", label: "照片", action: "open-custom-sticker-picker" },
-    { icon: "🔍", label: "动图" },
-    { icon: "➕", label: "添加" },
-    { icon: "🖼️", label: "效果框" },
-    { icon: "❔", label: "问题" },
-    { icon: "🎞️", label: "胶卷" },
-    { icon: "✂️", label: "抠图" },
-    { icon: "🔗", label: "链接" },
-    { icon: "⏱️", label: "倒计时" }
+    { icon: "📅", label: "日期" },
+    { icon: "🖼️", label: "相框" },
+    { icon: "☁️", label: "天气" }
   ];
   const stickerButton = (content, classes = "") => `
     <button
@@ -971,19 +962,12 @@ function stickerSheet() {
           `).join("")}
         </div>
 
-        <section class="sticker-section" aria-label="最近使用">
-          <h2>最近使用</h2>
-          <div class="recent-sticker-row">
-            ${recentStickers.map((content) => stickerButton(content, "recent-sticker")).join("")}
-          </div>
-        </section>
-
-        <section class="sticker-section" aria-label="系统贴纸">
-          <h2>系统贴纸</h2>
-          <div class="system-sticker-grid">
-            ${systemStickers.map((content) => stickerButton(content)).join("")}
-          </div>
-        </section>
+        <div class="system-sticker-grid" aria-label="贴纸">
+          <button class="sticker-token-button sticker-add-button" type="button" data-action="open-custom-sticker-picker" aria-label="添加贴纸" title="添加贴纸">
+            <span aria-hidden="true">+</span>
+          </button>
+          ${systemStickers.map((content) => stickerButton(content)).join("")}
+        </div>
       </div>
     </section>
   `;
