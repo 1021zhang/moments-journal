@@ -1632,15 +1632,28 @@ button {
 
 .sticker-feature-grid {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
+  justify-content: flex-start;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 92%;
   max-width: 92%;
-  max-height: 82px;
-  overflow: hidden;
-  margin: 0 auto 20px;
+  margin: 0 auto 22px;
+}
+
+.sticker-feature-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.sticker-feature-row-1 {
+  transform: translateX(-8px);
+}
+
+.sticker-feature-row-2 {
+  transform: translateX(12px);
 }
 
 .sticker-feature-card,
@@ -1695,10 +1708,29 @@ button {
 }
 
 .system-sticker-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 10px;
-  padding-bottom: 8px;
+  margin-right: -18px;
+  margin-left: -2px;
+  overflow-x: auto;
+  padding: 1px 18px 8px 2px;
+  scrollbar-width: none;
+}
+
+.system-sticker-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.sticker-token-row {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+  min-width: max-content;
+}
+
+.sticker-token-row-offset {
+  padding-left: 4px;
 }
 
 .sticker-token-button {
@@ -1706,11 +1738,11 @@ button {
   place-items: center;
   min-width: 58px;
   height: 58px;
-  border-color: rgba(255, 255, 255, 0.38);
+  border-color: rgba(255, 255, 255, 0.24);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.025);
   color: #ffffff;
-  font-size: 39px;
+  font-size: 41px;
   line-height: 1;
   box-shadow: none;
   transition:
@@ -1720,9 +1752,9 @@ button {
 
 .sticker-add-button {
   border-style: dashed;
-  border-color: rgba(255, 255, 255, 0.66);
-  background: rgba(255, 255, 255, 0.045);
-  color: rgba(255, 255, 255, 0.86);
+  border-color: rgba(255, 255, 255, 0.44);
+  background: rgba(255, 255, 255, 0.018);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 .sticker-add-button span {

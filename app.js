@@ -921,6 +921,14 @@ function stickerSheet() {
     { icon: "🖼️", label: "相框" },
     { icon: "☁️", label: "天气" }
   ];
+  const featureRows = [
+    featureStickers.slice(0, 2),
+    featureStickers.slice(2)
+  ];
+  const stickerRows = [
+    systemStickers.slice(0, 5),
+    systemStickers.slice(5)
+  ];
   const stickerButton = (content, classes = "") => `
     <button
       class="sticker-token-button ${classes}"
@@ -946,27 +954,36 @@ function stickerSheet() {
         </label>
 
         <div class="sticker-feature-grid" aria-label="贴纸类型">
-          ${featureStickers.map((feature) => `
-            <button
-              class="sticker-feature-card"
-              type="button"
-              ${feature.action ? `data-action="${feature.action}"` : ""}
-              ${feature.stickerType ? `data-sticker-type="${feature.stickerType}"` : ""}
-              ${feature.content ? `data-sticker-content="${escapeHtml(feature.content)}"` : ""}
-              data-sticker-color="#222222"
-              aria-label="添加${escapeHtml(feature.label)}贴纸"
-            >
-              <span aria-hidden="true">${escapeHtml(feature.icon)}</span>
-              <strong>${escapeHtml(feature.label)}</strong>
-            </button>
+          ${featureRows.map((row, rowIndex) => `
+            <div class="sticker-feature-row sticker-feature-row-${rowIndex + 1}">
+              ${row.map((feature) => `
+                <button
+                  class="sticker-feature-card"
+                  type="button"
+                  ${feature.action ? `data-action="${feature.action}"` : ""}
+                  ${feature.stickerType ? `data-sticker-type="${feature.stickerType}"` : ""}
+                  ${feature.content ? `data-sticker-content="${escapeHtml(feature.content)}"` : ""}
+                  data-sticker-color="#222222"
+                  aria-label="添加${escapeHtml(feature.label)}贴纸"
+                >
+                  <span aria-hidden="true">${escapeHtml(feature.icon)}</span>
+                  <strong>${escapeHtml(feature.label)}</strong>
+                </button>
+              `).join("")}
+            </div>
           `).join("")}
         </div>
 
         <div class="system-sticker-grid" aria-label="贴纸">
-          <button class="sticker-token-button sticker-add-button" type="button" data-action="open-custom-sticker-picker" aria-label="添加贴纸" title="添加贴纸">
-            <span aria-hidden="true">+</span>
-          </button>
-          ${systemStickers.map((content) => stickerButton(content)).join("")}
+          <div class="sticker-token-row">
+            <button class="sticker-token-button sticker-add-button" type="button" data-action="open-custom-sticker-picker" aria-label="添加贴纸" title="添加贴纸">
+              <span aria-hidden="true">+</span>
+            </button>
+            ${stickerRows[0].map((content) => stickerButton(content)).join("")}
+          </div>
+          <div class="sticker-token-row sticker-token-row-offset">
+            ${stickerRows[1].map((content) => stickerButton(content)).join("")}
+          </div>
         </div>
       </div>
     </section>
