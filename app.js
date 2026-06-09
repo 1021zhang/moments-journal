@@ -918,6 +918,16 @@ function stickerSheet() {
   const dateSticker = day ? dayMonthText(dateFromKey(day.dateKey)) : dayMonthText(new Date());
   const recentStickers = ["❤️", "✨", "☁️", "🎀", "☕", "📷", "🎂", "🧸"];
   const systemStickers = ["❤️", "✨", "🌷", "🎀", "☁️", "🌙", "☕", "📷", "🎂", "🧸", "⭐", "📍"];
+  const featureStickers = [
+    { icon: "📅", label: "日期", action: "add-sticker", stickerType: "text", content: dateSticker },
+    { icon: "📍", label: "位置", action: "add-sticker", stickerType: "emoji", content: "📍" },
+    { icon: "😊", label: "Emoji", action: "add-sticker", stickerType: "emoji", content: "😊" },
+    { icon: "🖼", label: "图片贴纸", action: "open-custom-sticker-picker" },
+    { icon: "🖼", label: "效果框", action: "add-sticker", stickerType: "emoji", content: "🖼" },
+    { icon: "✂️", label: "抠图", action: "add-sticker", stickerType: "emoji", content: "✂️" },
+    { icon: "🎞", label: "连拍胶卷", action: "add-sticker", stickerType: "emoji", content: "🎞" },
+    { icon: "⏱", label: "倒计时", action: "add-sticker", stickerType: "emoji", content: "⏱" }
+  ];
   const stickerButton = (content, classes = "") => `
     <button
       class="sticker-token-button ${classes}"
@@ -943,22 +953,20 @@ function stickerSheet() {
         </label>
 
         <div class="sticker-feature-grid" aria-label="贴纸类型">
-          <button class="sticker-feature-card" type="button" data-action="add-sticker" data-sticker-type="text" data-sticker-content="${escapeHtml(dateSticker)}" data-sticker-color="#222222" aria-label="添加日期贴纸">
-            <span aria-hidden="true">📅</span>
-            <strong>日期</strong>
-          </button>
-          <button class="sticker-feature-card" type="button" data-action="add-sticker" data-sticker-type="emoji" data-sticker-content="📍" data-sticker-color="#222222" aria-label="添加位置贴纸">
-            <span aria-hidden="true">📍</span>
-            <strong>位置</strong>
-          </button>
-          <button class="sticker-feature-card" type="button" data-action="add-sticker" data-sticker-type="emoji" data-sticker-content="😊" data-sticker-color="#222222" aria-label="添加 Emoji 贴纸">
-            <span aria-hidden="true">😊</span>
-            <strong>Emoji</strong>
-          </button>
-          <button class="sticker-feature-card" type="button" data-action="open-custom-sticker-picker" aria-label="添加图片贴纸">
-            <span aria-hidden="true">🖼</span>
-            <strong>图片贴纸</strong>
-          </button>
+          ${featureStickers.map((feature) => `
+            <button
+              class="sticker-feature-card"
+              type="button"
+              data-action="${feature.action}"
+              ${feature.stickerType ? `data-sticker-type="${feature.stickerType}"` : ""}
+              ${feature.content ? `data-sticker-content="${escapeHtml(feature.content)}"` : ""}
+              data-sticker-color="#222222"
+              aria-label="添加${escapeHtml(feature.label)}贴纸"
+            >
+              <span aria-hidden="true">${escapeHtml(feature.icon)}</span>
+              <strong>${escapeHtml(feature.label)}</strong>
+            </button>
+          `).join("")}
         </div>
 
         <section class="sticker-section" aria-label="最近使用">
