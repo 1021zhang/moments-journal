@@ -1630,81 +1630,11 @@ button {
   color: rgba(120, 120, 120, 0.68);
 }
 
-.sticker-feature-grid {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 12px;
-  width: 92%;
-  max-width: 92%;
-  margin: 0 auto 22px;
-}
-
-.sticker-feature-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-}
-
-.sticker-feature-row-1 {
-  transform: translateX(-8px);
-}
-
-.sticker-feature-row-2 {
-  transform: translateX(12px);
-}
-
-.sticker-feature-card,
 .sticker-token-button {
   -webkit-appearance: none;
   appearance: none;
   border: 1px solid rgba(255, 255, 255, 0.72);
   -webkit-tap-highlight-color: transparent;
-}
-
-.sticker-feature-card {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: auto;
-  height: 36px;
-  min-height: 36px;
-  min-width: 0;
-  gap: 0;
-  padding: 0 14px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.96);
-  color: #111111;
-  text-align: center;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.035);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  transition:
-    background 160ms ease,
-    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.sticker-feature-card span {
-  display: grid;
-  place-items: center;
-  width: auto;
-  height: auto;
-  border-radius: 0;
-  background: transparent;
-  font-size: 18px;
-  line-height: 1;
-  margin-right: 6px;
-}
-
-.sticker-feature-card strong {
-  min-width: 0;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0;
-  white-space: nowrap;
 }
 
 .system-sticker-grid {
@@ -1764,13 +1694,8 @@ button {
   line-height: 1;
 }
 
-.sticker-feature-card:active,
 .sticker-token-button:active {
   transform: scale(0.96);
-}
-
-.sticker-feature-card:active {
-  background: rgba(255, 255, 255, 1);
 }
 
 .sticker-token-button:active {

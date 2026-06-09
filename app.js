@@ -915,16 +915,6 @@ function stickerSheet() {
     ? state.stickerSheetState
     : "collapsed";
   const systemStickers = ["❤️", "✨", "🌷", "🎀", "☁️", "🌙", "☕", "📷", "🎂", "🧸", "⭐", "📍"];
-  const featureStickers = [
-    { icon: "📍", label: "位置", action: "add-sticker", stickerType: "emoji", content: "📍" },
-    { icon: "📅", label: "日期" },
-    { icon: "🖼️", label: "相框" },
-    { icon: "☁️", label: "天气" }
-  ];
-  const featureRows = [
-    featureStickers.slice(0, 2),
-    featureStickers.slice(2)
-  ];
   const stickerRows = [
     systemStickers.slice(0, 5),
     systemStickers.slice(5)
@@ -952,27 +942,6 @@ function stickerSheet() {
           <span class="sr-only">搜索贴纸</span>
           <input type="search" placeholder="搜索" autocomplete="off" />
         </label>
-
-        <div class="sticker-feature-grid" aria-label="贴纸类型">
-          ${featureRows.map((row, rowIndex) => `
-            <div class="sticker-feature-row sticker-feature-row-${rowIndex + 1}">
-              ${row.map((feature) => `
-                <button
-                  class="sticker-feature-card"
-                  type="button"
-                  ${feature.action ? `data-action="${feature.action}"` : ""}
-                  ${feature.stickerType ? `data-sticker-type="${feature.stickerType}"` : ""}
-                  ${feature.content ? `data-sticker-content="${escapeHtml(feature.content)}"` : ""}
-                  data-sticker-color="#222222"
-                  aria-label="添加${escapeHtml(feature.label)}贴纸"
-                >
-                  <span aria-hidden="true">${escapeHtml(feature.icon)}</span>
-                  <strong>${escapeHtml(feature.label)}</strong>
-                </button>
-              `).join("")}
-            </div>
-          `).join("")}
-        </div>
 
         <div class="system-sticker-grid" aria-label="贴纸">
           <div class="sticker-token-row">
