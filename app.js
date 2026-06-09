@@ -939,7 +939,7 @@ function stickerSheet() {
       <div class="sticker-sheet-content">
         <label class="sticker-search">
           <span class="sr-only">搜索贴纸</span>
-          <input type="search" placeholder="搜索贴纸" autocomplete="off" />
+          <input type="search" placeholder="搜索" autocomplete="off" />
         </label>
 
         <div class="sticker-feature-grid" aria-label="贴纸类型">
