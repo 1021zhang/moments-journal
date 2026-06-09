@@ -1746,8 +1746,7 @@ button {
   text-align: center;
 }
 
-.sticker-image-picker-header button,
-.sticker-image-picker-header span {
+.sticker-image-picker-header button {
   border: 0;
   background: transparent;
   color: #333333;
@@ -1766,9 +1765,12 @@ button {
   text-align: left;
 }
 
-.sticker-image-picker-header span {
+.sticker-image-picker-manage {
   justify-self: end;
-  color: rgba(17, 17, 17, 0.32);
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  text-align: right;
 }
 
 .sticker-image-picker-content {
@@ -1826,9 +1828,17 @@ button {
   margin-top: 24px;
 }
 
+.sticker-image-picker-item {
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 1;
+}
+
 .sticker-image-picker-thumb {
   display: grid;
   place-items: center;
+  width: 100%;
+  height: 100%;
   aspect-ratio: 1;
   border: 0;
   border-radius: 20px;
@@ -1843,6 +1853,30 @@ button {
   height: 84%;
   object-fit: contain;
   pointer-events: none;
+}
+
+.sticker-image-picker-delete {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid #ffffff;
+  border-radius: 999px;
+  background: rgba(30, 30, 30, 0.88);
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.16);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sticker-image-picker-item.is-managing .sticker-image-picker-delete {
+  display: grid;
 }
 
 .text-composer-overlay {

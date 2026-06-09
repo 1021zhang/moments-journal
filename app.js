@@ -45,6 +45,7 @@ const state = {
   isExportingDay: false,
   isReadingClipboard: false,
   stickerImagePickerOpen: false,
+  customStickerManageMode: false,
   toast: "",
   toastTimer: null,
   pendingInsertPoint: null,
@@ -112,6 +113,12 @@ const stickerSheetDrag = {
   currentHeight: 0,
   currentOffset: 0,
   ignoreNextToggle: false
+};
+const customStickerPress = {
+  timer: null,
+  pointerId: null,
+  startX: 0,
+  startY: 0
 };
 function loadNotes() {
   try {
@@ -990,16 +997,20 @@ function stickerSheet() {
 function stickerImagePicker() {
   if (!state.stickerImagePickerOpen) return "";
   const savedStickerThumbs = state.customStickers.slice(0, 12).map((sticker) => `
-    <button
-      class="sticker-image-picker-thumb"
-      type="button"
-      data-action="add-sticker"
-      data-sticker-type="image"
-      data-sticker-id="${escapeHtml(sticker.id)}"
-      aria-label="使用这个贴纸"
-    >
-      <img src="${escapeHtml(sticker.imageDataUrl || sticker.src || "")}" alt="" draggable="false" />
-    </button>
+    <div class="sticker-image-picker-item ${state.customStickerManageMode ? "is-managing" : ""}" data-custom-sticker-id="${escapeHtml(sticker.id)}">
+      <button
+        class="sticker-image-picker-thumb"
+        type="button"
+        data-action="add-sticker"
+        data-sticker-type="image"
+        data-sticker-id="${escapeHtml(sticker.id)}"
+        data-custom-sticker-thumb
+        aria-label="使用这个贴纸"
+      >
+        <img src="${escapeHtml(sticker.imageDataUrl || sticker.src || "")}" alt="" draggable="false" />
+      </button>
+      <button class="sticker-image-picker-delete" type="button" data-action="delete-custom-sticker" data-sticker-id="${escapeHtml(sticker.id)}" aria-label="删除这个贴纸">×</button>
+    </div>
   `).join("");
 
   return `
@@ -1007,12 +1018,12 @@ function stickerImagePicker() {
       <header class="sticker-image-picker-header">
         <button class="sticker-image-picker-close" type="button" data-action="close-sticker-image-picker">关闭</button>
         <h1>添加贴纸</h1>
-        <span aria-hidden="true">完成</span>
+        <button class="sticker-image-picker-manage" type="button" data-action="toggle-custom-sticker-management" aria-label="${state.customStickerManageMode ? "完成整理" : "整理贴纸"}">${state.customStickerManageMode ? "完成" : "整理"}</button>
       </header>
       <div class="sticker-image-picker-content">
         <button class="sticker-image-picker-select" type="button" data-action="choose-sticker-image">
           <span aria-hidden="true">+</span>
-          <strong>从相册选择</strong>
+          <strong>选择图片作为贴纸</strong>
           <small>选择图片后会作为贴纸加入当前页面</small>
         </button>
         ${savedStickerThumbs ? `
@@ -1486,6 +1497,19 @@ async function saveCustomSticker(sticker) {
 
   const transaction = state.db.transaction(customStickerStoreName, "readwrite");
   transaction.objectStore(customStickerStoreName).put(sticker);
+  await transactionDone(transaction);
+}
+
+async function deleteCustomSticker(stickerId) {
+  state.customStickers = state.customStickers.filter((sticker) => sticker.id !== stickerId);
+
+  if (state.storageMode === "localStorage") {
+    localStorage.setItem(localCustomStickersKey, JSON.stringify(state.customStickers));
+    return;
+  }
+
+  const transaction = state.db.transaction(customStickerStoreName, "readwrite");
+  transaction.objectStore(customStickerStoreName).delete(stickerId);
   await transactionDone(transaction);
 }
 
@@ -2214,6 +2238,7 @@ async function addStickerElement(sticker) {
   });
   state.activePanel = "";
   state.stickerImagePickerOpen = false;
+  state.customStickerManageMode = false;
   state.stickerSheetState = "collapsed";
   await saveCanvasElement(element);
   selectItem("sticker", element.id);
@@ -3263,10 +3288,39 @@ function preventViewportGesture(event) {
   if (event.cancelable) event.preventDefault();
 }
 
+function clearCustomStickerPress() {
+  if (customStickerPress.timer) window.clearTimeout(customStickerPress.timer);
+  customStickerPress.timer = null;
+  customStickerPress.pointerId = null;
+}
+
+function startCustomStickerPress(event) {
+  if (!state.stickerImagePickerOpen) return;
+  if (!event.target.closest("[data-custom-sticker-thumb]")) return;
+
+  clearCustomStickerPress();
+  customStickerPress.pointerId = event.pointerId;
+  customStickerPress.startX = event.clientX;
+  customStickerPress.startY = event.clientY;
+  customStickerPress.timer = window.setTimeout(() => {
+    customStickerPress.timer = null;
+    state.customStickerManageMode = true;
+    render();
+  }, 480);
+}
+
+function moveCustomStickerPress(event) {
+  if (!customStickerPress.timer || event.pointerId !== customStickerPress.pointerId) return;
+  const dx = event.clientX - customStickerPress.startX;
+  const dy = event.clientY - customStickerPress.startY;
+  if (Math.hypot(dx, dy) > 10) clearCustomStickerPress();
+}
+
 document.addEventListener("pointerdown", (event) => {
   if (isPageTransitioning) return;
   if (stopDaybookNavPointerEvent(event)) return;
   if (startDayPress(event)) return;
+  startCustomStickerPress(event);
 
   if (event.target.closest("[data-sticker-sheet-handle]")) {
     startStickerSheetDrag(event);
@@ -3338,6 +3392,9 @@ window.addEventListener("pointercancel", endStickerSheetDrag);
 window.addEventListener("pointermove", moveDayPress);
 window.addEventListener("pointerup", endDayPress);
 window.addEventListener("pointercancel", cancelDayPress);
+window.addEventListener("pointermove", moveCustomStickerPress);
+window.addEventListener("pointerup", clearCustomStickerPress);
+window.addEventListener("pointercancel", clearCustomStickerPress);
 window.addEventListener("pointerleave", cancelDayPress);
 window.addEventListener("resize", scheduleCanvasSafetyRepair);
 document.addEventListener("gesturestart", preventViewportGesture, { passive: false });
@@ -3458,6 +3515,7 @@ document.addEventListener("click", async (event) => {
   if (action === "open-sticker-image-picker") {
     state.activePanel = "";
     state.stickerImagePickerOpen = true;
+    state.customStickerManageMode = false;
     state.stickerSheetState = "collapsed";
     stickerSheetDrag.ignoreNextToggle = false;
     render();
@@ -3465,6 +3523,19 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "close-sticker-image-picker") {
     state.stickerImagePickerOpen = false;
+    state.customStickerManageMode = false;
+    render();
+    return;
+  }
+  if (action === "toggle-custom-sticker-management") {
+    state.customStickerManageMode = !state.customStickerManageMode;
+    render();
+    return;
+  }
+  if (action === "delete-custom-sticker") {
+    const stickerId = actionTarget.dataset.stickerId;
+    if (stickerId) await deleteCustomSticker(stickerId);
+    if (!state.customStickers.length) state.customStickerManageMode = false;
     render();
     return;
   }
@@ -3480,6 +3551,7 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "add-sticker") {
+    if (state.customStickerManageMode && actionTarget.closest(".sticker-image-picker")) return;
     const customSticker = actionTarget.dataset.stickerType === "image"
       ? state.customStickers.find((sticker) => sticker.id === actionTarget.dataset.stickerId)
       : null;
@@ -3541,6 +3613,7 @@ document.addEventListener("click", async (event) => {
   if (action === "close-panel") {
     state.activePanel = "";
     state.stickerImagePickerOpen = false;
+    state.customStickerManageMode = false;
     stickerSheetDrag.ignoreNextToggle = false;
     render();
     return;
