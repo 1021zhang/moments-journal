@@ -922,16 +922,12 @@ function stickerSheet() {
     { icon: "🎵", label: "音乐" },
     { icon: "🖼️", label: "照片", action: "open-custom-sticker-picker" },
     { icon: "🔍", label: "动图" },
-    { icon: "➕", label: "添加内容" },
+    { icon: "➕", label: "添加" },
     { icon: "🖼️", label: "效果框" },
     { icon: "❔", label: "问题" },
-    { icon: "🎞️", label: "连拍胶卷" },
+    { icon: "🎞️", label: "胶卷" },
     { icon: "✂️", label: "抠图" },
-    { icon: "💗", label: "精选" },
-    { icon: "🧍", label: "虚拟形象" },
-    { icon: "☰", label: "投票" },
     { icon: "🔗", label: "链接" },
-    { icon: "#", label: "话题标签" },
     { icon: "⏱️", label: "倒计时" }
   ];
   const stickerButton = (content, classes = "") => `
