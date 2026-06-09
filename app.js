@@ -914,19 +914,25 @@ function stickerSheet() {
   const sheetState = ["preview", "collapsed", "expanded"].includes(state.stickerSheetState)
     ? state.stickerSheetState
     : "collapsed";
-  const day = getDay();
-  const dateSticker = day ? dayMonthText(dateFromKey(day.dateKey)) : dayMonthText(new Date());
   const recentStickers = ["❤️", "✨", "☁️", "🎀", "☕", "📷", "🎂", "🧸"];
   const systemStickers = ["❤️", "✨", "🌷", "🎀", "☁️", "🌙", "☕", "📷", "🎂", "🧸", "⭐", "📍"];
   const featureStickers = [
-    { icon: "📅", label: "日期", action: "add-sticker", stickerType: "text", content: dateSticker },
     { icon: "📍", label: "位置", action: "add-sticker", stickerType: "emoji", content: "📍" },
     { icon: "😊", label: "Emoji", action: "add-sticker", stickerType: "emoji", content: "😊" },
-    { icon: "🖼", label: "图片贴纸", action: "open-custom-sticker-picker" },
-    { icon: "🖼", label: "效果框", action: "add-sticker", stickerType: "emoji", content: "🖼" },
-    { icon: "✂️", label: "抠图", action: "add-sticker", stickerType: "emoji", content: "✂️" },
-    { icon: "🎞", label: "连拍胶卷", action: "add-sticker", stickerType: "emoji", content: "🎞" },
-    { icon: "⏱", label: "倒计时", action: "add-sticker", stickerType: "emoji", content: "⏱" }
+    { icon: "🎵", label: "音乐" },
+    { icon: "🖼️", label: "照片", action: "open-custom-sticker-picker" },
+    { icon: "🔍", label: "动图" },
+    { icon: "➕", label: "添加内容" },
+    { icon: "🖼️", label: "效果框" },
+    { icon: "❔", label: "问题" },
+    { icon: "🎞️", label: "连拍胶卷" },
+    { icon: "✂️", label: "抠图" },
+    { icon: "💗", label: "精选" },
+    { icon: "🧍", label: "虚拟形象" },
+    { icon: "☰", label: "投票" },
+    { icon: "🔗", label: "链接" },
+    { icon: "#", label: "话题标签" },
+    { icon: "⏱️", label: "倒计时" }
   ];
   const stickerButton = (content, classes = "") => `
     <button
@@ -957,7 +963,7 @@ function stickerSheet() {
             <button
               class="sticker-feature-card"
               type="button"
-              data-action="${feature.action}"
+              ${feature.action ? `data-action="${feature.action}"` : ""}
               ${feature.stickerType ? `data-sticker-type="${feature.stickerType}"` : ""}
               ${feature.content ? `data-sticker-content="${escapeHtml(feature.content)}"` : ""}
               data-sticker-color="#222222"

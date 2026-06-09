@@ -1581,7 +1581,7 @@ button {
 .sticker-search {
   position: relative;
   display: block;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .sticker-search::before {
@@ -1633,9 +1633,13 @@ button {
 .sticker-feature-grid {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 26px;
+  row-gap: 12px;
+  column-gap: 12px;
+  width: 92%;
+  max-width: 92%;
+  margin: 0 auto 28px;
 }
 
 .sticker-feature-card,
@@ -1650,13 +1654,15 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
   width: auto;
-  min-height: 44px;
+  height: 42px;
+  min-height: 42px;
   min-width: 0;
   gap: 8px;
-  padding: 0 18px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.92);
+  padding: 0 16px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.96);
   color: #111111;
   text-align: center;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.035);
@@ -1688,6 +1694,10 @@ button {
 
 .sticker-section {
   margin-top: 26px;
+}
+
+.sticker-feature-grid + .sticker-section {
+  margin-top: 0;
 }
 
 .sticker-section h2 {
