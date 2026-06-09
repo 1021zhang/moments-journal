@@ -328,8 +328,14 @@ function defaultStickerElement(dateKey, sticker) {
   const isTextSticker = sticker.stickerType === "text";
   const isImageSticker = sticker.stickerType === "image";
   const imageSource = sticker.imageDataUrl || sticker.src || "";
-  const imageWidth = 112;
-  const imageHeight = imageWidth / (sticker.aspectRatio || 1);
+  const imageMaxSize = 120;
+  const aspectRatio = sticker.aspectRatio || 1;
+  let imageWidth = 112;
+  let imageHeight = imageWidth / aspectRatio;
+  if (imageHeight > imageMaxSize) {
+    imageHeight = imageMaxSize;
+    imageWidth = imageHeight * aspectRatio;
+  }
   const emojiSize = 76;
 
   return {
