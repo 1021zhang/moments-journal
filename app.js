@@ -44,6 +44,7 @@ const state = {
   isExportingBackup: false,
   isExportingDay: false,
   isReadingClipboard: false,
+  stickerImagePickerOpen: false,
   toast: "",
   toastTimer: null,
   pendingInsertPoint: null,
@@ -326,6 +327,7 @@ function positionPhotoElement(photo, point) {
 function defaultStickerElement(dateKey, sticker) {
   const isTextSticker = sticker.stickerType === "text";
   const isImageSticker = sticker.stickerType === "image";
+  const imageSource = sticker.imageDataUrl || sticker.src || "";
   const imageWidth = 112;
   const imageHeight = imageWidth / (sticker.aspectRatio || 1);
   const emojiSize = 76;
@@ -335,7 +337,8 @@ function defaultStickerElement(dateKey, sticker) {
     type: "sticker",
     stickerType: sticker.stickerType,
     content: sticker.content,
-    imageDataUrl: sticker.imageDataUrl || "",
+    imageDataUrl: imageSource,
+    src: imageSource,
     dateKey,
     x: isTextSticker ? 108 : isImageSticker ? 132 : 154,
     y: isTextSticker ? 188 : isImageSticker ? 168 : 176,
@@ -900,7 +903,7 @@ function canvasElement(element) {
   return `
     <div class="canvas-item canvas-sticker ${stickerClass} ${selected}" data-item-type="${element.type}" data-item-id="${element.id}" style="${baseStyle.join(";")}">
       ${stickerType === "image"
-        ? `<img src="${element.imageDataUrl}" alt="" draggable="false" />`
+        ? `<img src="${escapeHtml(element.imageDataUrl || element.src || "")}" alt="" draggable="false" />`
         : `<span>${escapeHtml(element.content)}</span>`}
       <button class="delete-photo" type="button" data-action="delete-element" aria-label="删除贴纸" title="删除贴纸">×</button>
       <span class="rotate-handle" aria-hidden="true">↻</span>
@@ -915,9 +918,13 @@ function stickerSheet() {
     ? state.stickerSheetState
     : "collapsed";
   const systemStickers = ["❤️", "✨", "🌷", "🎀", "☁️", "🌙", "☕", "📷", "🎂", "🧸", "⭐", "📍"];
+  const stickerItems = [
+    ...state.customStickers.map((sticker) => ({ type: "custom", sticker })),
+    ...systemStickers.map((content) => ({ type: "emoji", content }))
+  ];
   const stickerRows = [
-    systemStickers.slice(0, 5),
-    systemStickers.slice(5)
+    stickerItems.slice(0, 5),
+    stickerItems.slice(5)
   ];
   const stickerButton = (content, classes = "") => `
     <button
@@ -930,6 +937,21 @@ function stickerSheet() {
       aria-label="添加 ${escapeHtml(content)} 贴纸"
     >${escapeHtml(content)}</button>
   `;
+  const customStickerButton = (sticker) => `
+    <button
+      class="sticker-token-button custom-sticker-token"
+      type="button"
+      data-action="add-sticker"
+      data-sticker-type="image"
+      data-sticker-id="${escapeHtml(sticker.id)}"
+      aria-label="添加自定义贴纸"
+    >
+      <img src="${escapeHtml(sticker.imageDataUrl || sticker.src || "")}" alt="" draggable="false" />
+    </button>
+  `;
+  const stickerItemButton = (item) => item.type === "custom"
+    ? customStickerButton(item.sticker)
+    : stickerButton(item.content);
 
   return `
     <button class="sticker-backdrop" type="button" data-action="close-panel" aria-label="关闭贴纸"></button>
@@ -945,15 +967,53 @@ function stickerSheet() {
 
         <div class="system-sticker-grid" aria-label="贴纸">
           <div class="sticker-token-row">
-            <button class="sticker-token-button sticker-add-button" type="button" data-action="open-custom-sticker-picker" aria-label="添加贴纸" title="添加贴纸">
+            <button class="sticker-token-button sticker-add-button" type="button" data-action="open-sticker-image-picker" aria-label="添加贴纸" title="添加贴纸">
               <span aria-hidden="true">+</span>
             </button>
-            ${stickerRows[0].map((content) => stickerButton(content)).join("")}
+            ${stickerRows[0].map(stickerItemButton).join("")}
           </div>
           <div class="sticker-token-row sticker-token-row-offset">
-            ${stickerRows[1].map((content) => stickerButton(content)).join("")}
+            ${stickerRows[1].map(stickerItemButton).join("")}
           </div>
         </div>
+      </div>
+    </section>
+  `;
+}
+
+function stickerImagePicker() {
+  if (!state.stickerImagePickerOpen) return "";
+  const savedStickerThumbs = state.customStickers.slice(0, 12).map((sticker) => `
+    <button
+      class="sticker-image-picker-thumb"
+      type="button"
+      data-action="add-sticker"
+      data-sticker-type="image"
+      data-sticker-id="${escapeHtml(sticker.id)}"
+      aria-label="使用这个贴纸"
+    >
+      <img src="${escapeHtml(sticker.imageDataUrl || sticker.src || "")}" alt="" draggable="false" />
+    </button>
+  `).join("");
+
+  return `
+    <section class="sticker-image-picker" aria-label="添加贴纸">
+      <header class="sticker-image-picker-header">
+        <button class="sticker-image-picker-close" type="button" data-action="close-sticker-image-picker">关闭</button>
+        <h1>添加贴纸</h1>
+        <span aria-hidden="true">完成</span>
+      </header>
+      <div class="sticker-image-picker-content">
+        <button class="sticker-image-picker-select" type="button" data-action="choose-sticker-image">
+          <span aria-hidden="true">+</span>
+          <strong>从相册选择</strong>
+          <small>选择图片后会作为贴纸加入当前页面</small>
+        </button>
+        ${savedStickerThumbs ? `
+          <div class="sticker-image-picker-grid" aria-label="已添加贴纸">
+            ${savedStickerThumbs}
+          </div>
+        ` : ""}
       </div>
     </section>
   `;
@@ -1046,6 +1106,7 @@ function renderSingleDay() {
         </div>
       </div>
       ${stickerSheet()}
+      ${stickerImagePicker()}
       ${textComposerOverlay()}
       ${toastMarkup()}
     </main>
@@ -1359,7 +1420,7 @@ async function loadCustomStickers() {
     request.onsuccess = () => resolve(request.result || []);
     request.onerror = () => reject(request.error);
   });
-  return records;
+  return records.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
 async function persistAllUserPhotos() {
@@ -2146,6 +2207,7 @@ async function addStickerElement(sticker) {
     elementId: element.id
   });
   state.activePanel = "";
+  state.stickerImagePickerOpen = false;
   state.stickerSheetState = "collapsed";
   await saveCanvasElement(element);
   selectItem("sticker", element.id);
@@ -2174,7 +2236,9 @@ async function handleCustomStickerSelection(event) {
     const compressed = await compressImage(file);
     const sticker = {
       id: uid("custom-sticker"),
+      type: "custom-image-sticker",
       stickerType: "image",
+      src: compressed.imageDataUrl,
       imageDataUrl: compressed.imageDataUrl,
       aspectRatio: compressed.aspectRatio,
       createdAt: new Date().toISOString()
@@ -3203,7 +3267,7 @@ document.addEventListener("pointerdown", (event) => {
     return;
   }
 
-  if (event.target.closest(".text-composer-overlay, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-action-bar, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
+  if (event.target.closest(".text-composer-overlay, .sticker-image-picker, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-action-bar, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
 
   const deleteButton = event.target.closest(".delete-photo");
   if (deleteButton) {
@@ -3385,6 +3449,23 @@ document.addEventListener("click", async (event) => {
     render();
     return;
   }
+  if (action === "open-sticker-image-picker") {
+    state.activePanel = "";
+    state.stickerImagePickerOpen = true;
+    state.stickerSheetState = "collapsed";
+    stickerSheetDrag.ignoreNextToggle = false;
+    render();
+    return;
+  }
+  if (action === "close-sticker-image-picker") {
+    state.stickerImagePickerOpen = false;
+    render();
+    return;
+  }
+  if (action === "choose-sticker-image") {
+    openCustomStickerPicker();
+    return;
+  }
   if (action === "open-custom-sticker-picker") {
     state.activePanel = "";
     state.stickerSheetState = "collapsed";
@@ -3401,6 +3482,7 @@ document.addEventListener("click", async (event) => {
       content: actionTarget.dataset.stickerContent || "✨",
       color: actionTarget.dataset.stickerColor || "#222222",
       imageDataUrl: customSticker?.imageDataUrl || "",
+      src: customSticker?.src || customSticker?.imageDataUrl || "",
       aspectRatio: customSticker?.aspectRatio || 1
     });
     return;
@@ -3452,6 +3534,7 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "close-panel") {
     state.activePanel = "";
+    state.stickerImagePickerOpen = false;
     stickerSheetDrag.ignoreNextToggle = false;
     render();
     return;
