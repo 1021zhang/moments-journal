@@ -286,7 +286,7 @@ function currentUndoSnapshot() {
 function measureTextLayout(content, fontSize = 34) {
   const lines = String(content || "文字").split("\n");
   const longestLine = lines.reduce((longest, line) => Math.max(longest, Array.from(line || " ").length), 1);
-  const width = clamp(Math.ceil(longestLine * fontSize * 0.62), 44, 300);
+  const width = Math.max(44, Math.ceil(longestLine * fontSize * 0.62));
   const height = Math.ceil(lines.length * fontSize * 1.18);
   return { width, height };
 }
@@ -318,8 +318,12 @@ function defaultTextElement(dateKey, content = "文字") {
 function positionTextElement(element, point) {
   if (!point) return element;
 
-  element.x = clamp(Math.round(point.x - element.width / 2), 0, canvasWidth - element.width);
-  element.y = clamp(Math.round(point.y - element.height / 2), 0, canvasHeight - element.height);
+  const minX = -element.width * 0.5;
+  const maxX = canvasWidth - element.width * 0.5;
+  const minY = -element.height * 0.5;
+  const maxY = canvasHeight - element.height * 0.5;
+  element.x = clamp(Math.round(point.x - element.width / 2), minX, maxX);
+  element.y = clamp(Math.round(point.y - element.height / 2), minY, maxY);
   return element;
 }
 
@@ -2685,6 +2689,13 @@ function itemAspectRatio(item, itemType) {
   return item.width / item.height || 1;
 }
 
+function syncTextLayoutSize(element) {
+  if (!element || element.type !== "text") return;
+  const size = measureTextLayout(element.content, element.fontSize || 34);
+  element.width = size.width;
+  element.height = size.height;
+}
+
 async function persistInteractiveLayout(itemId, itemType) {
   if (itemType === "photo") {
     const photo = getUserPhoto(itemId);
@@ -2735,6 +2746,27 @@ function scaleBoundsForItem(itemType) {
     : { min: minItemScale, max: maxItemScale };
 }
 
+function freeMoveBoundsForLayout(layout, itemType, dimensions = surfaceDimensions("day")) {
+  const width = Math.max(1, (layout?.width || 1) * (layout?.scale || 1));
+  const height = Math.max(1, (layout?.height || 1) * (layout?.scale || 1));
+
+  if (itemType === "text" || itemType === "sticker" || itemType === "emoji") {
+    return {
+      minX: -width * 0.5,
+      maxX: dimensions.width - width * 0.5,
+      minY: -height * 0.5,
+      maxY: dimensions.height - height * 0.5
+    };
+  }
+
+  return {
+    minX: -40,
+    maxX: dimensions.width - 40,
+    minY: -40,
+    maxY: dimensions.height - 40
+  };
+}
+
 function applyInteractiveStyle(element, layout, itemType) {
   if (!element || !layout) return;
 
@@ -2747,9 +2779,11 @@ function applyInteractiveStyle(element, layout, itemType) {
   element.style.setProperty("--rotation", `${layout.rotation || 0}deg`);
   element.style.setProperty("--scale", layout.scale || 1);
 
-  if (itemType !== "text") {
-    element.style.width = `${layout.width}px`;
-    element.style.height = `${layout.height}px`;
+  element.style.width = itemType === "text" ? "max-content" : `${layout.width}px`;
+  element.style.height = itemType === "text" ? "auto" : `${layout.height}px`;
+  if (itemType === "text") {
+    element.style.maxWidth = "none";
+    element.style.minWidth = `${layout.width}px`;
   }
 
   if (layout.fontSize) element.style.setProperty("--font-size", `${layout.fontSize}px`);
@@ -3090,6 +3124,7 @@ function startPinchGesture(event, itemId, itemType) {
 function startItemGesture(event, mode, itemId, itemType = "photo") {
   const layout = getInteractiveLayout(itemId, itemType);
   if (!layout) return;
+  if (itemType === "text") syncTextLayoutSize(layout);
 
   event.preventDefault();
   const gestureElement = event.target.closest(".canvas-item");
@@ -3173,8 +3208,9 @@ function updateGesture(event) {
     const angleDelta = normalizeAngleDelta((angle - gesture.startPinchAngle) * 180 / Math.PI);
     layout.scale = clamp(gesture.startScale * scaleRatio, scaleBounds.min, scaleBounds.max);
     layout.rotation = Math.round((gesture.startRotation + angleDelta) * 10) / 10;
-    layout.x = clamp(gesture.startX + center.x - gesture.startPinchCenterX, -40, canvasWidth - 40);
-    layout.y = clamp(gesture.startY + center.y - gesture.startPinchCenterY, -40, canvasHeight - 40);
+    const freeBounds = freeMoveBoundsForLayout(layout, gesture.itemType, surfaceDimensions(gesture.surface));
+    layout.x = clamp(gesture.startX + center.x - gesture.startPinchCenterX, freeBounds.minX, freeBounds.maxX);
+    layout.y = clamp(gesture.startY + center.y - gesture.startPinchCenterY, freeBounds.minY, freeBounds.maxY);
     applyInteractiveStyle(element, layout, gesture.itemType);
     return;
   }
@@ -3184,8 +3220,9 @@ function updateGesture(event) {
   const dimensions = surfaceDimensions(gesture.surface);
 
   if (gesture.mode === "drag") {
-    layout.x = clamp(gesture.startX + dx, -40, dimensions.width - 40);
-    layout.y = clamp(gesture.startY + dy, -40, dimensions.height - 40);
+    const freeBounds = freeMoveBoundsForLayout(layout, gesture.itemType, dimensions);
+    layout.x = clamp(gesture.startX + dx, freeBounds.minX, freeBounds.maxX);
+    layout.y = clamp(gesture.startY + dy, freeBounds.minY, freeBounds.maxY);
     if (Math.hypot(dx, dy) > 3) {
       gesture.dragging = true;
       element.classList.add("is-dragging");
@@ -3200,8 +3237,9 @@ function updateGesture(event) {
     const base = Math.max(gesture.startWidth, gesture.startHeight, 1);
     const scaleBounds = scaleBoundsForItem(gesture.itemType);
     layout.scale = clamp(gesture.startScale * (1 + projectedDelta / base), scaleBounds.min, scaleBounds.max);
-    layout.x = clamp(layout.x, -40, dimensions.width - 40);
-    layout.y = clamp(layout.y, -40, dimensions.height - 40);
+    const freeBounds = freeMoveBoundsForLayout(layout, gesture.itemType, dimensions);
+    layout.x = clamp(layout.x, freeBounds.minX, freeBounds.maxX);
+    layout.y = clamp(layout.y, freeBounds.minY, freeBounds.maxY);
   }
 
   if (gesture.mode === "rotate") {

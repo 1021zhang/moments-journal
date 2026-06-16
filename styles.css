@@ -1139,6 +1139,8 @@ button {
 
 .canvas-text-element {
   display: inline-block;
+  width: max-content;
+  max-width: none;
   padding: 0;
   border: 0;
   outline: none;
@@ -1152,7 +1154,8 @@ button {
   line-height: 1.15;
   text-align: var(--text-align);
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: normal;
+  word-break: keep-all;
   overflow: visible;
 }
 
