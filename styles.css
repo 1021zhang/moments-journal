@@ -1141,6 +1141,7 @@ button {
   display: inline-block;
   width: max-content;
   max-width: none;
+  min-width: 0;
   padding: 0;
   border: 0;
   outline: none;
@@ -1157,6 +1158,8 @@ button {
   overflow-wrap: normal;
   word-break: keep-all;
   overflow: visible;
+  pointer-events: auto;
+  touch-action: none;
 }
 
 .canvas-sticker {

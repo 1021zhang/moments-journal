@@ -318,10 +318,10 @@ function defaultTextElement(dateKey, content = "文字") {
 function positionTextElement(element, point) {
   if (!point) return element;
 
-  const minX = -element.width * 0.5;
-  const maxX = canvasWidth - element.width * 0.5;
-  const minY = -element.height * 0.5;
-  const maxY = canvasHeight - element.height * 0.5;
+  const minX = -canvasWidth * 0.5;
+  const maxX = canvasWidth * 1.2;
+  const minY = -element.height * 0.8;
+  const maxY = canvasHeight - element.height * 0.2;
   element.x = clamp(Math.round(point.x - element.width / 2), minX, maxX);
   element.y = clamp(Math.round(point.y - element.height / 2), minY, maxY);
   return element;
@@ -2750,7 +2750,16 @@ function freeMoveBoundsForLayout(layout, itemType, dimensions = surfaceDimension
   const width = Math.max(1, (layout?.width || 1) * (layout?.scale || 1));
   const height = Math.max(1, (layout?.height || 1) * (layout?.scale || 1));
 
-  if (itemType === "text" || itemType === "sticker" || itemType === "emoji") {
+  if (itemType === "text") {
+    return {
+      minX: -dimensions.width * 0.5,
+      maxX: dimensions.width * 1.2,
+      minY: -height * 0.8,
+      maxY: dimensions.height - height * 0.2
+    };
+  }
+
+  if (itemType === "sticker" || itemType === "emoji") {
     return {
       minX: -width * 0.5,
       maxX: dimensions.width - width * 0.5,
@@ -2783,7 +2792,7 @@ function applyInteractiveStyle(element, layout, itemType) {
   element.style.height = itemType === "text" ? "auto" : `${layout.height}px`;
   if (itemType === "text") {
     element.style.maxWidth = "none";
-    element.style.minWidth = `${layout.width}px`;
+    element.style.minWidth = "0";
   }
 
   if (layout.fontSize) element.style.setProperty("--font-size", `${layout.fontSize}px`);
