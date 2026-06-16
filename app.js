@@ -24,7 +24,9 @@ const textDefaults = {
   fontSize: 20,
   color: "#111111",
   fontWeight: 700,
-  backgroundStyle: "none"
+  backgroundStyle: "none",
+  fontStyle: "default",
+  outlineStyle: "none"
 };
 const textSizeOptions = [
   { label: "小", value: 16 },
@@ -43,6 +45,17 @@ const textBackgroundOptions = [
   { label: "白底", value: "white" },
   { label: "半透明", value: "glass" },
   { label: "胶囊", value: "pill" }
+];
+const textFontStyleOptions = [
+  { label: "默认", value: "default" },
+  { label: "日记", value: "journal" },
+  { label: "打字机", value: "typewriter" },
+  { label: "标题", value: "headline" }
+];
+const textOutlineOptions = [
+  { label: "无", value: "none" },
+  { label: "黑边", value: "black" },
+  { label: "白边", value: "white" }
 ];
 
 const mockPhotos = [
@@ -82,6 +95,8 @@ const state = {
     color: textDefaults.color,
     fontWeight: textDefaults.fontWeight,
     backgroundStyle: textDefaults.backgroundStyle,
+    fontStyle: textDefaults.fontStyle,
+    outlineStyle: textDefaults.outlineStyle,
     beforeSnapshot: null
   },
   pendingImportDateKey: "",
@@ -316,6 +331,51 @@ function normalizedTextBackgroundStyle(style) {
   return textBackgroundOptions.some((option) => option.value === style) ? style : textDefaults.backgroundStyle;
 }
 
+function normalizedTextFontStyle(style) {
+  return textFontStyleOptions.some((option) => option.value === style) ? style : textDefaults.fontStyle;
+}
+
+function normalizedTextOutlineStyle(style) {
+  return textOutlineOptions.some((option) => option.value === style) ? style : textDefaults.outlineStyle;
+}
+
+function textFontConfig(style) {
+  return {
+    default: {
+      fontFamily: "\"PingFang SC\", \"SF Pro Display\", sans-serif",
+      cssFontStyle: "normal",
+      fontWeight: 700,
+      letterSpacing: "0"
+    },
+    journal: {
+      fontFamily: "Georgia, \"Times New Roman\", serif",
+      cssFontStyle: "italic",
+      fontWeight: 600,
+      letterSpacing: "0"
+    },
+    typewriter: {
+      fontFamily: "Menlo, Courier, monospace",
+      cssFontStyle: "normal",
+      fontWeight: 600,
+      letterSpacing: "0"
+    },
+    headline: {
+      fontFamily: "\"Arial Rounded MT Bold\", \"Avenir Next\", \"PingFang SC\", sans-serif",
+      cssFontStyle: "normal",
+      fontWeight: 900,
+      letterSpacing: "-0.02em"
+    }
+  }[normalizedTextFontStyle(style)];
+}
+
+function applyTextFontConfig(element) {
+  const config = textFontConfig(element.fontStyle);
+  element.fontFamily = config.fontFamily;
+  element.fontWeight = config.fontWeight;
+  element.letterSpacing = config.letterSpacing;
+  return element;
+}
+
 function textBackgroundPadding(style) {
   const backgroundStyle = normalizedTextBackgroundStyle(style);
   if (backgroundStyle === "pill") return { x: 14, y: 7 };
@@ -336,7 +396,7 @@ function defaultTextElement(dateKey, content = "文字") {
   const fontSize = textDefaults.fontSize;
   const backgroundStyle = textDefaults.backgroundStyle;
   const size = measureTextLayout(content, fontSize, backgroundStyle);
-  return {
+  return applyTextFontConfig({
     id: uid("text"),
     type: "text",
     content,
@@ -349,13 +409,14 @@ function defaultTextElement(dateKey, content = "文字") {
     scale: 1,
     zIndex: maxCanvasZIndex(dateKey) + 1,
     fontSize,
-    fontFamily: "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
+    fontStyle: textDefaults.fontStyle,
+    outlineStyle: textDefaults.outlineStyle,
     fontWeight: textDefaults.fontWeight,
     color: textDefaults.color,
     backgroundStyle,
     textAlign: "center",
     letterSpacing: "0"
-  };
+  });
 }
 
 function positionTextElement(element, point) {
@@ -632,8 +693,25 @@ async function ensureLayoutsForCanvasElements() {
         element.backgroundStyle = textDefaults.backgroundStyle;
         changed = true;
       }
+      if (!element.fontStyle) {
+        element.fontStyle = textDefaults.fontStyle;
+        changed = true;
+      }
+      if (!element.outlineStyle) {
+        element.outlineStyle = textDefaults.outlineStyle;
+        changed = true;
+      }
 
-      element.backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
+      const backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
+      const fontStyle = normalizedTextFontStyle(element.fontStyle);
+      const outlineStyle = normalizedTextOutlineStyle(element.outlineStyle);
+      if (element.backgroundStyle !== backgroundStyle) changed = true;
+      if (element.fontStyle !== fontStyle) changed = true;
+      if (element.outlineStyle !== outlineStyle) changed = true;
+      element.backgroundStyle = backgroundStyle;
+      element.fontStyle = fontStyle;
+      element.outlineStyle = outlineStyle;
+      applyTextFontConfig(element);
       const size = measureTextLayout(element.content, element.fontSize, element.backgroundStyle);
       if (typeof element.width !== "number" || element.width !== size.width) {
         element.width = size.width;
@@ -954,17 +1032,20 @@ function canvasElement(element) {
 
   if (element.type === "text") {
     const backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
+    const outlineStyle = normalizedTextOutlineStyle(element.outlineStyle);
+    const fontConfig = textFontConfig(element.fontStyle);
     baseStyle.push(
       `--font-size:${element.fontSize}px`,
-      `--font-family:${escapeHtml(element.fontFamily)}`,
-      `--font-weight:${escapeHtml(element.fontWeight)}`,
+      `--font-family:${escapeHtml(fontConfig.fontFamily)}`,
+      `--font-weight:${escapeHtml(fontConfig.fontWeight)}`,
+      `--font-style:${escapeHtml(fontConfig.cssFontStyle)}`,
       `--font-color:${escapeHtml(element.color)}`,
       `--text-align:${escapeHtml(element.textAlign)}`,
-      `--letter-spacing:${escapeHtml(element.letterSpacing || "0")}`
+      `--letter-spacing:${escapeHtml(fontConfig.letterSpacing)}`
     );
 
     return `
-      <div class="canvas-item canvas-text-element ${selected}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" style="${baseStyle.join(";")}">${escapeHtml(element.content)}</div>
+      <div class="canvas-item canvas-text-element ${selected}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}">${escapeHtml(element.content)}</div>
     `;
   }
 
@@ -1108,6 +1189,12 @@ function textEditorPanel() {
   const value = state.textComposer.editingId === element.id ? state.textComposer.value : element.content;
   const fontSize = Number(state.textComposer.editingId === element.id ? state.textComposer.fontSize : element.fontSize) || textDefaults.fontSize;
   const color = state.textComposer.editingId === element.id ? state.textComposer.color : element.color || textDefaults.color;
+  const fontStyle = normalizedTextFontStyle(
+    state.textComposer.editingId === element.id ? state.textComposer.fontStyle : element.fontStyle
+  );
+  const outlineStyle = normalizedTextOutlineStyle(
+    state.textComposer.editingId === element.id ? state.textComposer.outlineStyle : element.outlineStyle
+  );
   const backgroundStyle = normalizedTextBackgroundStyle(
     state.textComposer.editingId === element.id ? state.textComposer.backgroundStyle : element.backgroundStyle
   );
@@ -1135,6 +1222,14 @@ function textEditorPanel() {
           </div>
         </div>
         <div class="text-editor-row">
+          <span>字体</span>
+          <div class="text-segmented-control text-font-control">
+            ${textFontStyleOptions.map((option) => `
+              <button class="${fontStyle === option.value ? "is-active" : ""}" type="button" data-action="text-font-style" data-font-style="${option.value}">${option.label}</button>
+            `).join("")}
+          </div>
+        </div>
+        <div class="text-editor-row">
           <span>颜色</span>
           <div class="text-color-control">
             ${textColorOptions.map((option) => `
@@ -1148,6 +1243,14 @@ function textEditorPanel() {
               >
                 <i style="--swatch-color:${option.value}"></i>
               </button>
+            `).join("")}
+          </div>
+        </div>
+        <div class="text-editor-row">
+          <span>描边</span>
+          <div class="text-segmented-control text-outline-control">
+            ${textOutlineOptions.map((option) => `
+              <button class="${outlineStyle === option.value ? "is-active" : ""}" type="button" data-action="text-outline" data-outline-style="${option.value}">${option.label}</button>
             `).join("")}
           </div>
         </div>
@@ -2286,6 +2389,8 @@ function textComposerDefaults() {
     color: textDefaults.color,
     fontWeight: textDefaults.fontWeight,
     backgroundStyle: textDefaults.backgroundStyle,
+    fontStyle: textDefaults.fontStyle,
+    outlineStyle: textDefaults.outlineStyle,
     beforeSnapshot: null
   };
 }
@@ -2299,10 +2404,11 @@ function ensureTextElementStyle(element) {
   if (typeof element.fontSize !== "number") element.fontSize = textDefaults.fontSize;
   if (!element.color) element.color = textDefaults.color;
   if (!element.fontWeight) element.fontWeight = textDefaults.fontWeight;
+  element.fontStyle = normalizedTextFontStyle(element.fontStyle);
+  element.outlineStyle = normalizedTextOutlineStyle(element.outlineStyle);
   element.backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
-  if (!element.fontFamily) element.fontFamily = "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif";
+  applyTextFontConfig(element);
   if (!element.textAlign) element.textAlign = "center";
-  if (!element.letterSpacing) element.letterSpacing = "0";
   return element;
 }
 
@@ -2319,6 +2425,8 @@ function beginTextEditorSession(element, options = {}) {
     color: element.color,
     fontWeight: element.fontWeight,
     backgroundStyle: element.backgroundStyle,
+    fontStyle: element.fontStyle,
+    outlineStyle: element.outlineStyle,
     beforeSnapshot: previousSnapshot || options.beforeSnapshot || currentUndoSnapshot()
   };
 }
@@ -2644,15 +2752,31 @@ async function drawTransformedItem(context, item, itemType, offsetY, draw) {
   context.restore();
 }
 
-function drawTextLines(context, text, width, fontSize, textAlign = "center") {
+function outlineColorForStyle(outlineStyle) {
+  const style = normalizedTextOutlineStyle(outlineStyle);
+  if (style === "black") return "#000000";
+  if (style === "white") return "#ffffff";
+  return "";
+}
+
+function drawTextLines(context, text, width, fontSize, textAlign = "center", outlineStyle = "none") {
   const lines = String(text || "").split("\n");
   const lineHeight = fontSize * 1.15;
+  const outlineColor = outlineColorForStyle(outlineStyle);
   context.textAlign = textAlign;
   context.textBaseline = "middle";
+  if (outlineColor) {
+    context.lineJoin = "round";
+    context.miterLimit = 2;
+    context.lineWidth = 2;
+    context.strokeStyle = outlineColor;
+  }
   const x = textAlign === "left" ? -width / 2 : textAlign === "right" ? width / 2 : 0;
   const startY = -((lines.length - 1) * lineHeight) / 2;
   lines.forEach((line, index) => {
-    context.fillText(line, x, startY + index * lineHeight);
+    const y = startY + index * lineHeight;
+    if (outlineColor) context.strokeText(line, x, y);
+    context.fillText(line, x, y);
   });
 }
 
@@ -2733,12 +2857,14 @@ async function dayCanvasBlob(day) {
     } else if (item.itemType === "text") {
       const fontSize = item.fontSize || textDefaults.fontSize;
       const backgroundStyle = normalizedTextBackgroundStyle(item.backgroundStyle);
+      const outlineStyle = normalizedTextOutlineStyle(item.outlineStyle);
+      const fontConfig = textFontConfig(item.fontStyle);
       await drawTransformedItem(context, item, "text", headerHeight, async (itemWidth, itemHeight) => {
         const padding = textBackgroundPadding(backgroundStyle);
         drawTextBackground(context, backgroundStyle, itemWidth, itemHeight);
         context.fillStyle = item.color || textDefaults.color;
-        context.font = `${item.fontWeight || textDefaults.fontWeight} ${fontSize}px ${item.fontFamily || "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif"}`;
-        drawTextLines(context, item.content, Math.max(1, itemWidth - padding.x * 2), fontSize, item.textAlign || "center");
+        context.font = `${fontConfig.cssFontStyle} ${fontConfig.fontWeight} ${fontSize}px ${fontConfig.fontFamily}`;
+        drawTextLines(context, item.content, Math.max(1, itemWidth - padding.x * 2), fontSize, item.textAlign || "center", outlineStyle);
       });
     } else if (item.stickerType === "image" && item.imageDataUrl) {
       const image = await loadImage(item.imageDataUrl);
@@ -2837,14 +2963,17 @@ function applyTextElementDom(element) {
   const node = elementForItem(element.id, "text");
   if (!node) return;
 
+  const fontConfig = textFontConfig(element.fontStyle);
   node.textContent = element.content || "";
   node.dataset.backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
+  node.dataset.outlineStyle = normalizedTextOutlineStyle(element.outlineStyle);
   node.style.setProperty("--font-size", `${element.fontSize}px`);
-  node.style.setProperty("--font-family", element.fontFamily);
-  node.style.setProperty("--font-weight", element.fontWeight);
+  node.style.setProperty("--font-family", fontConfig.fontFamily);
+  node.style.setProperty("--font-weight", fontConfig.fontWeight);
+  node.style.setProperty("--font-style", fontConfig.cssFontStyle);
   node.style.setProperty("--font-color", element.color);
   node.style.setProperty("--text-align", element.textAlign);
-  node.style.setProperty("--letter-spacing", element.letterSpacing || "0");
+  node.style.setProperty("--letter-spacing", fontConfig.letterSpacing);
 }
 
 async function applyTextComposerPatch(patch, options = {}) {
@@ -2860,8 +2989,10 @@ async function applyTextComposerPatch(patch, options = {}) {
   element.content = state.textComposer.value;
   element.fontSize = Number(state.textComposer.fontSize) || textDefaults.fontSize;
   element.color = state.textComposer.color || textDefaults.color;
-  element.fontWeight = state.textComposer.fontWeight || textDefaults.fontWeight;
+  element.fontStyle = normalizedTextFontStyle(state.textComposer.fontStyle);
+  element.outlineStyle = normalizedTextOutlineStyle(state.textComposer.outlineStyle);
   element.backgroundStyle = normalizedTextBackgroundStyle(state.textComposer.backgroundStyle);
+  applyTextFontConfig(element);
   syncTextLayoutSize(element);
   applyTextElementDom(element);
   await saveCanvasElement(element);
@@ -2872,24 +3003,16 @@ async function applyTextComposerPatch(patch, options = {}) {
 function textStyle(styleId) {
   return {
     classic: {
-      fontFamily: "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
-      fontWeight: "600",
-      letterSpacing: "0"
+      fontStyle: "default"
     },
     signature: {
-      fontFamily: "Brush Script MT, cursive",
-      fontWeight: "400",
-      letterSpacing: "0"
+      fontStyle: "journal"
     },
     editor: {
-      fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-      fontWeight: "500",
-      letterSpacing: "0.02em"
+      fontStyle: "typewriter"
     },
     poster: {
-      fontFamily: "Georgia, serif",
-      fontWeight: "700",
-      letterSpacing: "0"
+      fontStyle: "headline"
     }
   }[styleId];
 }
@@ -3016,9 +3139,14 @@ function applyInteractiveStyle(element, layout, itemType) {
 
   if (layout.fontSize) element.style.setProperty("--font-size", `${layout.fontSize}px`);
   if (itemType === "text") {
-    element.style.setProperty("--font-weight", layout.fontWeight || textDefaults.fontWeight);
+    const fontConfig = textFontConfig(layout.fontStyle);
+    element.style.setProperty("--font-family", fontConfig.fontFamily);
+    element.style.setProperty("--font-weight", fontConfig.fontWeight);
+    element.style.setProperty("--font-style", fontConfig.cssFontStyle);
     element.style.setProperty("--font-color", layout.color || textDefaults.color);
+    element.style.setProperty("--letter-spacing", fontConfig.letterSpacing);
     element.dataset.backgroundStyle = normalizedTextBackgroundStyle(layout.backgroundStyle);
+    element.dataset.outlineStyle = normalizedTextOutlineStyle(layout.outlineStyle);
   }
 }
 
@@ -3861,6 +3989,11 @@ document.addEventListener("click", async (event) => {
     }
     return;
   }
+  if (action === "text-font-style") {
+    const fontStyle = normalizedTextFontStyle(actionTarget.dataset.fontStyle);
+    await applyTextComposerPatch({ fontStyle }, { renderControls: true });
+    return;
+  }
   if (action === "text-style") {
     const style = textStyle(actionTarget.dataset.style);
     if (style) updateSelectedTextElement((element) => Object.assign(element, style));
@@ -3876,6 +4009,11 @@ document.addEventListener("click", async (event) => {
   if (action === "text-background") {
     const backgroundStyle = normalizedTextBackgroundStyle(actionTarget.dataset.backgroundStyle);
     await applyTextComposerPatch({ backgroundStyle }, { renderControls: true });
+    return;
+  }
+  if (action === "text-outline") {
+    const outlineStyle = normalizedTextOutlineStyle(actionTarget.dataset.outlineStyle);
+    await applyTextComposerPatch({ outlineStyle }, { renderControls: true });
     return;
   }
   if (action === "text-align") {

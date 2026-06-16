@@ -1151,6 +1151,7 @@ button {
   color: var(--font-color);
   font-family: var(--font-family);
   font-size: var(--font-size);
+  font-style: var(--font-style);
   font-weight: var(--font-weight);
   letter-spacing: var(--letter-spacing);
   line-height: 1.15;
@@ -1161,6 +1162,22 @@ button {
   overflow: visible;
   pointer-events: auto;
   touch-action: none;
+}
+
+.canvas-text-element[data-outline-style="black"] {
+  text-shadow:
+    -1px -1px 0 #000000,
+    1px -1px 0 #000000,
+    -1px 1px 0 #000000,
+    1px 1px 0 #000000;
+}
+
+.canvas-text-element[data-outline-style="white"] {
+  text-shadow:
+    -1px -1px 0 #ffffff,
+    1px -1px 0 #ffffff,
+    -1px 1px 0 #ffffff,
+    1px 1px 0 #ffffff;
 }
 
 .canvas-text-element[data-background-style="white"] {
