@@ -1142,6 +1142,7 @@ button {
   width: max-content;
   max-width: none;
   min-width: 0;
+  transform-origin: top left;
   padding: 0;
   border: 0;
   outline: none;

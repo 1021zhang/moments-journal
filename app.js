@@ -1984,10 +1984,6 @@ async function addClipboardTextElement(text) {
   await saveCanvasElement(element);
   selectItem("text", element.id);
   render();
-  await new Promise((resolve) => requestAnimationFrame(resolve));
-  if (clampElementToSafeBounds(element.id, "text")) {
-    await saveCanvasElement(element);
-  }
   commitUndoSnapshot(undoBefore);
   render();
   return true;
@@ -2752,10 +2748,10 @@ function freeMoveBoundsForLayout(layout, itemType, dimensions = surfaceDimension
 
   if (itemType === "text") {
     return {
-      minX: -dimensions.width * 0.5,
-      maxX: dimensions.width * 1.2,
-      minY: -height * 0.8,
-      maxY: dimensions.height - height * 0.2
+      minX: -dimensions.width,
+      maxX: dimensions.width * 2,
+      minY: -200,
+      maxY: dimensions.height + 200
     };
   }
 
@@ -3318,7 +3314,7 @@ async function endGesture(event) {
   }
 
   if (itemId) {
-    clampElementToSafeBounds(itemId, itemType);
+    if (itemType !== "text") clampElementToSafeBounds(itemId, itemType);
     applyInteractiveStyle(elementForItem(itemId, itemType), getInteractiveLayout(itemId, itemType), itemType);
     await persistInteractiveLayout(itemId, itemType);
     commitUndoSnapshot(beforeSnapshot);
