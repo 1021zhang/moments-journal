@@ -1154,7 +1154,7 @@ button {
   font-style: var(--font-style);
   font-weight: var(--font-weight);
   letter-spacing: var(--letter-spacing);
-  line-height: 1.15;
+  line-height: var(--line-height, 1.15);
   text-align: var(--text-align);
   white-space: pre-wrap;
   overflow-wrap: normal;
@@ -1925,6 +1925,59 @@ button {
 
 .sticker-image-picker-item.is-managing .sticker-image-picker-delete {
   display: grid;
+}
+
+.text-size-slider {
+  position: fixed;
+  left: max(14px, env(safe-area-inset-left));
+  top: 46%;
+  z-index: 1500;
+  width: 34px;
+  height: min(210px, calc(100dvh - 310px));
+  min-height: 144px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.text-size-slider-track {
+  position: relative;
+  width: 6px;
+  height: 100%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.42);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.38),
+    0 8px 22px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.text-size-slider-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: calc(var(--slider-progress) * 100%);
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.text-size-slider-thumb {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--slider-progress) * 100%);
+  width: 21px;
+  height: 21px;
+  border: 2px solid rgba(255, 255, 255, 0.96);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  transform: translate(-50%, 50%);
 }
 
 .text-editor-panel {

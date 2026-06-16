@@ -20,6 +20,8 @@ const pageTransitionMs = 260;
 const backupSchemaVersion = 1;
 const appVersion = "1.0.0";
 const undoLimit = 50;
+const minTextFontSize = 12;
+const maxTextFontSize = 48;
 const textDefaults = {
   fontSize: 20,
   color: "#111111",
@@ -30,8 +32,8 @@ const textDefaults = {
 };
 const textSizeOptions = [
   { label: "小", value: 16 },
-  { label: "中", value: 20 },
-  { label: "大", value: 26 }
+  { label: "中", value: 22 },
+  { label: "大", value: 32 }
 ];
 const textColorOptions = [
   { label: "黑", value: "#111111" },
@@ -48,7 +50,7 @@ const textBackgroundOptions = [
 ];
 const textFontStyleOptions = [
   { label: "默认", value: "default" },
-  { label: "日记", value: "journal" },
+  { label: "柔和", value: "soft" },
   { label: "打字机", value: "typewriter" },
   { label: "标题", value: "headline" }
 ];
@@ -163,6 +165,10 @@ const customStickerPress = {
   pointerId: null,
   startX: 0,
   startY: 0
+};
+const textSizeSliderGesture = {
+  active: false,
+  pointerId: null
 };
 function loadNotes() {
   try {
@@ -332,7 +338,8 @@ function normalizedTextBackgroundStyle(style) {
 }
 
 function normalizedTextFontStyle(style) {
-  return textFontStyleOptions.some((option) => option.value === style) ? style : textDefaults.fontStyle;
+  const nextStyle = style === "journal" ? "soft" : style;
+  return textFontStyleOptions.some((option) => option.value === nextStyle) ? nextStyle : textDefaults.fontStyle;
 }
 
 function normalizedTextOutlineStyle(style) {
@@ -342,28 +349,32 @@ function normalizedTextOutlineStyle(style) {
 function textFontConfig(style) {
   return {
     default: {
-      fontFamily: "\"PingFang SC\", \"SF Pro Display\", sans-serif",
+      fontFamily: "\"PingFang SC\", system-ui, sans-serif",
       cssFontStyle: "normal",
       fontWeight: 700,
-      letterSpacing: "0"
+      letterSpacing: "0",
+      lineHeight: 1.15
     },
-    journal: {
-      fontFamily: "Georgia, \"Times New Roman\", serif",
+    soft: {
+      fontFamily: "Georgia, \"KaiTi\", \"STKaiti\", \"Songti SC\", \"PingFang SC\", serif",
       cssFontStyle: "italic",
-      fontWeight: 600,
-      letterSpacing: "0"
+      fontWeight: 500,
+      letterSpacing: "0.02em",
+      lineHeight: 1.22
     },
     typewriter: {
-      fontFamily: "Menlo, Courier, monospace",
+      fontFamily: "Menlo, \"Courier New\", \"PingFang SC\", monospace",
       cssFontStyle: "normal",
       fontWeight: 600,
-      letterSpacing: "0"
+      letterSpacing: "0.04em",
+      lineHeight: 1.18
     },
     headline: {
-      fontFamily: "\"Arial Rounded MT Bold\", \"Avenir Next\", \"PingFang SC\", sans-serif",
+      fontFamily: "\"PingFang SC\", \"Heiti SC\", \"Arial Black\", sans-serif",
       cssFontStyle: "normal",
       fontWeight: 900,
-      letterSpacing: "-0.02em"
+      letterSpacing: "-0.01em",
+      lineHeight: 1.08
     }
   }[normalizedTextFontStyle(style)];
 }
@@ -373,6 +384,7 @@ function applyTextFontConfig(element) {
   element.fontFamily = config.fontFamily;
   element.fontWeight = config.fontWeight;
   element.letterSpacing = config.letterSpacing;
+  element.lineHeight = config.lineHeight;
   return element;
 }
 
@@ -383,19 +395,25 @@ function textBackgroundPadding(style) {
   return { x: 0, y: 0 };
 }
 
-function measureTextLayout(content, fontSize = textDefaults.fontSize, backgroundStyle = textDefaults.backgroundStyle) {
+function measureTextLayout(
+  content,
+  fontSize = textDefaults.fontSize,
+  backgroundStyle = textDefaults.backgroundStyle,
+  fontStyle = textDefaults.fontStyle
+) {
   const lines = String(content || "文字").split("\n");
   const longestLine = lines.reduce((longest, line) => Math.max(longest, Array.from(line || " ").length), 1);
   const padding = textBackgroundPadding(backgroundStyle);
+  const { lineHeight } = textFontConfig(fontStyle);
   const width = Math.max(44, Math.ceil(longestLine * fontSize * 0.62)) + padding.x * 2;
-  const height = Math.ceil(lines.length * fontSize * 1.18) + padding.y * 2;
+  const height = Math.ceil(lines.length * fontSize * lineHeight) + padding.y * 2;
   return { width, height };
 }
 
 function defaultTextElement(dateKey, content = "文字") {
   const fontSize = textDefaults.fontSize;
   const backgroundStyle = textDefaults.backgroundStyle;
-  const size = measureTextLayout(content, fontSize, backgroundStyle);
+  const size = measureTextLayout(content, fontSize, backgroundStyle, textDefaults.fontStyle);
   return applyTextFontConfig({
     id: uid("text"),
     type: "text",
@@ -712,7 +730,7 @@ async function ensureLayoutsForCanvasElements() {
       element.fontStyle = fontStyle;
       element.outlineStyle = outlineStyle;
       applyTextFontConfig(element);
-      const size = measureTextLayout(element.content, element.fontSize, element.backgroundStyle);
+      const size = measureTextLayout(element.content, element.fontSize, element.backgroundStyle, element.fontStyle);
       if (typeof element.width !== "number" || element.width !== size.width) {
         element.width = size.width;
         changed = true;
@@ -1041,7 +1059,8 @@ function canvasElement(element) {
       `--font-style:${escapeHtml(fontConfig.cssFontStyle)}`,
       `--font-color:${escapeHtml(element.color)}`,
       `--text-align:${escapeHtml(element.textAlign)}`,
-      `--letter-spacing:${escapeHtml(fontConfig.letterSpacing)}`
+      `--letter-spacing:${escapeHtml(fontConfig.letterSpacing)}`,
+      `--line-height:${fontConfig.lineHeight}`
     );
 
     return `
@@ -1222,7 +1241,7 @@ function textEditorPanel() {
           </div>
         </div>
         <div class="text-editor-row">
-          <span>字体</span>
+          <span>风格</span>
           <div class="text-segmented-control text-font-control">
             ${textFontStyleOptions.map((option) => `
               <button class="${fontStyle === option.value ? "is-active" : ""}" type="button" data-action="text-font-style" data-font-style="${option.value}">${option.label}</button>
@@ -1264,6 +1283,36 @@ function textEditorPanel() {
         </div>
       </div>
     </section>
+  `;
+}
+
+function textSizeSlider() {
+  const element = selectedTextElement();
+  if (!element || state.activePanel !== "text") return "";
+
+  const fontSize = clamp(
+    Number(state.textComposer.editingId === element.id ? state.textComposer.fontSize : element.fontSize) || textDefaults.fontSize,
+    minTextFontSize,
+    maxTextFontSize
+  );
+  const progress = (fontSize - minTextFontSize) / (maxTextFontSize - minTextFontSize);
+
+  return `
+    <div
+      class="text-size-slider"
+      data-text-size-slider
+      style="--slider-progress:${progress}"
+      role="slider"
+      aria-label="字号"
+      aria-valuemin="${minTextFontSize}"
+      aria-valuemax="${maxTextFontSize}"
+      aria-valuenow="${fontSize}"
+    >
+      <div class="text-size-slider-track" data-text-size-slider-track>
+        <span class="text-size-slider-fill" aria-hidden="true"></span>
+        <span class="text-size-slider-thumb" aria-hidden="true"></span>
+      </div>
+    </div>
   `;
 }
 
@@ -1338,6 +1387,7 @@ function renderSingleDay() {
       </div>
       ${stickerSheet()}
       ${stickerImagePicker()}
+      ${textSizeSlider()}
       ${textEditorPanel()}
       ${toastMarkup()}
     </main>
@@ -2740,7 +2790,8 @@ async function drawTransformedItem(context, item, itemType, offsetY, draw) {
   const textLayout = measureTextLayout(
     item.content,
     item.fontSize || textDefaults.fontSize,
-    item.backgroundStyle || textDefaults.backgroundStyle
+    item.backgroundStyle || textDefaults.backgroundStyle,
+    item.fontStyle || textDefaults.fontStyle
   );
   const width = item.width || textLayout.width;
   const height = item.height || textLayout.height;
@@ -2759,9 +2810,9 @@ function outlineColorForStyle(outlineStyle) {
   return "";
 }
 
-function drawTextLines(context, text, width, fontSize, textAlign = "center", outlineStyle = "none") {
+function drawTextLines(context, text, width, fontSize, textAlign = "center", outlineStyle = "none", lineHeightRatio = 1.15) {
   const lines = String(text || "").split("\n");
-  const lineHeight = fontSize * 1.15;
+  const lineHeight = fontSize * lineHeightRatio;
   const outlineColor = outlineColorForStyle(outlineStyle);
   context.textAlign = textAlign;
   context.textBaseline = "middle";
@@ -2864,7 +2915,15 @@ async function dayCanvasBlob(day) {
         drawTextBackground(context, backgroundStyle, itemWidth, itemHeight);
         context.fillStyle = item.color || textDefaults.color;
         context.font = `${fontConfig.cssFontStyle} ${fontConfig.fontWeight} ${fontSize}px ${fontConfig.fontFamily}`;
-        drawTextLines(context, item.content, Math.max(1, itemWidth - padding.x * 2), fontSize, item.textAlign || "center", outlineStyle);
+        drawTextLines(
+          context,
+          item.content,
+          Math.max(1, itemWidth - padding.x * 2),
+          fontSize,
+          item.textAlign || "center",
+          outlineStyle,
+          fontConfig.lineHeight
+        );
       });
     } else if (item.stickerType === "image" && item.imageDataUrl) {
       const image = await loadImage(item.imageDataUrl);
@@ -2974,6 +3033,7 @@ function applyTextElementDom(element) {
   node.style.setProperty("--font-color", element.color);
   node.style.setProperty("--text-align", element.textAlign);
   node.style.setProperty("--letter-spacing", fontConfig.letterSpacing);
+  node.style.setProperty("--line-height", fontConfig.lineHeight);
 }
 
 async function applyTextComposerPatch(patch, options = {}) {
@@ -2987,7 +3047,8 @@ async function applyTextComposerPatch(patch, options = {}) {
 
   Object.assign(state.textComposer, patch);
   element.content = state.textComposer.value;
-  element.fontSize = Number(state.textComposer.fontSize) || textDefaults.fontSize;
+  element.fontSize = clamp(Number(state.textComposer.fontSize) || textDefaults.fontSize, minTextFontSize, maxTextFontSize);
+  state.textComposer.fontSize = element.fontSize;
   element.color = state.textComposer.color || textDefaults.color;
   element.fontStyle = normalizedTextFontStyle(state.textComposer.fontStyle);
   element.outlineStyle = normalizedTextOutlineStyle(state.textComposer.outlineStyle);
@@ -3006,7 +3067,7 @@ function textStyle(styleId) {
       fontStyle: "default"
     },
     signature: {
-      fontStyle: "journal"
+      fontStyle: "soft"
     },
     editor: {
       fontStyle: "typewriter"
@@ -3033,7 +3094,12 @@ function itemAspectRatio(item, itemType) {
 function syncTextLayoutSize(element) {
   if (!element || element.type !== "text") return;
   ensureTextElementStyle(element);
-  const size = measureTextLayout(element.content, element.fontSize || textDefaults.fontSize, element.backgroundStyle);
+  const size = measureTextLayout(
+    element.content,
+    element.fontSize || textDefaults.fontSize,
+    element.backgroundStyle,
+    element.fontStyle
+  );
   element.width = size.width;
   element.height = size.height;
 }
@@ -3145,6 +3211,7 @@ function applyInteractiveStyle(element, layout, itemType) {
     element.style.setProperty("--font-style", fontConfig.cssFontStyle);
     element.style.setProperty("--font-color", layout.color || textDefaults.color);
     element.style.setProperty("--letter-spacing", fontConfig.letterSpacing);
+    element.style.setProperty("--line-height", fontConfig.lineHeight);
     element.dataset.backgroundStyle = normalizedTextBackgroundStyle(layout.backgroundStyle);
     element.dataset.outlineStyle = normalizedTextOutlineStyle(layout.outlineStyle);
   }
@@ -3722,11 +3789,76 @@ function moveCustomStickerPress(event) {
   if (Math.hypot(dx, dy) > 10) clearCustomStickerPress();
 }
 
+function textSizeFromSliderEvent(event, slider) {
+  const track = slider?.querySelector("[data-text-size-slider-track]");
+  const rect = track?.getBoundingClientRect();
+  if (!rect?.height) return null;
+
+  const progress = clamp((rect.bottom - event.clientY) / rect.height, 0, 1);
+  return Math.round(minTextFontSize + progress * (maxTextFontSize - minTextFontSize));
+}
+
+function syncTextSizeSliderDom(fontSize) {
+  const slider = document.querySelector("[data-text-size-slider]");
+  if (!slider) return;
+
+  const size = clamp(Number(fontSize) || textDefaults.fontSize, minTextFontSize, maxTextFontSize);
+  const progress = (size - minTextFontSize) / (maxTextFontSize - minTextFontSize);
+  slider.style.setProperty("--slider-progress", progress);
+  slider.setAttribute("aria-valuenow", String(size));
+}
+
+function updateTextSizeFromSlider(event) {
+  const slider = document.querySelector("[data-text-size-slider]");
+  const fontSize = textSizeFromSliderEvent(event, slider);
+  if (!fontSize) return;
+
+  syncTextSizeSliderDom(fontSize);
+  applyTextComposerPatch({ fontSize });
+}
+
+function startTextSizeSlider(event) {
+  const slider = event.target.closest("[data-text-size-slider]");
+  if (!slider) return false;
+
+  event.preventDefault();
+  event.stopPropagation();
+  textSizeSliderGesture.active = true;
+  textSizeSliderGesture.pointerId = event.pointerId;
+  slider.setPointerCapture?.(event.pointerId);
+  updateTextSizeFromSlider(event);
+  return true;
+}
+
+function moveTextSizeSlider(event) {
+  if (!textSizeSliderGesture.active || event.pointerId !== textSizeSliderGesture.pointerId) return;
+  event.preventDefault();
+  updateTextSizeFromSlider(event);
+}
+
+function endTextSizeSlider(event) {
+  if (!textSizeSliderGesture.active || event.pointerId !== textSizeSliderGesture.pointerId) return;
+
+  const slider = document.querySelector("[data-text-size-slider]");
+  if (slider?.hasPointerCapture?.(event.pointerId)) {
+    try {
+      slider.releasePointerCapture(event.pointerId);
+    } catch {
+      // Ignore release errors from browsers that already dropped capture.
+    }
+  }
+
+  textSizeSliderGesture.active = false;
+  textSizeSliderGesture.pointerId = null;
+}
+
 document.addEventListener("pointerdown", (event) => {
   if (isPageTransitioning) return;
   if (stopDaybookNavPointerEvent(event)) return;
   if (startDayPress(event)) return;
   startCustomStickerPress(event);
+
+  if (startTextSizeSlider(event)) return;
 
   if (event.target.closest("[data-sticker-sheet-handle]")) {
     startStickerSheetDrag(event);
@@ -3801,6 +3933,9 @@ window.addEventListener("pointercancel", cancelDayPress);
 window.addEventListener("pointermove", moveCustomStickerPress);
 window.addEventListener("pointerup", clearCustomStickerPress);
 window.addEventListener("pointercancel", clearCustomStickerPress);
+window.addEventListener("pointermove", moveTextSizeSlider, { passive: false });
+window.addEventListener("pointerup", endTextSizeSlider);
+window.addEventListener("pointercancel", endTextSizeSlider);
 window.addEventListener("pointerleave", cancelDayPress);
 window.addEventListener("resize", scheduleCanvasSafetyRepair);
 document.addEventListener("gesturestart", preventViewportGesture, { passive: false });
