@@ -20,6 +20,30 @@ const pageTransitionMs = 260;
 const backupSchemaVersion = 1;
 const appVersion = "1.0.0";
 const undoLimit = 50;
+const textDefaults = {
+  fontSize: 20,
+  color: "#111111",
+  fontWeight: 700,
+  backgroundStyle: "none"
+};
+const textSizeOptions = [
+  { label: "小", value: 16 },
+  { label: "中", value: 20 },
+  { label: "大", value: 26 }
+];
+const textColorOptions = [
+  { label: "黑", value: "#111111" },
+  { label: "白", value: "#ffffff" },
+  { label: "灰", value: "#8a8a8a" },
+  { label: "红", value: "#e8504f" },
+  { label: "蓝", value: "#3478f6" }
+];
+const textBackgroundOptions = [
+  { label: "无", value: "none" },
+  { label: "白底", value: "white" },
+  { label: "半透明", value: "glass" },
+  { label: "胶囊", value: "pill" }
+];
 
 const mockPhotos = [
   { id: "mock-cafe", type: "mock", caption: "cafe", src: "https://picsum.photos/seed/moments-cafe/320/320" },
@@ -53,7 +77,12 @@ const state = {
   textComposer: {
     active: false,
     editingId: "",
-    value: ""
+    value: "",
+    fontSize: textDefaults.fontSize,
+    color: textDefaults.color,
+    fontWeight: textDefaults.fontWeight,
+    backgroundStyle: textDefaults.backgroundStyle,
+    beforeSnapshot: null
   },
   pendingImportDateKey: "",
   notes: loadNotes(),
@@ -283,17 +312,30 @@ function currentUndoSnapshot() {
   return day?.dateKey ? snapshotForDate(day.dateKey) : null;
 }
 
-function measureTextLayout(content, fontSize = 34) {
+function normalizedTextBackgroundStyle(style) {
+  return textBackgroundOptions.some((option) => option.value === style) ? style : textDefaults.backgroundStyle;
+}
+
+function textBackgroundPadding(style) {
+  const backgroundStyle = normalizedTextBackgroundStyle(style);
+  if (backgroundStyle === "pill") return { x: 14, y: 7 };
+  if (backgroundStyle === "white" || backgroundStyle === "glass") return { x: 10, y: 6 };
+  return { x: 0, y: 0 };
+}
+
+function measureTextLayout(content, fontSize = textDefaults.fontSize, backgroundStyle = textDefaults.backgroundStyle) {
   const lines = String(content || "文字").split("\n");
   const longestLine = lines.reduce((longest, line) => Math.max(longest, Array.from(line || " ").length), 1);
-  const width = Math.max(44, Math.ceil(longestLine * fontSize * 0.62));
-  const height = Math.ceil(lines.length * fontSize * 1.18);
+  const padding = textBackgroundPadding(backgroundStyle);
+  const width = Math.max(44, Math.ceil(longestLine * fontSize * 0.62)) + padding.x * 2;
+  const height = Math.ceil(lines.length * fontSize * 1.18) + padding.y * 2;
   return { width, height };
 }
 
 function defaultTextElement(dateKey, content = "文字") {
-  const fontSize = 34;
-  const size = measureTextLayout(content, fontSize);
+  const fontSize = textDefaults.fontSize;
+  const backgroundStyle = textDefaults.backgroundStyle;
+  const size = measureTextLayout(content, fontSize, backgroundStyle);
   return {
     id: uid("text"),
     type: "text",
@@ -308,8 +350,9 @@ function defaultTextElement(dateKey, content = "文字") {
     zIndex: maxCanvasZIndex(dateKey) + 1,
     fontSize,
     fontFamily: "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif",
-    fontWeight: "600",
-    color: "#222222",
+    fontWeight: textDefaults.fontWeight,
+    color: textDefaults.color,
+    backgroundStyle,
     textAlign: "center",
     letterSpacing: "0"
   };
@@ -573,13 +616,30 @@ async function ensureLayoutsForCanvasElements() {
     }
 
     if (element.type === "text") {
-      const fontSize = element.fontSize || 34;
-      const size = measureTextLayout(element.content, fontSize);
-      if (typeof element.width !== "number") {
+      if (typeof element.fontSize !== "number") {
+        element.fontSize = textDefaults.fontSize;
+        changed = true;
+      }
+      if (!element.color) {
+        element.color = textDefaults.color;
+        changed = true;
+      }
+      if (!element.fontWeight) {
+        element.fontWeight = textDefaults.fontWeight;
+        changed = true;
+      }
+      if (!element.backgroundStyle) {
+        element.backgroundStyle = textDefaults.backgroundStyle;
+        changed = true;
+      }
+
+      element.backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
+      const size = measureTextLayout(element.content, element.fontSize, element.backgroundStyle);
+      if (typeof element.width !== "number" || element.width !== size.width) {
         element.width = size.width;
         changed = true;
       }
-      if (typeof element.height !== "number") {
+      if (typeof element.height !== "number" || element.height !== size.height) {
         element.height = size.height;
         changed = true;
       }
@@ -893,6 +953,7 @@ function canvasElement(element) {
   }
 
   if (element.type === "text") {
+    const backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
     baseStyle.push(
       `--font-size:${element.fontSize}px`,
       `--font-family:${escapeHtml(element.fontFamily)}`,
@@ -903,7 +964,7 @@ function canvasElement(element) {
     );
 
     return `
-      <div class="canvas-item canvas-text-element ${selected}" data-item-type="text" data-item-id="${element.id}" style="${baseStyle.join(";")}">${escapeHtml(element.content)}</div>
+      <div class="canvas-item canvas-text-element ${selected}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" style="${baseStyle.join(";")}">${escapeHtml(element.content)}</div>
     `;
   }
 
@@ -1040,20 +1101,66 @@ function stickerImagePicker() {
   `;
 }
 
-function textComposerOverlay() {
-  if (!state.textComposer.active) return "";
+function textEditorPanel() {
+  const element = selectedTextElement();
+  if (!element || state.activePanel !== "text") return "";
+
+  const value = state.textComposer.editingId === element.id ? state.textComposer.value : element.content;
+  const fontSize = Number(state.textComposer.editingId === element.id ? state.textComposer.fontSize : element.fontSize) || textDefaults.fontSize;
+  const color = state.textComposer.editingId === element.id ? state.textComposer.color : element.color || textDefaults.color;
+  const backgroundStyle = normalizedTextBackgroundStyle(
+    state.textComposer.editingId === element.id ? state.textComposer.backgroundStyle : element.backgroundStyle
+  );
 
   return `
-    <div class="text-composer-overlay" aria-label="文字输入模式">
-      <button class="text-composer-done" type="button" data-action="complete-text-compose">完成</button>
+    <section class="text-editor-panel" aria-label="文字编辑面板">
+      <div class="text-editor-header">
+        <span>文字</span>
+        <button class="text-composer-done" type="button" data-action="complete-text-compose">完成</button>
+      </div>
       <textarea
         id="textComposerInput"
-        class="text-composer-input"
+        class="text-editor-input"
         data-text-composer
         placeholder="写点什么……"
         rows="2"
-      >${escapeHtml(state.textComposer.value)}</textarea>
-    </div>
+      >${escapeHtml(value)}</textarea>
+      <div class="text-editor-controls">
+        <div class="text-editor-row">
+          <span>字号</span>
+          <div class="text-segmented-control">
+            ${textSizeOptions.map((option) => `
+              <button class="${fontSize === option.value ? "is-active" : ""}" type="button" data-action="text-font-size" data-font-size="${option.value}">${option.label}</button>
+            `).join("")}
+          </div>
+        </div>
+        <div class="text-editor-row">
+          <span>颜色</span>
+          <div class="text-color-control">
+            ${textColorOptions.map((option) => `
+              <button
+                class="${color === option.value ? "is-active" : ""}"
+                type="button"
+                data-action="text-color"
+                data-color="${option.value}"
+                aria-label="${option.label}"
+                title="${option.label}"
+              >
+                <i style="--swatch-color:${option.value}"></i>
+              </button>
+            `).join("")}
+          </div>
+        </div>
+        <div class="text-editor-row">
+          <span>背景</span>
+          <div class="text-background-control">
+            ${textBackgroundOptions.map((option) => `
+              <button class="${backgroundStyle === option.value ? "is-active" : ""}" type="button" data-action="text-background" data-background-style="${option.value}">${option.label}</button>
+            `).join("")}
+          </div>
+        </div>
+      </div>
+    </section>
   `;
 }
 
@@ -1128,7 +1235,7 @@ function renderSingleDay() {
       </div>
       ${stickerSheet()}
       ${stickerImagePicker()}
-      ${textComposerOverlay()}
+      ${textEditorPanel()}
       ${toastMarkup()}
     </main>
 
@@ -2152,8 +2259,13 @@ async function addTextElement(point = null) {
   const day = getDay();
   if (!day) return;
 
-  state.pendingInsertPoint = point;
-  openTextComposer();
+  const undoBefore = snapshotForDate(day.dateKey);
+  const element = positionTextElement(defaultTextElement(day.dateKey), point);
+  state.pendingInsertPoint = null;
+  state.activePanel = "text";
+  await saveCanvasElement(element);
+  selectItem("text", element.id);
+  openTextComposer(element.id, { beforeSnapshot: undoBefore });
 }
 
 function focusTextComposer() {
@@ -2165,17 +2277,59 @@ function focusTextComposer() {
   }, 0);
 }
 
-function openTextComposer(editingId = "") {
-  const element = editingId ? getCanvasElement(editingId) : null;
-  state.activePanel = "";
+function textComposerDefaults() {
+  return {
+    active: false,
+    editingId: "",
+    value: "",
+    fontSize: textDefaults.fontSize,
+    color: textDefaults.color,
+    fontWeight: textDefaults.fontWeight,
+    backgroundStyle: textDefaults.backgroundStyle,
+    beforeSnapshot: null
+  };
+}
+
+function resetTextComposer() {
+  state.textComposer = textComposerDefaults();
+}
+
+function ensureTextElementStyle(element) {
+  if (!element || element.type !== "text") return null;
+  if (typeof element.fontSize !== "number") element.fontSize = textDefaults.fontSize;
+  if (!element.color) element.color = textDefaults.color;
+  if (!element.fontWeight) element.fontWeight = textDefaults.fontWeight;
+  element.backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
+  if (!element.fontFamily) element.fontFamily = "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif";
+  if (!element.textAlign) element.textAlign = "center";
+  if (!element.letterSpacing) element.letterSpacing = "0";
+  return element;
+}
+
+function beginTextEditorSession(element, options = {}) {
+  if (!ensureTextElementStyle(element)) return;
+  syncTextLayoutSize(element);
+  const previousSnapshot = state.textComposer.editingId === element.id ? state.textComposer.beforeSnapshot : null;
+  state.activePanel = "text";
   state.textComposer = {
     active: true,
-    editingId: element?.type === "text" ? element.id : "",
-    value: element?.type === "text" ? element.content : ""
+    editingId: element.id,
+    value: element.content || "",
+    fontSize: element.fontSize,
+    color: element.color,
+    fontWeight: element.fontWeight,
+    backgroundStyle: element.backgroundStyle,
+    beforeSnapshot: previousSnapshot || options.beforeSnapshot || currentUndoSnapshot()
   };
+}
+
+function openTextComposer(editingId = "", options = {}) {
+  const element = editingId ? getCanvasElement(editingId) : null;
   if (element?.type === "text") {
+    beginTextEditorSession(element, options);
     selectItem("text", element.id);
   } else {
+    resetTextComposer();
     clearSelection();
   }
   render();
@@ -2185,40 +2339,32 @@ function openTextComposer(editingId = "") {
 async function completeTextComposer() {
   const value = state.textComposer.value.trim();
   const editingId = state.textComposer.editingId;
-  state.textComposer = { active: false, editingId: "", value: "" };
+  const beforeSnapshot = state.textComposer.beforeSnapshot;
+  resetTextComposer();
+  state.activePanel = "";
 
+  const editingElement = editingId ? getCanvasElement(editingId) : null;
   if (!value) {
+    if (editingElement?.type === "text") {
+      await deleteCanvasElement(editingElement.id);
+      clearSelection();
+      commitUndoSnapshot(beforeSnapshot);
+    }
     state.pendingInsertPoint = null;
     render();
     return;
   }
 
-  const editingElement = editingId ? getCanvasElement(editingId) : null;
   if (editingElement?.type === "text") {
-    const undoBefore = currentUndoSnapshot();
-    const size = measureTextLayout(value, editingElement.fontSize || 34);
+    ensureTextElementStyle(editingElement);
     editingElement.content = value;
-    editingElement.width = size.width;
-    editingElement.height = size.height;
+    syncTextLayoutSize(editingElement);
     await saveCanvasElement(editingElement);
     selectItem("text", editingElement.id);
-    commitUndoSnapshot(undoBefore);
-    render();
-    return;
+    commitUndoSnapshot(beforeSnapshot);
   }
 
-  const day = getDay();
-  if (!day) {
-    render();
-    return;
-  }
-
-  const element = positionTextElement(defaultTextElement(day.dateKey, value), state.pendingInsertPoint);
-  const undoBefore = snapshotForDate(day.dateKey);
-  await saveCanvasElement(element);
-  selectItem("text", element.id);
   state.pendingInsertPoint = null;
-  commitUndoSnapshot(undoBefore);
   render();
 }
 
@@ -2483,8 +2629,13 @@ function drawContainedImage(context, image, width, height) {
 }
 
 async function drawTransformedItem(context, item, itemType, offsetY, draw) {
-  const width = item.width || measureTextLayout(item.content, item.fontSize || 34).width;
-  const height = item.height || measureTextLayout(item.content, item.fontSize || 34).height;
+  const textLayout = measureTextLayout(
+    item.content,
+    item.fontSize || textDefaults.fontSize,
+    item.backgroundStyle || textDefaults.backgroundStyle
+  );
+  const width = item.width || textLayout.width;
+  const height = item.height || textLayout.height;
   context.save();
   context.translate(item.x + width / 2, offsetY + item.y + height / 2);
   context.rotate(((item.rotation || 0) * Math.PI) / 180);
@@ -2503,6 +2654,35 @@ function drawTextLines(context, text, width, fontSize, textAlign = "center") {
   lines.forEach((line, index) => {
     context.fillText(line, x, startY + index * lineHeight);
   });
+}
+
+function drawRoundedRect(context, x, y, width, height, radius) {
+  const safeRadius = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.moveTo(x + safeRadius, y);
+  context.lineTo(x + width - safeRadius, y);
+  context.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
+  context.lineTo(x + width, y + height - safeRadius);
+  context.quadraticCurveTo(x + width, y + height, x + width - safeRadius, y + height);
+  context.lineTo(x + safeRadius, y + height);
+  context.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
+  context.lineTo(x, y + safeRadius);
+  context.quadraticCurveTo(x, y, x + safeRadius, y);
+  context.closePath();
+}
+
+function drawTextBackground(context, backgroundStyle, width, height) {
+  const style = normalizedTextBackgroundStyle(backgroundStyle);
+  if (style === "none") return;
+
+  context.save();
+  context.shadowColor = style === "glass" ? "rgba(0, 0, 0, 0.08)" : "rgba(0, 0, 0, 0.1)";
+  context.shadowBlur = style === "glass" ? 12 : 10;
+  context.shadowOffsetY = 4;
+  context.fillStyle = style === "glass" ? "rgba(255, 255, 255, 0.58)" : "#ffffff";
+  drawRoundedRect(context, -width / 2, -height / 2, width, height, style === "pill" ? height / 2 : 10);
+  context.fill();
+  context.restore();
 }
 
 async function dayCanvasBlob(day) {
@@ -2551,10 +2731,14 @@ async function dayCanvasBlob(day) {
         context.restore();
       });
     } else if (item.itemType === "text") {
-      await drawTransformedItem(context, item, "text", headerHeight, async (itemWidth) => {
-        context.fillStyle = item.color || "#222222";
-        context.font = `${item.fontWeight || "600"} ${item.fontSize || 34}px ${item.fontFamily || "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif"}`;
-        drawTextLines(context, item.content, itemWidth, item.fontSize || 34, item.textAlign || "center");
+      const fontSize = item.fontSize || textDefaults.fontSize;
+      const backgroundStyle = normalizedTextBackgroundStyle(item.backgroundStyle);
+      await drawTransformedItem(context, item, "text", headerHeight, async (itemWidth, itemHeight) => {
+        const padding = textBackgroundPadding(backgroundStyle);
+        drawTextBackground(context, backgroundStyle, itemWidth, itemHeight);
+        context.fillStyle = item.color || textDefaults.color;
+        context.font = `${item.fontWeight || textDefaults.fontWeight} ${fontSize}px ${item.fontFamily || "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif"}`;
+        drawTextLines(context, item.content, Math.max(1, itemWidth - padding.x * 2), fontSize, item.textAlign || "center");
       });
     } else if (item.stickerType === "image" && item.imageDataUrl) {
       const image = await loadImage(item.imageDataUrl);
@@ -2642,9 +2826,47 @@ async function updateSelectedTextElement(updater) {
   const element = selectedTextElement();
   if (!element) return;
 
+  ensureTextElementStyle(element);
   updater(element);
+  syncTextLayoutSize(element);
   await saveCanvasElement(element);
   render();
+}
+
+function applyTextElementDom(element) {
+  const node = elementForItem(element.id, "text");
+  if (!node) return;
+
+  node.textContent = element.content || "";
+  node.dataset.backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
+  node.style.setProperty("--font-size", `${element.fontSize}px`);
+  node.style.setProperty("--font-family", element.fontFamily);
+  node.style.setProperty("--font-weight", element.fontWeight);
+  node.style.setProperty("--font-color", element.color);
+  node.style.setProperty("--text-align", element.textAlign);
+  node.style.setProperty("--letter-spacing", element.letterSpacing || "0");
+}
+
+async function applyTextComposerPatch(patch, options = {}) {
+  const editingId = state.textComposer.editingId || state.selectedPhotoId;
+  const element = editingId ? getCanvasElement(editingId) : null;
+  if (!ensureTextElementStyle(element)) return;
+
+  if (state.textComposer.editingId !== element.id) {
+    beginTextEditorSession(element);
+  }
+
+  Object.assign(state.textComposer, patch);
+  element.content = state.textComposer.value;
+  element.fontSize = Number(state.textComposer.fontSize) || textDefaults.fontSize;
+  element.color = state.textComposer.color || textDefaults.color;
+  element.fontWeight = state.textComposer.fontWeight || textDefaults.fontWeight;
+  element.backgroundStyle = normalizedTextBackgroundStyle(state.textComposer.backgroundStyle);
+  syncTextLayoutSize(element);
+  applyTextElementDom(element);
+  await saveCanvasElement(element);
+
+  if (options.renderControls) render();
 }
 
 function textStyle(styleId) {
@@ -2687,7 +2909,8 @@ function itemAspectRatio(item, itemType) {
 
 function syncTextLayoutSize(element) {
   if (!element || element.type !== "text") return;
-  const size = measureTextLayout(element.content, element.fontSize || 34);
+  ensureTextElementStyle(element);
+  const size = measureTextLayout(element.content, element.fontSize || textDefaults.fontSize, element.backgroundStyle);
   element.width = size.width;
   element.height = size.height;
 }
@@ -2792,6 +3015,11 @@ function applyInteractiveStyle(element, layout, itemType) {
   }
 
   if (layout.fontSize) element.style.setProperty("--font-size", `${layout.fontSize}px`);
+  if (itemType === "text") {
+    element.style.setProperty("--font-weight", layout.fontWeight || textDefaults.fontWeight);
+    element.style.setProperty("--font-color", layout.color || textDefaults.color);
+    element.dataset.backgroundStyle = normalizedTextBackgroundStyle(layout.backgroundStyle);
+  }
 }
 
 function overlapSize(rect, bounds) {
@@ -3321,6 +3549,13 @@ async function endGesture(event) {
   }
   if (pointer) activePointers.delete(pointerId);
   if (mode === "drag") debugInteraction("end drag", { elementId: itemId, itemType, deleted: false });
+  if (itemId && itemType === "text") {
+    const textElement = getCanvasElement(itemId);
+    if (textElement?.type === "text") {
+      beginTextEditorSession(textElement, { beforeSnapshot: currentUndoSnapshot() });
+      render();
+    }
+  }
 }
 
 function endElementDrag(event) {
@@ -3370,7 +3605,7 @@ document.addEventListener("pointerdown", (event) => {
     return;
   }
 
-  if (event.target.closest(".text-composer-overlay, .sticker-image-picker, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-action-bar, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
+  if (event.target.closest(".text-editor-panel, .sticker-image-picker, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-action-bar, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
 
   const deleteButton = event.target.closest(".delete-photo");
   if (deleteButton) {
@@ -3619,6 +3854,13 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "delete-photo" || action === "delete-element") return;
+  if (action === "text-font-size") {
+    const fontSize = Number(actionTarget.dataset.fontSize);
+    if (fontSize) {
+      await applyTextComposerPatch({ fontSize }, { renderControls: true });
+    }
+    return;
+  }
   if (action === "text-style") {
     const style = textStyle(actionTarget.dataset.style);
     if (style) updateSelectedTextElement((element) => Object.assign(element, style));
@@ -3626,9 +3868,14 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "text-color") {
     const color = actionTarget.dataset.color;
-    if (color) updateSelectedTextElement((element) => {
-      element.color = color;
-    });
+    if (color) {
+      await applyTextComposerPatch({ color }, { renderControls: true });
+    }
+    return;
+  }
+  if (action === "text-background") {
+    const backgroundStyle = normalizedTextBackgroundStyle(actionTarget.dataset.backgroundStyle);
+    await applyTextComposerPatch({ backgroundStyle }, { renderControls: true });
     return;
   }
   if (action === "text-align") {
@@ -3684,7 +3931,7 @@ document.addEventListener("dblclick", (event) => {
 document.addEventListener("input", (event) => {
   const composer = event.target.closest("[data-text-composer]");
   if (!composer) return;
-  state.textComposer.value = composer.value;
+  applyTextComposerPatch({ value: composer.value });
 });
 
 document.querySelector("#photoInput").addEventListener("change", handlePhotoSelection);

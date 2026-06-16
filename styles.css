@@ -1163,6 +1163,30 @@ button {
   touch-action: none;
 }
 
+.canvas-text-element[data-background-style="white"] {
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1);
+}
+
+.canvas-text-element[data-background-style="glass"] {
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.canvas-text-element[data-background-style="pill"] {
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1);
+}
+
 .canvas-sticker {
   display: grid;
   place-items: center;
@@ -1886,49 +1910,149 @@ button {
   display: grid;
 }
 
-.text-composer-overlay {
+.text-editor-panel {
   position: fixed;
-  inset: 0;
+  left: 10px;
+  right: 10px;
+  bottom: calc(env(safe-area-inset-bottom) + 10px);
   z-index: 1600;
-  display: grid;
-  place-items: center;
-  background: rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(2px);
+  max-width: 390px;
+  margin: 0 auto;
+  padding: 10px 12px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.68);
+  border-radius: 22px;
+  background: rgba(248, 248, 248, 0.92);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.text-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  color: #111111;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .text-composer-done {
-  position: fixed;
-  top: max(18px, env(safe-area-inset-top));
-  right: max(18px, env(safe-area-inset-right));
-  min-height: 36px;
-  padding: 0;
+  min-height: 32px;
+  padding: 0 4px;
   border: 0;
   background: transparent;
-  color: #ffffff;
-  font-size: 16px;
-  font-weight: 600;
+  color: #3478f6;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
-.text-composer-input {
-  width: min(340px, 80%);
-  min-height: 56px;
-  padding: 0;
+.text-editor-input {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  max-height: 92px;
+  margin: 4px 0 10px;
+  padding: 9px 11px;
   border: 0;
+  border-radius: 14px;
   outline: none;
   resize: none;
-  background: transparent;
-  box-shadow: none;
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
+  color: #111111;
   font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-  font-size: 34px;
-  font-weight: 600;
-  line-height: 1.2;
-  text-align: center;
-  caret-color: #ffffff;
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.25;
+  caret-color: #3478f6;
+  box-sizing: border-box;
 }
 
-.text-composer-input::placeholder {
-  color: rgba(255, 255, 255, 0.56);
+.text-editor-input::placeholder {
+  color: rgba(17, 17, 17, 0.36);
+}
+
+.text-editor-controls {
+  display: grid;
+  gap: 8px;
+}
+
+.text-editor-row {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.text-editor-row > span {
+  color: rgba(17, 17, 17, 0.58);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.text-segmented-control,
+.text-background-control {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(118, 118, 128, 0.12);
+}
+
+.text-segmented-control button,
+.text-background-control button {
+  min-width: 0;
+  min-height: 30px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #1c1c1e;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.text-segmented-control button.is-active,
+.text-background-control button.is-active {
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.text-color-control {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.text-color-control button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.text-color-control i {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 50%;
+  background: var(--swatch-color);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.text-color-control button.is-active {
+  background: rgba(52, 120, 246, 0.12);
 }
 
 .note-dialog {
