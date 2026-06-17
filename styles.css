@@ -1,3 +1,21 @@
+@font-face {
+  font-family: "Patrick Hand";
+  src: local("Patrick Hand"), local("PatrickHand-Regular");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Architects Daughter";
+  src: local("Architects Daughter"), local("ArchitectsDaughter-Regular");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "LXGW WenKai";
+  src: local("LXGW WenKai"), local("LXGWWenKai-Regular");
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
   --screen: #ffffff;

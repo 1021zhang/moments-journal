@@ -27,14 +27,9 @@ const textDefaults = {
   color: "#111111",
   fontWeight: 700,
   backgroundStyle: "none",
-  fontStyle: "default",
+  fontStyle: "wenkai",
   outlineStyle: "none"
 };
-const textSizeOptions = [
-  { label: "小", value: 16 },
-  { label: "中", value: 22 },
-  { label: "大", value: 32 }
-];
 const textColorOptions = [
   { label: "黑", value: "#111111" },
   { label: "白", value: "#ffffff" },
@@ -49,9 +44,9 @@ const textBackgroundOptions = [
   { label: "胶囊", value: "pill" }
 ];
 const textFontStyleOptions = [
-  { label: "默认", value: "default" },
+  { label: "系统", value: "system" },
   { label: "手写", value: "handwritten" },
-  { label: "打字机", value: "typewriter" },
+  { label: "文楷", value: "wenkai" },
   { label: "标题", value: "headline" }
 ];
 const textOutlineOptions = [
@@ -339,7 +334,13 @@ function normalizedTextBackgroundStyle(style) {
 }
 
 function normalizedTextFontStyle(style) {
-  const nextStyle = style === "journal" || style === "soft" ? "handwritten" : style;
+  const legacyMap = {
+    default: "system",
+    soft: "handwritten",
+    journal: "wenkai",
+    typewriter: "system"
+  };
+  const nextStyle = legacyMap[style] || style;
   return textFontStyleOptions.some((option) => option.value === nextStyle) ? nextStyle : textDefaults.fontStyle;
 }
 
@@ -349,7 +350,7 @@ function normalizedTextOutlineStyle(style) {
 
 function textFontConfig(style) {
   return {
-    default: {
+    system: {
       fontFamily: "\"PingFang SC\", \"SF Pro Display\", system-ui, sans-serif",
       cssFontStyle: "normal",
       fontWeight: 700,
@@ -357,21 +358,21 @@ function textFontConfig(style) {
       lineHeight: 1.15
     },
     handwritten: {
-      fontFamily: "\"Patrick Hand\", \"Architects Daughter\", \"Schoolbell\", \"Handlee\", \"LXGW WenKai\", \"KaiTi\", \"STKaiti\", \"Songti SC\", \"PingFang SC\", sans-serif",
+      fontFamily: "\"Patrick Hand\", \"Architects Daughter\", \"LXGW WenKai\", \"KaiTi\", \"STKaiti\", \"PingFang SC\", sans-serif",
       cssFontStyle: "normal",
       fontWeight: 500,
       letterSpacing: "0.04em",
       lineHeight: 1.18
     },
-    typewriter: {
-      fontFamily: "Menlo, \"Courier New\", \"PingFang SC\", monospace",
+    wenkai: {
+      fontFamily: "\"LXGW WenKai\", \"KaiTi\", \"STKaiti\", \"Songti SC\", serif",
       cssFontStyle: "normal",
-      fontWeight: 600,
-      letterSpacing: "0.04em",
-      lineHeight: 1.18
+      fontWeight: 500,
+      letterSpacing: "0.02em",
+      lineHeight: 1.25
     },
     headline: {
-      fontFamily: "\"Arial Rounded MT Bold\", \"Avenir Next\", \"PingFang SC\", sans-serif",
+      fontFamily: "\"Avenir Next\", \"Arial Rounded MT Bold\", \"PingFang SC\", sans-serif",
       cssFontStyle: "normal",
       fontWeight: 900,
       letterSpacing: "-0.01em",
@@ -1207,7 +1208,6 @@ function textEditorPanel() {
   if (!element || state.activePanel !== "text") return "";
 
   const value = state.textComposer.editingId === element.id ? state.textComposer.value : element.content;
-  const fontSize = Number(state.textComposer.editingId === element.id ? state.textComposer.fontSize : element.fontSize) || textDefaults.fontSize;
   const color = state.textComposer.editingId === element.id ? state.textComposer.color : element.color || textDefaults.color;
   const fontStyle = normalizedTextFontStyle(
     state.textComposer.editingId === element.id ? state.textComposer.fontStyle : element.fontStyle
@@ -1233,14 +1233,6 @@ function textEditorPanel() {
         rows="2"
       >${escapeHtml(value)}</textarea>
       <div class="text-editor-controls">
-        <div class="text-editor-row">
-          <span>字号</span>
-          <div class="text-segmented-control">
-            ${textSizeOptions.map((option) => `
-              <button class="${fontSize === option.value ? "is-active" : ""}" type="button" data-action="text-font-size" data-font-size="${option.value}">${option.label}</button>
-            `).join("")}
-          </div>
-        </div>
         <div class="text-editor-row">
           <span>风格</span>
           <div class="text-segmented-control text-font-control">
@@ -3066,13 +3058,13 @@ async function applyTextComposerPatch(patch, options = {}) {
 function textStyle(styleId) {
   return {
     classic: {
-      fontStyle: "default"
+      fontStyle: "system"
     },
     signature: {
       fontStyle: "handwritten"
     },
     editor: {
-      fontStyle: "typewriter"
+      fontStyle: "system"
     },
     poster: {
       fontStyle: "headline"
@@ -4154,13 +4146,6 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "delete-photo" || action === "delete-element") return;
-  if (action === "text-font-size") {
-    const fontSize = Number(actionTarget.dataset.fontSize);
-    if (fontSize) {
-      await applyTextComposerPatch({ fontSize }, { renderControls: true });
-    }
-    return;
-  }
   if (action === "text-font-style") {
     const fontStyle = normalizedTextFontStyle(actionTarget.dataset.fontStyle);
     await applyTextComposerPatch({ fontStyle }, { renderControls: true });
