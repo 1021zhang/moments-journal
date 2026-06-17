@@ -50,7 +50,7 @@ const textBackgroundOptions = [
 ];
 const textFontStyleOptions = [
   { label: "默认", value: "default" },
-  { label: "柔和", value: "soft" },
+  { label: "手写", value: "handwritten" },
   { label: "打字机", value: "typewriter" },
   { label: "标题", value: "headline" }
 ];
@@ -339,7 +339,7 @@ function normalizedTextBackgroundStyle(style) {
 }
 
 function normalizedTextFontStyle(style) {
-  const nextStyle = style === "journal" ? "soft" : style;
+  const nextStyle = style === "journal" || style === "soft" ? "handwritten" : style;
   return textFontStyleOptions.some((option) => option.value === nextStyle) ? nextStyle : textDefaults.fontStyle;
 }
 
@@ -350,18 +350,18 @@ function normalizedTextOutlineStyle(style) {
 function textFontConfig(style) {
   return {
     default: {
-      fontFamily: "\"PingFang SC\", system-ui, sans-serif",
+      fontFamily: "\"PingFang SC\", \"SF Pro Display\", system-ui, sans-serif",
       cssFontStyle: "normal",
       fontWeight: 700,
       letterSpacing: "0",
       lineHeight: 1.15
     },
-    soft: {
-      fontFamily: "Georgia, \"KaiTi\", \"STKaiti\", \"Songti SC\", \"PingFang SC\", serif",
-      cssFontStyle: "italic",
+    handwritten: {
+      fontFamily: "\"Patrick Hand\", \"Architects Daughter\", \"Schoolbell\", \"Handlee\", \"LXGW WenKai\", \"KaiTi\", \"STKaiti\", \"Songti SC\", \"PingFang SC\", sans-serif",
+      cssFontStyle: "normal",
       fontWeight: 500,
-      letterSpacing: "0.02em",
-      lineHeight: 1.22
+      letterSpacing: "0.04em",
+      lineHeight: 1.18
     },
     typewriter: {
       fontFamily: "Menlo, \"Courier New\", \"PingFang SC\", monospace",
@@ -371,7 +371,7 @@ function textFontConfig(style) {
       lineHeight: 1.18
     },
     headline: {
-      fontFamily: "\"PingFang SC\", \"Heiti SC\", \"Arial Black\", sans-serif",
+      fontFamily: "\"Arial Rounded MT Bold\", \"Avenir Next\", \"PingFang SC\", sans-serif",
       cssFontStyle: "normal",
       fontWeight: 900,
       letterSpacing: "-0.01em",
@@ -3069,7 +3069,7 @@ function textStyle(styleId) {
       fontStyle: "default"
     },
     signature: {
-      fontStyle: "soft"
+      fontStyle: "handwritten"
     },
     editor: {
       fontStyle: "typewriter"
