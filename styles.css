@@ -1929,12 +1929,12 @@ button {
 
 .text-size-slider {
   position: fixed;
-  left: max(14px, env(safe-area-inset-left));
-  top: 46%;
-  z-index: 1500;
-  width: 34px;
-  height: min(210px, calc(100dvh - 310px));
-  min-height: 144px;
+  left: max(22px, calc(env(safe-area-inset-left) + 20px));
+  top: 30%;
+  z-index: 1800;
+  width: 36px;
+  height: 160px;
+  min-height: 72px;
   transform: translateY(-50%);
   display: grid;
   place-items: center;
@@ -1985,7 +1985,7 @@ button {
   left: 10px;
   right: 10px;
   bottom: calc(env(safe-area-inset-bottom) + 10px);
-  z-index: 1600;
+  z-index: 2000;
   max-width: 390px;
   margin: 0 auto;
   padding: 10px 12px 12px;
