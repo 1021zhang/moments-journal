@@ -2014,6 +2014,7 @@ button {
 .personal-sticker-toolbar {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
   margin-bottom: 12px;
 }
 
@@ -2036,8 +2037,14 @@ button {
   padding-bottom: 18px;
 }
 
+.personal-sticker-item {
+  position: relative;
+  min-width: 0;
+}
+
 .personal-sticker-card {
   display: grid;
+  width: 100%;
   min-width: 0;
   padding: 0;
   border: 0;
@@ -2046,6 +2053,28 @@ button {
   text-align: center;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+}
+
+.personal-sticker-delete {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  display: none;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: rgba(30, 30, 30, 0.92);
+  color: #ffffff;
+  font-size: 17px;
+  line-height: 1;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.16);
+}
+
+.personal-sticker-item.is-managing .personal-sticker-delete {
+  display: grid;
 }
 
 .personal-sticker-thumb {
@@ -2256,167 +2285,6 @@ button {
 
 .sticker-token-button:active {
   background: rgba(255, 255, 255, 0.14);
-}
-
-.sticker-image-picker {
-  position: fixed;
-  inset: 0;
-  z-index: 1700;
-  display: flex;
-  flex-direction: column;
-  background: rgba(248, 248, 248, 0.98);
-  color: #111111;
-  padding: calc(env(safe-area-inset-top) + 10px) 18px calc(env(safe-area-inset-bottom) + 20px);
-  box-sizing: border-box;
-}
-
-.sticker-image-picker-header {
-  display: grid;
-  grid-template-columns: 72px 1fr 72px;
-  align-items: center;
-  min-height: 44px;
-}
-
-.sticker-image-picker-header h1 {
-  margin: 0;
-  color: #111111;
-  font-size: 17px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-align: center;
-}
-
-.sticker-image-picker-header button {
-  border: 0;
-  background: transparent;
-  color: #333333;
-  font: inherit;
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: 0;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.sticker-image-picker-close {
-  justify-self: start;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0;
-  text-align: left;
-}
-
-.sticker-image-picker-manage {
-  justify-self: end;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0;
-  text-align: right;
-}
-
-.sticker-image-picker-content {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding-top: 22px;
-}
-
-.sticker-image-picker-select {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  min-height: 172px;
-  padding: 24px;
-  border: 1.5px dashed rgba(0, 0, 0, 0.18);
-  border-radius: 24px;
-  background: #ffffff;
-  color: #111111;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.045);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.sticker-image-picker-select > span {
-  display: grid;
-  place-items: center;
-  width: 54px;
-  height: 54px;
-  margin-bottom: 12px;
-  border-radius: 18px;
-  background: rgba(0, 0, 0, 0.045);
-  color: rgba(0, 0, 0, 0.72);
-  font-size: 38px;
-  font-weight: 300;
-  line-height: 1;
-}
-
-.sticker-image-picker-select strong {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.sticker-image-picker-select small {
-  color: rgba(0, 0, 0, 0.48);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.sticker-image-picker-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 24px;
-}
-
-.sticker-image-picker-item {
-  position: relative;
-  min-width: 0;
-  aspect-ratio: 1;
-}
-
-.sticker-image-picker-thumb {
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: 100%;
-  aspect-ratio: 1;
-  border: 0;
-  border-radius: 20px;
-  background: #ffffff;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.045);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.sticker-image-picker-thumb img {
-  display: block;
-  width: 84%;
-  height: 84%;
-  object-fit: contain;
-  pointer-events: none;
-}
-
-.sticker-image-picker-delete {
-  position: absolute;
-  top: -7px;
-  right: -7px;
-  display: none;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  padding: 0;
-  border: 2px solid #ffffff;
-  border-radius: 999px;
-  background: rgba(30, 30, 30, 0.88);
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 500;
-  line-height: 1;
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.16);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.sticker-image-picker-item.is-managing .sticker-image-picker-delete {
-  display: grid;
 }
 
 .text-size-slider {

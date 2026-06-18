@@ -95,7 +95,6 @@ const state = {
   isExportingBackup: false,
   isExportingDay: false,
   isReadingClipboard: false,
-  stickerImagePickerOpen: false,
   customStickerManageMode: false,
   stickerContextMenu: { open: false, itemId: "", x: 0, y: 0 },
   personalStickerMenu: { open: false, stickerId: "", x: 0, y: 0 },
@@ -1133,25 +1132,29 @@ function officialStickerPackById(packId) {
 
 function personalStickerLibrary() {
   const personalStickers = state.customStickers.map((sticker, index) => `
-    <button
-      class="personal-sticker-card"
-      type="button"
-      data-action="add-sticker"
-      data-sticker-type="image"
-      data-sticker-id="${escapeHtml(sticker.id)}"
-      data-personal-sticker
-      aria-label="添加 ${escapeHtml(customStickerName(sticker, index))}"
-    >
-      <span class="personal-sticker-thumb">
-        <img src="${escapeHtml(sticker.imageDataUrl || sticker.src || "")}" alt="" draggable="false" />
-      </span>
-      <span class="personal-sticker-name">${escapeHtml(customStickerName(sticker, index))}</span>
-    </button>
+    <div class="personal-sticker-item ${state.customStickerManageMode ? "is-managing" : ""}" data-custom-sticker-id="${escapeHtml(sticker.id)}">
+      <button
+        class="personal-sticker-card"
+        type="button"
+        data-action="add-sticker"
+        data-sticker-type="image"
+        data-sticker-id="${escapeHtml(sticker.id)}"
+        data-personal-sticker
+        aria-label="添加 ${escapeHtml(customStickerName(sticker, index))}"
+      >
+        <span class="personal-sticker-thumb">
+          <img src="${escapeHtml(sticker.imageDataUrl || sticker.src || "")}" alt="" draggable="false" />
+        </span>
+        <span class="personal-sticker-name">${escapeHtml(customStickerName(sticker, index))}</span>
+      </button>
+      <button class="personal-sticker-delete" type="button" data-action="delete-custom-sticker" data-sticker-id="${escapeHtml(sticker.id)}" aria-label="删除 ${escapeHtml(customStickerName(sticker, index))}">×</button>
+    </div>
   `).join("");
 
   return `
     <div class="personal-sticker-toolbar">
-      <button type="button" data-action="open-sticker-image-picker">+ 添加贴纸</button>
+      <button type="button" data-action="choose-sticker-image">+ 添加贴纸</button>
+      <button type="button" data-action="toggle-custom-sticker-management" aria-label="${state.customStickerManageMode ? "完成整理" : "整理我的贴纸"}">${state.customStickerManageMode ? "完成" : "整理"}</button>
     </div>
     ${personalStickers
       ? `<div class="personal-sticker-grid" aria-label="我的贴纸">${personalStickers}</div>`
@@ -1239,48 +1242,6 @@ function stickerSheet() {
         ${libraryTab === "personal"
           ? personalStickerLibrary()
           : activePack ? officialStickerPackDetail(activePack) : officialStickerPackHome()}
-      </div>
-    </section>
-  `;
-}
-
-function stickerImagePicker() {
-  if (!state.stickerImagePickerOpen) return "";
-  const savedStickerThumbs = state.customStickers.slice(0, 12).map((sticker) => `
-    <div class="sticker-image-picker-item ${state.customStickerManageMode ? "is-managing" : ""}" data-custom-sticker-id="${escapeHtml(sticker.id)}">
-      <button
-        class="sticker-image-picker-thumb"
-        type="button"
-        data-action="add-sticker"
-        data-sticker-type="image"
-        data-sticker-id="${escapeHtml(sticker.id)}"
-        data-custom-sticker-thumb
-        aria-label="使用这个贴纸"
-      >
-        <img src="${escapeHtml(sticker.imageDataUrl || sticker.src || "")}" alt="" draggable="false" />
-      </button>
-      <button class="sticker-image-picker-delete" type="button" data-action="delete-custom-sticker" data-sticker-id="${escapeHtml(sticker.id)}" aria-label="删除这个贴纸">×</button>
-    </div>
-  `).join("");
-
-  return `
-    <section class="sticker-image-picker" aria-label="添加贴纸">
-      <header class="sticker-image-picker-header">
-        <button class="sticker-image-picker-close" type="button" data-action="close-sticker-image-picker">关闭</button>
-        <h1>添加贴纸</h1>
-        <button class="sticker-image-picker-manage" type="button" data-action="toggle-custom-sticker-management" aria-label="${state.customStickerManageMode ? "完成整理" : "整理贴纸"}">${state.customStickerManageMode ? "完成" : "整理"}</button>
-      </header>
-      <div class="sticker-image-picker-content">
-        <button class="sticker-image-picker-select" type="button" data-action="choose-sticker-image">
-          <span aria-hidden="true">+</span>
-          <strong>选择图片作为贴纸</strong>
-          <small>选择图片后会作为贴纸加入当前页面</small>
-        </button>
-        ${savedStickerThumbs ? `
-          <div class="sticker-image-picker-grid" aria-label="已添加贴纸">
-            ${savedStickerThumbs}
-          </div>
-        ` : ""}
       </div>
     </section>
   `;
@@ -1526,7 +1487,6 @@ function renderSingleDay() {
         </div>
       </div>
       ${stickerSheet()}
-      ${stickerImagePicker()}
       ${textEditorPanel()}
       ${stickerContextMenu()}
       ${personalStickerContextMenu()}
@@ -2885,7 +2845,6 @@ async function addStickerElement(sticker) {
     elementId: element.id
   });
   state.activePanel = "";
-  state.stickerImagePickerOpen = false;
   state.customStickerManageMode = false;
   state.stickerSheetState = "collapsed";
   await saveCanvasElement(element);
@@ -4273,7 +4232,7 @@ document.addEventListener("pointerdown", (event) => {
     return;
   }
 
-  if (event.target.closest(".text-editor-panel, .sticker-image-picker, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-action-bar, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
+  if (event.target.closest(".text-editor-panel, .floating-toolbox, .sticker-sheet, .sticker-backdrop, .canvas-action-bar, .settings-sheet, .settings-backdrop, .settings-button, .header-icon-action")) return;
 
   const deleteButton = event.target.closest(".delete-photo");
   if (deleteButton) {
@@ -4485,21 +4444,6 @@ document.addEventListener("click", async (event) => {
     render();
     return;
   }
-  if (action === "open-sticker-image-picker") {
-    state.activePanel = "";
-    state.stickerImagePickerOpen = true;
-    state.customStickerManageMode = false;
-    state.stickerSheetState = "collapsed";
-    stickerSheetDrag.ignoreNextToggle = false;
-    render();
-    return;
-  }
-  if (action === "close-sticker-image-picker") {
-    state.stickerImagePickerOpen = false;
-    state.customStickerManageMode = false;
-    render();
-    return;
-  }
   if (action === "toggle-custom-sticker-management") {
     state.customStickerManageMode = !state.customStickerManageMode;
     render();
@@ -4584,13 +4528,6 @@ document.addEventListener("click", async (event) => {
     openCustomStickerPicker();
     return;
   }
-  if (action === "open-custom-sticker-picker") {
-    state.activePanel = "";
-    state.stickerSheetState = "collapsed";
-    openCustomStickerPicker();
-    render();
-    return;
-  }
   if (action === "add-official-sticker") {
     const pack = officialStickerPackById(actionTarget.dataset.packId);
     const sticker = pack?.stickers.find((item) => item.id === actionTarget.dataset.stickerId);
@@ -4602,7 +4539,7 @@ document.addEventListener("click", async (event) => {
       customStickerPress.ignoreNextClick = false;
       return;
     }
-    if (state.customStickerManageMode && actionTarget.closest(".sticker-image-picker")) return;
+    if (state.customStickerManageMode && actionTarget.closest("[data-personal-sticker]")) return;
     const customSticker = actionTarget.dataset.stickerType === "image"
       ? state.customStickers.find((sticker) => sticker.id === actionTarget.dataset.stickerId)
       : null;
@@ -4678,7 +4615,6 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "close-panel") {
     state.activePanel = "";
-    state.stickerImagePickerOpen = false;
     state.customStickerManageMode = false;
     closeStickerMenus();
     stickerSheetDrag.ignoreNextToggle = false;
