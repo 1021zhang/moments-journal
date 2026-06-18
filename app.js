@@ -54,6 +54,21 @@ const textOutlineOptions = [
   { label: "黑边", value: "black" },
   { label: "白边", value: "white" }
 ];
+const officialStickerPacks = [
+  {
+    id: "official-pack-01",
+    title: "Moments Pack 01",
+    subtitle: "Daily hand-drawn stickers",
+    coverImage: "",
+    stickers: ["❤️", "✨", "🌷", "🎀", "☁️", "🌙", "☕", "📷", "🎂", "🧸", "⭐", "📍"]
+      .map((content, index) => ({
+        id: `official-pack-01-${index + 1}`,
+        stickerType: "emoji",
+        content,
+        color: "#222222"
+      }))
+  }
+];
 
 const mockPhotos = [
   { id: "mock-cafe", type: "mock", caption: "cafe", src: "https://picsum.photos/seed/moments-cafe/320/320" },
@@ -73,7 +88,8 @@ const state = {
   selectedSurface: "",
   selectedItemType: "",
   activePanel: "",
-  stickerLibraryTab: "system",
+  stickerLibraryTab: "personal",
+  activeOfficialStickerPackId: "",
   stickerSheetState: "collapsed",
   settingsSheetOpen: false,
   isExportingBackup: false,
@@ -1111,28 +1127,11 @@ function canvasElement(element) {
   `;
 }
 
-function stickerSheet() {
-  if (state.activePanel !== "sticker") return "";
-  const sheetState = ["preview", "collapsed", "expanded"].includes(state.stickerSheetState)
-    ? state.stickerSheetState
-    : "collapsed";
-  const libraryTab = state.stickerLibraryTab === "personal" ? "personal" : "system";
-  const systemStickers = ["❤️", "✨", "🌷", "🎀", "☁️", "🌙", "☕", "📷", "🎂", "🧸", "⭐", "📍"];
-  const stickerRows = [
-    systemStickers.slice(0, 6),
-    systemStickers.slice(6)
-  ];
-  const stickerButton = (content, classes = "") => `
-    <button
-      class="sticker-token-button ${classes}"
-      type="button"
-      data-action="add-sticker"
-      data-sticker-type="emoji"
-      data-sticker-content="${escapeHtml(content)}"
-      data-sticker-color="#222222"
-      aria-label="添加 ${escapeHtml(content)} 贴纸"
-    >${escapeHtml(content)}</button>
-  `;
+function officialStickerPackById(packId) {
+  return officialStickerPacks.find((pack) => pack.id === packId) || null;
+}
+
+function personalStickerLibrary() {
   const personalStickers = state.customStickers.map((sticker, index) => `
     <button
       class="personal-sticker-card"
@@ -1151,6 +1150,82 @@ function stickerSheet() {
   `).join("");
 
   return `
+    <div class="personal-sticker-toolbar">
+      <button type="button" data-action="open-sticker-image-picker">+ 添加贴纸</button>
+    </div>
+    ${personalStickers
+      ? `<div class="personal-sticker-grid" aria-label="我的贴纸">${personalStickers}</div>`
+      : `<div class="personal-sticker-empty"><strong>还没有贴纸</strong><span>长按页面贴纸即可收藏到这里</span></div>`}
+  `;
+}
+
+function officialStickerPackHome() {
+  return `
+    <div class="official-pack-shelf" aria-label="官方贴纸包">
+      ${officialStickerPacks.map((pack) => `
+        <button class="official-pack-card" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}">
+          <span class="official-pack-cover ${pack.coverImage ? "has-image" : ""}" ${pack.coverImage ? `style="--pack-cover:url('${escapeCssUrl(pack.coverImage)}')"` : ""}>
+            ${pack.coverImage ? "" : `
+              <span class="official-pack-cover-brand">MOMENTS</span>
+              <span class="official-pack-cover-stickers" aria-hidden="true">
+                ${pack.stickers.slice(0, 5).map((sticker) => `<i>${escapeHtml(sticker.content || "✦")}</i>`).join("")}
+              </span>
+              <span class="official-pack-cover-edition">${pack.stickers.length} STICKERS</span>
+            `}
+          </span>
+          <span class="official-pack-meta">
+            <span>
+              <strong>${escapeHtml(pack.title)}</strong>
+              <small>${escapeHtml(pack.subtitle)}</small>
+            </span>
+            <em>${pack.stickers.length} 枚</em>
+          </span>
+        </button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function officialStickerPackDetail(pack) {
+  if (!pack) return officialStickerPackHome();
+  return `
+    <section class="official-pack-detail" aria-label="${escapeHtml(pack.title)}">
+      <header class="official-pack-detail-header">
+        <button type="button" data-action="close-official-sticker-pack" aria-label="返回官方贴纸包">‹</button>
+        <div>
+          <strong>${escapeHtml(pack.title)}</strong>
+          <span>${escapeHtml(pack.subtitle)}</span>
+        </div>
+      </header>
+      <div class="official-pack-sticker-grid">
+        ${pack.stickers.map((sticker) => `
+          <button
+            class="official-pack-sticker"
+            type="button"
+            data-action="add-official-sticker"
+            data-pack-id="${escapeHtml(pack.id)}"
+            data-sticker-id="${escapeHtml(sticker.id)}"
+            aria-label="添加 ${escapeHtml(sticker.content || "官方")} 贴纸"
+          >
+            ${sticker.stickerType === "image"
+              ? `<img src="${escapeHtml(sticker.imageDataUrl || sticker.src || "")}" alt="" draggable="false" />`
+              : `<span>${escapeHtml(sticker.content || "✨")}</span>`}
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function stickerSheet() {
+  if (state.activePanel !== "sticker") return "";
+  const sheetState = ["preview", "collapsed", "expanded"].includes(state.stickerSheetState)
+    ? state.stickerSheetState
+    : "collapsed";
+  const libraryTab = state.stickerLibraryTab === "official" ? "official" : "personal";
+  const activePack = officialStickerPackById(state.activeOfficialStickerPackId);
+
+  return `
     <button class="sticker-backdrop" type="button" data-action="close-panel" aria-label="关闭贴纸"></button>
     <section class="sticker-sheet ${sheetState}" aria-label="贴纸库" data-sticker-sheet>
       <header class="sticker-sheet-header">
@@ -1158,31 +1233,12 @@ function stickerSheet() {
       </header>
       <div class="sticker-sheet-content">
         <div class="sticker-library-tabs" role="tablist" aria-label="贴纸分类">
-          <button class="${libraryTab === "system" ? "is-active" : ""}" type="button" data-action="set-sticker-library-tab" data-tab="system" role="tab" aria-selected="${libraryTab === "system"}">系统贴纸</button>
           <button class="${libraryTab === "personal" ? "is-active" : ""}" type="button" data-action="set-sticker-library-tab" data-tab="personal" role="tab" aria-selected="${libraryTab === "personal"}">我的贴纸</button>
+          <button class="${libraryTab === "official" ? "is-active" : ""}" type="button" data-action="set-sticker-library-tab" data-tab="official" role="tab" aria-selected="${libraryTab === "official"}">官方贴纸包</button>
         </div>
-
-        ${libraryTab === "system" ? `
-          <label class="sticker-search">
-            <span class="sr-only">搜索贴纸</span>
-            <input type="search" placeholder="搜索" autocomplete="off" />
-          </label>
-          <div class="system-sticker-grid" aria-label="系统贴纸">
-            <div class="sticker-token-row">
-              ${stickerRows[0].map((content) => stickerButton(content)).join("")}
-            </div>
-            <div class="sticker-token-row sticker-token-row-offset">
-              ${stickerRows[1].map((content) => stickerButton(content)).join("")}
-            </div>
-          </div>
-        ` : `
-          <div class="personal-sticker-toolbar">
-            <button type="button" data-action="open-sticker-image-picker">+ 添加贴纸</button>
-          </div>
-          ${personalStickers
-            ? `<div class="personal-sticker-grid" aria-label="我的贴纸">${personalStickers}</div>`
-            : `<div class="personal-sticker-empty"><strong>还没有贴纸</strong><span>长按页面贴纸即可收藏到这里</span></div>`}
-        `}
+        ${libraryTab === "personal"
+          ? personalStickerLibrary()
+          : activePack ? officialStickerPackDetail(activePack) : officialStickerPackHome()}
       </div>
     </section>
   `;
@@ -2770,6 +2826,7 @@ async function saveCanvasStickerToLibrary(itemId, name) {
   await saveCustomSticker(sticker);
   closeStickerNameDialog();
   state.stickerLibraryTab = "personal";
+  state.activeOfficialStickerPackId = "";
   showToast("已添加到我的贴纸");
   render();
 }
@@ -4392,7 +4449,8 @@ document.addEventListener("click", async (event) => {
       state.activePanel = "";
     } else {
       state.activePanel = "sticker";
-      state.stickerLibraryTab = "system";
+      state.stickerLibraryTab = "personal";
+      state.activeOfficialStickerPackId = "";
       state.stickerSheetState = "collapsed";
       stickerSheetDrag.ignoreNextToggle = false;
     }
@@ -4401,8 +4459,20 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "set-sticker-library-tab") {
-    state.stickerLibraryTab = actionTarget.dataset.tab === "personal" ? "personal" : "system";
+    state.stickerLibraryTab = actionTarget.dataset.tab === "official" ? "official" : "personal";
+    state.activeOfficialStickerPackId = "";
     closeStickerMenus();
+    render();
+    return;
+  }
+  if (action === "open-official-sticker-pack") {
+    const pack = officialStickerPackById(actionTarget.dataset.packId);
+    if (pack) state.activeOfficialStickerPackId = pack.id;
+    render();
+    return;
+  }
+  if (action === "close-official-sticker-pack") {
+    state.activeOfficialStickerPackId = "";
     render();
     return;
   }
@@ -4519,6 +4589,12 @@ document.addEventListener("click", async (event) => {
     state.stickerSheetState = "collapsed";
     openCustomStickerPicker();
     render();
+    return;
+  }
+  if (action === "add-official-sticker") {
+    const pack = officialStickerPackById(actionTarget.dataset.packId);
+    const sticker = pack?.stickers.find((item) => item.id === actionTarget.dataset.stickerId);
+    if (sticker) await addStickerElement(sticker);
     return;
   }
   if (action === "add-sticker") {
