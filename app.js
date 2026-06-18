@@ -140,7 +140,6 @@ const gesture = {
 const activePointers = new Map();
 let isPageTransitioning = false;
 let canvasSafetyRepairFrame = 0;
-let textSizeSliderPlacementFrame = 0;
 const dayPress = {
   element: null,
   dayId: "",
@@ -1221,6 +1220,7 @@ function textEditorPanel() {
 
   return `
     <section class="text-editor-panel" aria-label="文字编辑面板">
+      ${textSizeSlider()}
       <div class="text-editor-header">
         <span>文字</span>
         <button class="text-composer-done" type="button" data-action="complete-text-compose">完成</button>
@@ -1301,10 +1301,12 @@ function textSizeSlider() {
       aria-valuemax="${maxTextFontSize}"
       aria-valuenow="${fontSize}"
     >
+      <span class="text-size-slider-label is-large" aria-hidden="true">大 A</span>
       <div class="text-size-slider-track" data-text-size-slider-track>
         <span class="text-size-slider-fill" aria-hidden="true"></span>
         <span class="text-size-slider-thumb" aria-hidden="true"></span>
       </div>
+      <span class="text-size-slider-label is-small" aria-hidden="true">小 A</span>
     </div>
   `;
 }
@@ -1380,7 +1382,6 @@ function renderSingleDay() {
       </div>
       ${stickerSheet()}
       ${stickerImagePicker()}
-      ${textSizeSlider()}
       ${textEditorPanel()}
       ${toastMarkup()}
     </main>
@@ -1420,7 +1421,6 @@ function render() {
   document.body.classList.toggle("settings-open", state.settingsSheetOpen);
   resetHorizontalScroll();
   scheduleCanvasSafetyRepair();
-  scheduleTextSizeSliderPlacement();
 }
 
 function canvasPointFromClient(clientX, clientY) {
@@ -3802,36 +3802,6 @@ function syncTextSizeSliderDom(fontSize) {
   slider.setAttribute("aria-valuenow", String(size));
 }
 
-function updateTextSizeSliderPlacement() {
-  const slider = document.querySelector("[data-text-size-slider]");
-  const editorPanel = document.querySelector(".text-editor-panel");
-  if (!slider || !editorPanel) return;
-
-  const viewportHeight = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight;
-  const viewportTop = window.visualViewport?.offsetTop || 0;
-  const panelTop = editorPanel.getBoundingClientRect().top;
-  const usableAreaTop = viewportTop + 80;
-  const usableAreaBottom = Math.max(usableAreaTop + 72, panelTop - 24);
-  const availableHeight = Math.max(72, usableAreaBottom - usableAreaTop);
-  const sliderHeight = Math.min(160, availableHeight);
-  const centerY = clamp(
-    Math.round((usableAreaTop + usableAreaBottom) / 2),
-    usableAreaTop + sliderHeight / 2,
-    Math.min(viewportHeight - sliderHeight / 2 - 12, usableAreaBottom - sliderHeight / 2)
-  );
-
-  slider.style.height = `${Math.round(sliderHeight)}px`;
-  slider.style.top = `${Math.round(centerY)}px`;
-}
-
-function scheduleTextSizeSliderPlacement() {
-  if (textSizeSliderPlacementFrame) window.cancelAnimationFrame(textSizeSliderPlacementFrame);
-  textSizeSliderPlacementFrame = window.requestAnimationFrame(() => {
-    textSizeSliderPlacementFrame = 0;
-    updateTextSizeSliderPlacement();
-  });
-}
-
 function updateTextSizeFromSlider(event) {
   const slider = document.querySelector("[data-text-size-slider]");
   const fontSize = textSizeFromSliderEvent(event, slider);
@@ -3961,12 +3931,7 @@ window.addEventListener("pointermove", moveTextSizeSlider, { passive: false });
 window.addEventListener("pointerup", endTextSizeSlider);
 window.addEventListener("pointercancel", endTextSizeSlider);
 window.addEventListener("pointerleave", cancelDayPress);
-window.addEventListener("resize", () => {
-  scheduleCanvasSafetyRepair();
-  scheduleTextSizeSliderPlacement();
-});
-window.visualViewport?.addEventListener?.("resize", scheduleTextSizeSliderPlacement);
-window.visualViewport?.addEventListener?.("scroll", scheduleTextSizeSliderPlacement);
+window.addEventListener("resize", scheduleCanvasSafetyRepair);
 document.addEventListener("gesturestart", preventViewportGesture, { passive: false });
 document.addEventListener("gesturechange", preventViewportGesture, { passive: false });
 document.addEventListener("gestureend", preventViewportGesture, { passive: false });
