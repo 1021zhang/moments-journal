@@ -73,6 +73,7 @@ const state = {
   selectedSurface: "",
   selectedItemType: "",
   activePanel: "",
+  stickerLibraryTab: "system",
   stickerSheetState: "collapsed",
   settingsSheetOpen: false,
   isExportingBackup: false,
@@ -80,6 +81,15 @@ const state = {
   isReadingClipboard: false,
   stickerImagePickerOpen: false,
   customStickerManageMode: false,
+  stickerContextMenu: { open: false, itemId: "", x: 0, y: 0 },
+  personalStickerMenu: { open: false, stickerId: "", x: 0, y: 0 },
+  stickerNameDialog: {
+    open: false,
+    mode: "save",
+    canvasStickerId: "",
+    libraryStickerId: "",
+    name: ""
+  },
   toast: "",
   toastTimer: null,
   pendingInsertPoint: null,
@@ -158,6 +168,16 @@ const stickerSheetDrag = {
 const customStickerPress = {
   timer: null,
   pointerId: null,
+  startX: 0,
+  startY: 0,
+  stickerId: "",
+  ignoreNextClick: false
+};
+const canvasStickerPress = {
+  timer: null,
+  pointerId: null,
+  itemId: "",
+  itemType: "",
   startX: 0,
   startY: 0
 };
@@ -1096,14 +1116,11 @@ function stickerSheet() {
   const sheetState = ["preview", "collapsed", "expanded"].includes(state.stickerSheetState)
     ? state.stickerSheetState
     : "collapsed";
+  const libraryTab = state.stickerLibraryTab === "personal" ? "personal" : "system";
   const systemStickers = ["❤️", "✨", "🌷", "🎀", "☁️", "🌙", "☕", "📷", "🎂", "🧸", "⭐", "📍"];
-  const stickerItems = [
-    ...state.customStickers.map((sticker) => ({ type: "custom", sticker })),
-    ...systemStickers.map((content) => ({ type: "emoji", content }))
-  ];
   const stickerRows = [
-    stickerItems.slice(0, 5),
-    stickerItems.slice(5)
+    systemStickers.slice(0, 6),
+    systemStickers.slice(6)
   ];
   const stickerButton = (content, classes = "") => `
     <button
@@ -1116,21 +1133,22 @@ function stickerSheet() {
       aria-label="添加 ${escapeHtml(content)} 贴纸"
     >${escapeHtml(content)}</button>
   `;
-  const customStickerButton = (sticker) => `
+  const personalStickers = state.customStickers.map((sticker, index) => `
     <button
-      class="sticker-token-button custom-sticker-token"
+      class="personal-sticker-card"
       type="button"
       data-action="add-sticker"
       data-sticker-type="image"
       data-sticker-id="${escapeHtml(sticker.id)}"
-      aria-label="添加自定义贴纸"
+      data-personal-sticker
+      aria-label="添加 ${escapeHtml(customStickerName(sticker, index))}"
     >
-      <img src="${escapeHtml(sticker.imageDataUrl || sticker.src || "")}" alt="" draggable="false" />
+      <span class="personal-sticker-thumb">
+        <img src="${escapeHtml(sticker.imageDataUrl || sticker.src || "")}" alt="" draggable="false" />
+      </span>
+      <span class="personal-sticker-name">${escapeHtml(customStickerName(sticker, index))}</span>
     </button>
-  `;
-  const stickerItemButton = (item) => item.type === "custom"
-    ? customStickerButton(item.sticker)
-    : stickerButton(item.content);
+  `).join("");
 
   return `
     <button class="sticker-backdrop" type="button" data-action="close-panel" aria-label="关闭贴纸"></button>
@@ -1139,22 +1157,32 @@ function stickerSheet() {
         <button class="sheet-grabber" type="button" data-action="toggle-sticker-sheet" data-sticker-sheet-handle aria-label="展开或收起贴纸"></button>
       </header>
       <div class="sticker-sheet-content">
-        <label class="sticker-search">
-          <span class="sr-only">搜索贴纸</span>
-          <input type="search" placeholder="搜索" autocomplete="off" />
-        </label>
-
-        <div class="system-sticker-grid" aria-label="贴纸">
-          <div class="sticker-token-row">
-            <button class="sticker-token-button sticker-add-button" type="button" data-action="open-sticker-image-picker" aria-label="添加贴纸" title="添加贴纸">
-              <span aria-hidden="true">+</span>
-            </button>
-            ${stickerRows[0].map(stickerItemButton).join("")}
-          </div>
-          <div class="sticker-token-row sticker-token-row-offset">
-            ${stickerRows[1].map(stickerItemButton).join("")}
-          </div>
+        <div class="sticker-library-tabs" role="tablist" aria-label="贴纸分类">
+          <button class="${libraryTab === "system" ? "is-active" : ""}" type="button" data-action="set-sticker-library-tab" data-tab="system" role="tab" aria-selected="${libraryTab === "system"}">系统贴纸</button>
+          <button class="${libraryTab === "personal" ? "is-active" : ""}" type="button" data-action="set-sticker-library-tab" data-tab="personal" role="tab" aria-selected="${libraryTab === "personal"}">我的贴纸</button>
         </div>
+
+        ${libraryTab === "system" ? `
+          <label class="sticker-search">
+            <span class="sr-only">搜索贴纸</span>
+            <input type="search" placeholder="搜索" autocomplete="off" />
+          </label>
+          <div class="system-sticker-grid" aria-label="系统贴纸">
+            <div class="sticker-token-row">
+              ${stickerRows[0].map((content) => stickerButton(content)).join("")}
+            </div>
+            <div class="sticker-token-row sticker-token-row-offset">
+              ${stickerRows[1].map((content) => stickerButton(content)).join("")}
+            </div>
+          </div>
+        ` : `
+          <div class="personal-sticker-toolbar">
+            <button type="button" data-action="open-sticker-image-picker">+ 添加贴纸</button>
+          </div>
+          ${personalStickers
+            ? `<div class="personal-sticker-grid" aria-label="我的贴纸">${personalStickers}</div>`
+            : `<div class="personal-sticker-empty"><strong>还没有贴纸</strong><span>长按页面贴纸即可收藏到这里</span></div>`}
+        `}
       </div>
     </section>
   `;
@@ -1199,6 +1227,67 @@ function stickerImagePicker() {
         ` : ""}
       </div>
     </section>
+  `;
+}
+
+function contextMenuPosition(x, y, estimatedHeight = 280) {
+  const viewportWidth = window.innerWidth || 390;
+  const viewportHeight = window.innerHeight || 844;
+  return {
+    left: clamp(Math.round(x), 12, Math.max(12, viewportWidth - 196)),
+    top: clamp(Math.round(y), 72, Math.max(72, viewportHeight - estimatedHeight - 16))
+  };
+}
+
+function stickerContextMenu() {
+  if (!state.stickerContextMenu.open) return "";
+  const position = contextMenuPosition(state.stickerContextMenu.x, state.stickerContextMenu.y);
+  return `
+    <button class="context-menu-backdrop" type="button" data-action="close-sticker-menus" aria-label="关闭菜单"></button>
+    <div class="sticker-context-menu" style="left:${position.left}px;top:${position.top}px" role="menu" aria-label="贴纸操作">
+      <button type="button" data-action="edit-context-sticker" role="menuitem">编辑</button>
+      <button type="button" data-action="copy-context-sticker" role="menuitem">复制</button>
+      <button type="button" data-action="front-context-sticker" role="menuitem">置顶</button>
+      <button class="is-destructive" type="button" data-action="delete-context-sticker" role="menuitem">删除</button>
+      <div class="context-menu-separator" aria-hidden="true"></div>
+      <button class="is-library-action" type="button" data-action="save-context-sticker" role="menuitem">⭐ 添加到贴纸库</button>
+    </div>
+  `;
+}
+
+function personalStickerContextMenu() {
+  if (!state.personalStickerMenu.open) return "";
+  const position = contextMenuPosition(state.personalStickerMenu.x, state.personalStickerMenu.y, 150);
+  return `
+    <button class="context-menu-backdrop" type="button" data-action="close-sticker-menus" aria-label="关闭菜单"></button>
+    <div class="sticker-context-menu personal-sticker-context-menu" style="left:${position.left}px;top:${position.top}px" role="menu" aria-label="我的贴纸操作">
+      <button type="button" data-action="rename-library-sticker" role="menuitem">重命名</button>
+      <button class="is-destructive" type="button" data-action="delete-library-sticker" role="menuitem">删除</button>
+    </div>
+  `;
+}
+
+function stickerNameDialog() {
+  if (!state.stickerNameDialog.open) return "";
+  const isRename = state.stickerNameDialog.mode === "rename";
+  return `
+    <div class="sticker-name-backdrop" role="presentation">
+      <section class="sticker-name-dialog" role="dialog" aria-modal="true" aria-labelledby="stickerNameDialogTitle">
+        <h2 id="stickerNameDialogTitle">${isRename ? "重命名贴纸" : "保存为贴纸"}</h2>
+        <label for="stickerNameInput">名称</label>
+        <input id="stickerNameInput" type="text" maxlength="30" value="${escapeHtml(state.stickerNameDialog.name)}" autocomplete="off" />
+        ${isRename ? "" : `
+          <div class="sticker-category-row">
+            <span>分类</span>
+            <strong>我的贴纸</strong>
+          </div>
+        `}
+        <div class="sticker-name-actions">
+          <button type="button" data-action="cancel-sticker-name">取消</button>
+          <button class="is-primary" type="button" data-action="confirm-sticker-name">保存</button>
+        </div>
+      </section>
+    </div>
   `;
 }
 
@@ -1383,6 +1472,9 @@ function renderSingleDay() {
       ${stickerSheet()}
       ${stickerImagePicker()}
       ${textEditorPanel()}
+      ${stickerContextMenu()}
+      ${personalStickerContextMenu()}
+      ${stickerNameDialog()}
       ${toastMarkup()}
     </main>
 
@@ -1450,6 +1542,8 @@ function visibleCanvasCenterPoint() {
 
 function preparePageState(targetView, options = {}) {
   clearSelection();
+  closeStickerMenus();
+  closeStickerNameDialog();
   activePointers.clear();
   setDeleteZoneVisible(false);
   state.activePanel = "";
@@ -1771,6 +1865,39 @@ async function deleteCustomSticker(stickerId) {
   await transactionDone(transaction);
 }
 
+function customStickerName(sticker, fallbackIndex = 0) {
+  return String(sticker?.name || "").trim() || `贴纸 ${fallbackIndex + 1}`;
+}
+
+function nextCustomStickerName() {
+  const highestNumber = state.customStickers.reduce((highest, sticker) => {
+    const match = String(sticker.name || "").trim().match(/^贴纸\s+(\d+)$/);
+    return match ? Math.max(highest, Number(match[1])) : highest;
+  }, 0);
+  return `贴纸 ${Math.max(highestNumber, state.customStickers.length) + 1}`;
+}
+
+function customStickerRecord(asset, name, options = {}) {
+  const now = new Date().toISOString();
+  return {
+    id: options.id || uid("custom-sticker"),
+    type: "custom-image-sticker",
+    stickerType: "image",
+    assetType: "personal-library",
+    category: "我的贴纸",
+    name: String(name || "").trim() || nextCustomStickerName(),
+    src: asset.imageDataUrl,
+    imageDataUrl: asset.imageDataUrl,
+    mimeType: "image/png",
+    naturalWidth: asset.naturalWidth,
+    naturalHeight: asset.naturalHeight,
+    aspectRatio: asset.aspectRatio || 1,
+    createdAt: options.createdAt || now,
+    updatedAt: now,
+    source: options.source || "canvas-sticker"
+  };
+}
+
 async function updateUserPhoto(photo) {
   if (state.storageMode === "localStorage") {
     localStorage.setItem(localPhotosKey, JSON.stringify(state.userPhotos));
@@ -1896,6 +2023,68 @@ function blobToDataUrl(blob) {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(blob);
   });
+}
+
+function canvasPngDataUrl(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error("无法生成贴纸素材"));
+        return;
+      }
+      blobToDataUrl(blob).then(resolve, reject);
+    }, "image/png");
+  });
+}
+
+async function stickerAssetFromCanvasElement(element) {
+  if (!element || (element.type !== "sticker" && element.type !== "emoji")) {
+    throw new Error("未找到可保存的贴纸");
+  }
+
+  const source = element.imageDataUrl || element.src || "";
+  if (element.stickerType === "image" && source) {
+    const image = await loadImage(source);
+    const naturalWidth = Math.max(1, image.naturalWidth || Math.round(element.width || 1));
+    const naturalHeight = Math.max(1, image.naturalHeight || Math.round(element.height || 1));
+    const canvas = document.createElement("canvas");
+    canvas.width = naturalWidth;
+    canvas.height = naturalHeight;
+    canvas.getContext("2d").drawImage(image, 0, 0, naturalWidth, naturalHeight);
+    return {
+      imageDataUrl: await canvasPngDataUrl(canvas),
+      naturalWidth,
+      naturalHeight,
+      aspectRatio: naturalWidth / naturalHeight
+    };
+  }
+
+  const naturalWidth = Math.max(1, Math.ceil(element.width || 76));
+  const naturalHeight = Math.max(1, Math.ceil(element.height || 76));
+  const canvas = document.createElement("canvas");
+  canvas.width = naturalWidth;
+  canvas.height = naturalHeight;
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, naturalWidth, naturalHeight);
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillStyle = element.color || "#222222";
+  context.font = element.stickerType === "text"
+    ? `800 ${element.fontSize || 22}px Georgia, serif`
+    : `${element.fontSize || 56}px -apple-system, BlinkMacSystemFont, Helvetica Neue, Arial, sans-serif`;
+  if (element.stickerType === "text") {
+    context.lineWidth = 4;
+    context.strokeStyle = "#ffffff";
+    context.strokeText(element.content || "", naturalWidth / 2, naturalHeight / 2);
+  }
+  context.fillText(element.content || "✨", naturalWidth / 2, naturalHeight / 2);
+
+  return {
+    imageDataUrl: await canvasPngDataUrl(canvas),
+    naturalWidth,
+    naturalHeight,
+    aspectRatio: naturalWidth / naturalHeight
+  };
 }
 
 function dataUrlToBytes(dataUrl) {
@@ -2520,6 +2709,110 @@ async function completeTextComposer() {
   render();
 }
 
+function closeStickerMenus() {
+  state.stickerContextMenu = { open: false, itemId: "", x: 0, y: 0 };
+  state.personalStickerMenu = { open: false, stickerId: "", x: 0, y: 0 };
+  customStickerPress.ignoreNextClick = false;
+}
+
+function closeStickerNameDialog() {
+  state.stickerNameDialog = {
+    open: false,
+    mode: "save",
+    canvasStickerId: "",
+    libraryStickerId: "",
+    name: ""
+  };
+}
+
+function openSaveStickerDialog(itemId) {
+  const element = getCanvasElement(itemId);
+  if (!element || (element.type !== "sticker" && element.type !== "emoji")) return;
+  closeStickerMenus();
+  state.stickerNameDialog = {
+    open: true,
+    mode: "save",
+    canvasStickerId: element.id,
+    libraryStickerId: "",
+    name: nextCustomStickerName()
+  };
+  render();
+  window.setTimeout(() => {
+    const input = document.querySelector("#stickerNameInput");
+    input?.focus();
+    input?.select();
+  }, 0);
+}
+
+function openRenameStickerDialog(stickerId) {
+  const sticker = state.customStickers.find((item) => item.id === stickerId);
+  if (!sticker) return;
+  closeStickerMenus();
+  state.stickerNameDialog = {
+    open: true,
+    mode: "rename",
+    canvasStickerId: "",
+    libraryStickerId: sticker.id,
+    name: customStickerName(sticker, state.customStickers.indexOf(sticker))
+  };
+  render();
+  window.setTimeout(() => {
+    const input = document.querySelector("#stickerNameInput");
+    input?.focus();
+    input?.select();
+  }, 0);
+}
+
+async function saveCanvasStickerToLibrary(itemId, name) {
+  const element = getCanvasElement(itemId);
+  const asset = await stickerAssetFromCanvasElement(element);
+  const sticker = customStickerRecord(asset, name, { source: element.source || element.assetType || "canvas-sticker" });
+  await saveCustomSticker(sticker);
+  closeStickerNameDialog();
+  state.stickerLibraryTab = "personal";
+  showToast("已添加到我的贴纸");
+  render();
+}
+
+async function renameLibrarySticker(stickerId, name) {
+  const sticker = state.customStickers.find((item) => item.id === stickerId);
+  if (!sticker) return;
+  sticker.name = String(name || "").trim() || customStickerName(sticker, state.customStickers.indexOf(sticker));
+  sticker.category = "我的贴纸";
+  sticker.updatedAt = new Date().toISOString();
+  await saveCustomSticker(sticker);
+  closeStickerNameDialog();
+  render();
+}
+
+async function duplicateCanvasSticker(itemId) {
+  const element = getCanvasElement(itemId);
+  if (!element) return;
+  const undoBefore = currentUndoSnapshot();
+  const copy = deepClone(element);
+  copy.id = uid("sticker");
+  copy.x = (element.x || 0) + 18;
+  copy.y = (element.y || 0) + 18;
+  copy.zIndex = maxCanvasZIndex(element.dateKey) + 1;
+  await saveCanvasElement(copy);
+  closeStickerMenus();
+  selectItem(copy.type, copy.id);
+  commitUndoSnapshot(undoBefore);
+  render();
+}
+
+async function bringCanvasStickerToFront(itemId) {
+  const element = getCanvasElement(itemId);
+  if (!element) return;
+  const undoBefore = currentUndoSnapshot();
+  element.zIndex = maxCanvasZIndex(element.dateKey) + 1;
+  await saveCanvasElement(element);
+  closeStickerMenus();
+  selectItem(element.type, element.id);
+  commitUndoSnapshot(undoBefore);
+  render();
+}
+
 async function addStickerElement(sticker) {
   const day = getDay();
   if (!day) return;
@@ -2567,10 +2860,15 @@ async function handleCustomStickerSelection(event) {
       id: uid("custom-sticker"),
       type: "custom-image-sticker",
       stickerType: "image",
+      assetType: "personal-library",
+      category: "我的贴纸",
+      name: nextCustomStickerName(),
       src: compressed.imageDataUrl,
       imageDataUrl: compressed.imageDataUrl,
       aspectRatio: compressed.aspectRatio,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      source: "image-picker"
     };
     await saveCustomSticker(sticker);
     await addStickerElement(sticker);
@@ -3759,21 +4057,34 @@ function clearCustomStickerPress() {
   if (customStickerPress.timer) window.clearTimeout(customStickerPress.timer);
   customStickerPress.timer = null;
   customStickerPress.pointerId = null;
+  customStickerPress.stickerId = "";
 }
 
 function startCustomStickerPress(event) {
-  if (!state.stickerImagePickerOpen) return;
-  if (!event.target.closest("[data-custom-sticker-thumb]")) return;
+  const personalSticker = event.target.closest("[data-personal-sticker]");
+  const pickerSticker = event.target.closest("[data-custom-sticker-thumb]");
+  if (!personalSticker && !pickerSticker) return;
 
   clearCustomStickerPress();
   customStickerPress.pointerId = event.pointerId;
   customStickerPress.startX = event.clientX;
   customStickerPress.startY = event.clientY;
+  customStickerPress.stickerId = personalSticker?.dataset.stickerId || pickerSticker?.dataset.stickerId || "";
   customStickerPress.timer = window.setTimeout(() => {
     customStickerPress.timer = null;
-    state.customStickerManageMode = true;
+    if (personalSticker && customStickerPress.stickerId) {
+      customStickerPress.ignoreNextClick = true;
+      state.personalStickerMenu = {
+        open: true,
+        stickerId: customStickerPress.stickerId,
+        x: event.clientX,
+        y: event.clientY
+      };
+    } else {
+      state.customStickerManageMode = true;
+    }
     render();
-  }, 480);
+  }, 520);
 }
 
 function moveCustomStickerPress(event) {
@@ -3781,6 +4092,51 @@ function moveCustomStickerPress(event) {
   const dx = event.clientX - customStickerPress.startX;
   const dy = event.clientY - customStickerPress.startY;
   if (Math.hypot(dx, dy) > 10) clearCustomStickerPress();
+}
+
+function clearCanvasStickerPress() {
+  if (canvasStickerPress.timer) window.clearTimeout(canvasStickerPress.timer);
+  canvasStickerPress.timer = null;
+  canvasStickerPress.pointerId = null;
+  canvasStickerPress.itemId = "";
+  canvasStickerPress.itemType = "";
+}
+
+function startCanvasStickerPress(event) {
+  if (event.target.closest(".resize-handle, .rotate-handle, .delete-photo")) return;
+  const item = event.target.closest('.canvas-item[data-item-type="sticker"], .canvas-item[data-item-type="emoji"]');
+  if (!item) return;
+
+  clearCanvasStickerPress();
+  canvasStickerPress.pointerId = event.pointerId;
+  canvasStickerPress.itemId = item.dataset.itemId || "";
+  canvasStickerPress.itemType = item.dataset.itemType || "sticker";
+  canvasStickerPress.startX = event.clientX;
+  canvasStickerPress.startY = event.clientY;
+  canvasStickerPress.timer = window.setTimeout(async () => {
+    const itemId = canvasStickerPress.itemId;
+    const itemType = canvasStickerPress.itemType;
+    const pointerId = canvasStickerPress.pointerId;
+    canvasStickerPress.timer = null;
+    if (!itemId || gesture.dragging || gesture.itemId !== itemId) return;
+
+    await endGesture({ pointerId });
+    selectItem(itemType, itemId);
+    state.stickerContextMenu = {
+      open: true,
+      itemId,
+      x: event.clientX,
+      y: event.clientY
+    };
+    render();
+  }, 520);
+}
+
+function moveCanvasStickerPress(event) {
+  if (!canvasStickerPress.timer || event.pointerId !== canvasStickerPress.pointerId) return;
+  const dx = event.clientX - canvasStickerPress.startX;
+  const dy = event.clientY - canvasStickerPress.startY;
+  if (Math.hypot(dx, dy) > 10) clearCanvasStickerPress();
 }
 
 function textSizeFromSliderEvent(event, slider) {
@@ -3851,6 +4207,7 @@ document.addEventListener("pointerdown", (event) => {
   if (stopDaybookNavPointerEvent(event)) return;
   if (startDayPress(event)) return;
   startCustomStickerPress(event);
+  startCanvasStickerPress(event);
 
   if (startTextSizeSlider(event)) return;
 
@@ -3927,6 +4284,9 @@ window.addEventListener("pointercancel", cancelDayPress);
 window.addEventListener("pointermove", moveCustomStickerPress);
 window.addEventListener("pointerup", clearCustomStickerPress);
 window.addEventListener("pointercancel", clearCustomStickerPress);
+window.addEventListener("pointermove", moveCanvasStickerPress);
+window.addEventListener("pointerup", clearCanvasStickerPress);
+window.addEventListener("pointercancel", clearCanvasStickerPress);
 window.addEventListener("pointermove", moveTextSizeSlider, { passive: false });
 window.addEventListener("pointerup", endTextSizeSlider);
 window.addEventListener("pointercancel", endTextSizeSlider);
@@ -4032,9 +4392,17 @@ document.addEventListener("click", async (event) => {
       state.activePanel = "";
     } else {
       state.activePanel = "sticker";
+      state.stickerLibraryTab = "system";
       state.stickerSheetState = "collapsed";
       stickerSheetDrag.ignoreNextToggle = false;
     }
+    closeStickerMenus();
+    render();
+    return;
+  }
+  if (action === "set-sticker-library-tab") {
+    state.stickerLibraryTab = actionTarget.dataset.tab === "personal" ? "personal" : "system";
+    closeStickerMenus();
     render();
     return;
   }
@@ -4074,6 +4442,74 @@ document.addEventListener("click", async (event) => {
     render();
     return;
   }
+  if (action === "close-sticker-menus") {
+    closeStickerMenus();
+    render();
+    return;
+  }
+  if (action === "edit-context-sticker") {
+    const itemId = state.stickerContextMenu.itemId;
+    const element = getCanvasElement(itemId);
+    closeStickerMenus();
+    if (element) selectItem(element.type, element.id);
+    render();
+    return;
+  }
+  if (action === "copy-context-sticker") {
+    const itemId = state.stickerContextMenu.itemId;
+    if (itemId) await duplicateCanvasSticker(itemId);
+    return;
+  }
+  if (action === "front-context-sticker") {
+    const itemId = state.stickerContextMenu.itemId;
+    if (itemId) await bringCanvasStickerToFront(itemId);
+    return;
+  }
+  if (action === "delete-context-sticker") {
+    const itemId = state.stickerContextMenu.itemId;
+    closeStickerMenus();
+    if (itemId) await deleteSelectedElement(itemId);
+    return;
+  }
+  if (action === "save-context-sticker") {
+    const itemId = state.stickerContextMenu.itemId;
+    if (itemId) openSaveStickerDialog(itemId);
+    return;
+  }
+  if (action === "rename-library-sticker") {
+    const stickerId = state.personalStickerMenu.stickerId;
+    if (stickerId) openRenameStickerDialog(stickerId);
+    return;
+  }
+  if (action === "delete-library-sticker") {
+    const stickerId = state.personalStickerMenu.stickerId;
+    const sticker = state.customStickers.find((item) => item.id === stickerId);
+    closeStickerMenus();
+    if (stickerId && window.confirm(`确认删除“${customStickerName(sticker, 0)}”？`)) {
+      await deleteCustomSticker(stickerId);
+    }
+    render();
+    return;
+  }
+  if (action === "cancel-sticker-name") {
+    closeStickerNameDialog();
+    render();
+    return;
+  }
+  if (action === "confirm-sticker-name") {
+    const name = document.querySelector("#stickerNameInput")?.value.trim() || "";
+    const dialogState = { ...state.stickerNameDialog };
+    try {
+      if (dialogState.mode === "rename") {
+        await renameLibrarySticker(dialogState.libraryStickerId, name);
+      } else {
+        await saveCanvasStickerToLibrary(dialogState.canvasStickerId, name || nextCustomStickerName());
+      }
+    } catch (error) {
+      showToast(error?.message || "贴纸保存失败，请重试");
+    }
+    return;
+  }
   if (action === "choose-sticker-image") {
     openCustomStickerPicker();
     return;
@@ -4086,6 +4522,10 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "add-sticker") {
+    if (actionTarget.closest("[data-personal-sticker]") && customStickerPress.ignoreNextClick) {
+      customStickerPress.ignoreNextClick = false;
+      return;
+    }
     if (state.customStickerManageMode && actionTarget.closest(".sticker-image-picker")) return;
     const customSticker = actionTarget.dataset.stickerType === "image"
       ? state.customStickers.find((sticker) => sticker.id === actionTarget.dataset.stickerId)
@@ -4164,6 +4604,7 @@ document.addEventListener("click", async (event) => {
     state.activePanel = "";
     state.stickerImagePickerOpen = false;
     state.customStickerManageMode = false;
+    closeStickerMenus();
     stickerSheetDrag.ignoreNextToggle = false;
     render();
     return;

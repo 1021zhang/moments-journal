@@ -1644,6 +1644,34 @@ button {
   display: none;
 }
 
+.sticker-library-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+  margin-bottom: 16px;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.sticker-library-tabs button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.sticker-library-tabs button.is-active {
+  background: rgba(255, 255, 255, 0.92);
+  color: #202020;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+
 .sticker-search {
   position: relative;
   display: block;
@@ -1774,6 +1802,245 @@ button {
   font-size: 34px;
   font-weight: 300;
   line-height: 1;
+}
+
+.personal-sticker-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.personal-sticker-toolbar button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.personal-sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 10px;
+  padding-bottom: 18px;
+}
+
+.personal-sticker-card {
+  display: grid;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.personal-sticker-thumb {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.personal-sticker-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.personal-sticker-name {
+  margin-top: 6px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.personal-sticker-empty {
+  display: grid;
+  place-items: center;
+  min-height: 150px;
+  color: rgba(255, 255, 255, 0.68);
+  text-align: center;
+}
+
+.personal-sticker-empty strong {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 15px;
+}
+
+.personal-sticker-empty span {
+  margin-top: 5px;
+  font-size: 12px;
+}
+
+.context-menu-backdrop,
+.sticker-name-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2400;
+  border: 0;
+  background: rgba(0, 0, 0, 0.08);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sticker-context-menu {
+  position: fixed;
+  z-index: 2410;
+  display: grid;
+  width: 184px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.66);
+  border-radius: 14px;
+  background: rgba(248, 248, 248, 0.94);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.sticker-context-menu button {
+  min-height: 40px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #1c1c1e;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-align: left;
+}
+
+.sticker-context-menu button:active {
+  background: rgba(118, 118, 128, 0.12);
+}
+
+.sticker-context-menu button.is-destructive {
+  color: #d92d20;
+}
+
+.sticker-context-menu button.is-library-action {
+  color: #604819;
+}
+
+.context-menu-separator {
+  height: 1px;
+  margin: 5px 7px;
+  background: rgba(60, 60, 67, 0.16);
+}
+
+.personal-sticker-context-menu {
+  width: 168px;
+}
+
+.sticker-name-backdrop {
+  z-index: 2500;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.sticker-name-dialog {
+  width: min(320px, 100%);
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 16px;
+  background: rgba(250, 250, 250, 0.97);
+  color: #111111;
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.sticker-name-dialog h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+.sticker-name-dialog label,
+.sticker-category-row span {
+  display: block;
+  margin-bottom: 7px;
+  color: rgba(17, 17, 17, 0.58);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sticker-name-dialog input {
+  width: 100%;
+  height: 42px;
+  padding: 0 11px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  outline: none;
+  background: #ffffff;
+  color: #111111;
+  font-size: 16px;
+}
+
+.sticker-name-dialog input:focus {
+  border-color: rgba(52, 120, 246, 0.58);
+  box-shadow: 0 0 0 3px rgba(52, 120, 246, 0.1);
+}
+
+.sticker-category-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 10px 11px;
+  border-radius: 10px;
+  background: rgba(118, 118, 128, 0.08);
+}
+
+.sticker-category-row span {
+  margin: 0;
+}
+
+.sticker-category-row strong {
+  font-size: 14px;
+}
+
+.sticker-name-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.sticker-name-actions button {
+  min-height: 40px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(118, 118, 128, 0.1);
+  color: #333333;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.sticker-name-actions button.is-primary {
+  background: #111111;
+  color: #ffffff;
 }
 
 .sticker-token-button:active {
