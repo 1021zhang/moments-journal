@@ -1262,12 +1262,10 @@ function stickerContextMenu() {
   return `
     <button class="context-menu-backdrop" type="button" data-action="close-sticker-menus" aria-label="关闭菜单"></button>
     <div class="sticker-context-menu" style="left:${position.left}px;top:${position.top}px" role="menu" aria-label="贴纸操作">
-      <button type="button" data-action="edit-context-sticker" role="menuitem">编辑</button>
       <button type="button" data-action="copy-context-sticker" role="menuitem">复制</button>
       <button type="button" data-action="front-context-sticker" role="menuitem">置顶</button>
-      <button class="is-destructive" type="button" data-action="delete-context-sticker" role="menuitem">删除</button>
       <div class="context-menu-separator" aria-hidden="true"></div>
-      <button class="is-library-action" type="button" data-action="save-context-sticker" role="menuitem">⭐ 添加到贴纸库</button>
+      <button class="is-library-action" type="button" data-action="save-context-sticker" role="menuitem">添加到贴纸库</button>
     </div>
   `;
 }
@@ -4123,6 +4121,8 @@ function startCanvasStickerPress(event) {
   const item = event.target.closest('.canvas-item[data-item-type="sticker"], .canvas-item[data-item-type="emoji"]');
   if (!item) return;
 
+  event.preventDefault();
+  event.stopPropagation();
   clearCanvasStickerPress();
   canvasStickerPress.pointerId = event.pointerId;
   canvasStickerPress.itemId = item.dataset.itemId || "";
@@ -4311,6 +4311,11 @@ window.addEventListener("resize", scheduleCanvasSafetyRepair);
 document.addEventListener("gesturestart", preventViewportGesture, { passive: false });
 document.addEventListener("gesturechange", preventViewportGesture, { passive: false });
 document.addEventListener("gestureend", preventViewportGesture, { passive: false });
+document.addEventListener("contextmenu", (event) => {
+  if (!event.target.closest('.canvas-item[data-item-type="sticker"], .canvas-item[data-item-type="emoji"], .sticker-context-menu')) return;
+  event.preventDefault();
+  event.stopPropagation();
+});
 document.addEventListener("pointerup", stopDaybookNavPointerEvent);
 document.addEventListener("pointercancel", stopDaybookNavPointerEvent);
 document.addEventListener("touchcancel", stopDaybookNavPointerEvent);
@@ -4461,14 +4466,6 @@ document.addEventListener("click", async (event) => {
     render();
     return;
   }
-  if (action === "edit-context-sticker") {
-    const itemId = state.stickerContextMenu.itemId;
-    const element = getCanvasElement(itemId);
-    closeStickerMenus();
-    if (element) selectItem(element.type, element.id);
-    render();
-    return;
-  }
   if (action === "copy-context-sticker") {
     const itemId = state.stickerContextMenu.itemId;
     if (itemId) await duplicateCanvasSticker(itemId);
@@ -4477,12 +4474,6 @@ document.addEventListener("click", async (event) => {
   if (action === "front-context-sticker") {
     const itemId = state.stickerContextMenu.itemId;
     if (itemId) await bringCanvasStickerToFront(itemId);
-    return;
-  }
-  if (action === "delete-context-sticker") {
-    const itemId = state.stickerContextMenu.itemId;
-    closeStickerMenus();
-    if (itemId) await deleteSelectedElement(itemId);
     return;
   }
   if (action === "save-context-sticker") {
