@@ -1115,10 +1115,10 @@ function canvasElement(element) {
   );
 
   return `
-    <div class="canvas-item canvas-sticker ${stickerClass} ${selected}" data-item-type="${element.type}" data-item-id="${element.id}" style="${baseStyle.join(";")}">
+    <div class="canvas-item canvas-sticker no-ios-callout ${stickerClass} ${selected}" data-item-type="${element.type}" data-item-id="${element.id}" style="${baseStyle.join(";")}">
       ${stickerType === "image"
-        ? `<img src="${escapeHtml(element.imageDataUrl || element.src || "")}" alt="" draggable="false" />`
-        : `<span>${escapeHtml(element.content)}</span>`}
+        ? `<img class="no-ios-callout" src="${escapeHtml(element.imageDataUrl || element.src || "")}" alt="" draggable="false" />`
+        : `<span class="no-ios-callout">${escapeHtml(element.content)}</span>`}
       <button class="delete-photo" type="button" data-action="delete-element" aria-label="删除贴纸" title="删除贴纸">×</button>
       <span class="rotate-handle" aria-hidden="true">↻</span>
       <span class="resize-handle" aria-hidden="true"></span>
@@ -1261,11 +1261,11 @@ function stickerContextMenu() {
   const position = contextMenuPosition(state.stickerContextMenu.x, state.stickerContextMenu.y);
   return `
     <button class="context-menu-backdrop" type="button" data-action="close-sticker-menus" aria-label="关闭菜单"></button>
-    <div class="sticker-context-menu" style="left:${position.left}px;top:${position.top}px" role="menu" aria-label="贴纸操作">
-      <button type="button" data-action="copy-context-sticker" role="menuitem">复制</button>
-      <button type="button" data-action="front-context-sticker" role="menuitem">置顶</button>
+    <div class="sticker-context-menu no-ios-callout" style="left:${position.left}px;top:${position.top}px" role="menu" aria-label="贴纸操作">
+      <button class="no-ios-callout" type="button" data-action="copy-context-sticker" role="menuitem">复制</button>
+      <button class="no-ios-callout" type="button" data-action="front-context-sticker" role="menuitem">置顶</button>
       <div class="context-menu-separator" aria-hidden="true"></div>
-      <button class="is-library-action" type="button" data-action="save-context-sticker" role="menuitem">添加到贴纸库</button>
+      <button class="is-library-action no-ios-callout" type="button" data-action="save-context-sticker" role="menuitem">添加到贴纸库</button>
     </div>
   `;
 }
@@ -3820,6 +3820,7 @@ function startPinchGesture(event, itemId, itemType) {
   if (!layout || pointers.length < 2) return false;
 
   event.preventDefault();
+  clearCanvasStickerPress();
   const gestureElement = event.target.closest(".canvas-item") || elementForItem(itemId, itemType);
   capturePointerForGesture(gestureElement, event.pointerId);
   selectItem(itemType, itemId);
@@ -4137,6 +4138,11 @@ function startCanvasStickerPress(event) {
     if (!itemId || gesture.dragging || gesture.itemId !== itemId) return;
 
     await endGesture({ pointerId });
+    setDeleteZoneVisible(false);
+    gesture.dragging = false;
+    gesture.overDeleteZone = false;
+    document.querySelectorAll(".canvas-item.is-dragging, .canvas-item.is-over-delete")
+      .forEach((element) => element.classList.remove("is-dragging", "is-over-delete"));
     selectItem(itemType, itemId);
     state.stickerContextMenu = {
       open: true,
@@ -4145,7 +4151,7 @@ function startCanvasStickerPress(event) {
       y: event.clientY
     };
     render();
-  }, 520);
+  }, 450);
 }
 
 function moveCanvasStickerPress(event) {
@@ -4153,6 +4159,18 @@ function moveCanvasStickerPress(event) {
   const dx = event.clientX - canvasStickerPress.startX;
   const dy = event.clientY - canvasStickerPress.startY;
   if (Math.hypot(dx, dy) > 10) clearCanvasStickerPress();
+}
+
+function preventStickerNativeInteraction(event) {
+  if (!event.target.closest(".no-ios-callout")) return;
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+function preventStickerTouchStart(event) {
+  if (!event.target.closest('.canvas-item[data-item-type="sticker"], .canvas-item[data-item-type="emoji"]')) return;
+  event.preventDefault();
+  event.stopPropagation();
 }
 
 function textSizeFromSliderEvent(event, slider) {
@@ -4311,11 +4329,10 @@ window.addEventListener("resize", scheduleCanvasSafetyRepair);
 document.addEventListener("gesturestart", preventViewportGesture, { passive: false });
 document.addEventListener("gesturechange", preventViewportGesture, { passive: false });
 document.addEventListener("gestureend", preventViewportGesture, { passive: false });
-document.addEventListener("contextmenu", (event) => {
-  if (!event.target.closest('.canvas-item[data-item-type="sticker"], .canvas-item[data-item-type="emoji"], .sticker-context-menu')) return;
-  event.preventDefault();
-  event.stopPropagation();
-});
+document.addEventListener("touchstart", preventStickerTouchStart, { passive: false });
+document.addEventListener("contextmenu", preventStickerNativeInteraction);
+document.addEventListener("selectstart", preventStickerNativeInteraction);
+document.addEventListener("dragstart", preventStickerNativeInteraction);
 document.addEventListener("pointerup", stopDaybookNavPointerEvent);
 document.addEventListener("pointercancel", stopDaybookNavPointerEvent);
 document.addEventListener("touchcancel", stopDaybookNavPointerEvent);
