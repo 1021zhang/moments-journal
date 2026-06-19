@@ -54,20 +54,36 @@ const textOutlineOptions = [
   { label: "黑边", value: "black" },
   { label: "白边", value: "white" }
 ];
+/** @typedef {{ id: string, image: string }} StickerItem */
+/** @typedef {{ id: string, name: string, subtitle: string, cover: string, stickers: StickerItem[] }} StickerPack */
+
+function createOfficialStickerPack(id, name, subtitle, images, cover = "") {
+  return {
+    id,
+    name,
+    subtitle,
+    cover,
+    stickers: images.map((image, index) => ({ id: `${id}-${index + 1}`, image }))
+  };
+}
+
+/** @type {StickerPack[]} */
 const officialStickerPacks = [
-  {
-    id: "official-pack-01",
-    title: "Moments Pack 01",
-    subtitle: "Daily hand-drawn stickers",
-    coverImage: "",
-    stickers: ["❤️", "✨", "🌷", "🎀", "☁️", "🌙", "☕", "📷", "🎂", "🧸", "⭐", "📍"]
-      .map((content, index) => ({
-        id: `official-pack-01-${index + 1}`,
-        stickerType: "emoji",
-        content,
-        color: "#222222"
-      }))
-  }
+  createOfficialStickerPack("moments-pack-01", "Moments Pack 01", "Daily stickers", [
+    "❤️", "🌸", "☁️", "⭐", "☕", "🌙", "✨", "🌷", "🎀", "📷", "🎂", "📍"
+  ]),
+  createOfficialStickerPack("baby-pack-01", "Baby Pack 01", "Baby memories", [
+    "👶", "🍼", "🧸", "🫧", "🌙", "⭐", "💛", "🐣", "🎀", "☁️", "🛁", "🧦"
+  ]),
+  createOfficialStickerPack("travel-pack-01", "Travel Pack 01", "Travel moments", [
+    "✈️", "🧳", "📍", "🗺️", "📷", "🌊", "⛰️", "🚆", "☀️", "🏕️", "🌴", "🎫"
+  ]),
+  createOfficialStickerPack("hand-drawn-pack-01", "Hand Drawn Pack 01", "Hand drawn collection", [
+    "✏️", "🖍️", "🎨", "🌼", "〰️", "💭", "✨", "♡", "☺️", "☁️", "🌙", "⭐"
+  ]),
+  createOfficialStickerPack("seasonal-pack-01", "Seasonal Pack 01", "Seasonal stickers", [
+    "🌸", "☀️", "🍂", "❄️", "🌧️", "🌈", "🍓", "🎃", "🎄", "🧣", "🌻", "🍁"
+  ])
 ];
 
 const mockPhotos = [
@@ -1130,6 +1146,25 @@ function officialStickerPackById(packId) {
   return officialStickerPacks.find((pack) => pack.id === packId) || null;
 }
 
+function isStickerImageAsset(image) {
+  const source = String(image || "");
+  return /^(?:data:|blob:|https?:|\/|\.\/|\.\.\/)/.test(source)
+    || /\.(?:avif|gif|jpe?g|png|svg|webp)(?:[?#].*)?$/i.test(source);
+}
+
+function officialStickerMarkup(sticker) {
+  return isStickerImageAsset(sticker.image)
+    ? `<img src="${escapeHtml(sticker.image)}" alt="" draggable="false" />`
+    : `<span>${escapeHtml(sticker.image || "✨")}</span>`;
+}
+
+function officialStickerCanvasPayload(sticker) {
+  if (isStickerImageAsset(sticker.image)) {
+    return { stickerType: "image", src: sticker.image, aspectRatio: 1 };
+  }
+  return { stickerType: "emoji", content: sticker.image || "✨", color: "#222222" };
+}
+
 function personalStickerLibrary() {
   const personalStickers = state.customStickers.map((sticker, index) => `
     <div class="personal-sticker-item ${state.customStickerManageMode ? "is-managing" : ""}" data-custom-sticker-id="${escapeHtml(sticker.id)}">
@@ -1167,21 +1202,21 @@ function officialStickerPackHome() {
     <div class="official-pack-shelf" aria-label="官方贴纸包">
       ${officialStickerPacks.map((pack) => `
         <button class="official-pack-card" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}">
-          <span class="official-pack-cover ${pack.coverImage ? "has-image" : ""}" ${pack.coverImage ? `style="--pack-cover:url('${escapeCssUrl(pack.coverImage)}')"` : ""}>
-            ${pack.coverImage ? "" : `
+          <span class="official-pack-cover ${pack.cover ? "has-image" : ""}" ${pack.cover ? `style="--pack-cover:url('${escapeCssUrl(pack.cover)}')"` : ""}>
+            ${pack.cover ? "" : `
               <span class="official-pack-cover-brand">MOMENTS</span>
               <span class="official-pack-cover-stickers" aria-hidden="true">
-                ${pack.stickers.slice(0, 5).map((sticker) => `<i>${escapeHtml(sticker.content || "✦")}</i>`).join("")}
+                ${pack.stickers.slice(0, 5).map((sticker) => `<i>${officialStickerMarkup(sticker)}</i>`).join("")}
               </span>
               <span class="official-pack-cover-edition">${pack.stickers.length} STICKERS</span>
             `}
           </span>
           <span class="official-pack-meta">
             <span>
-              <strong>${escapeHtml(pack.title)}</strong>
+              <strong>${escapeHtml(pack.name)}</strong>
               <small>${escapeHtml(pack.subtitle)}</small>
             </span>
-            <em>${pack.stickers.length} 枚</em>
+            <em>${pack.stickers.length} stickers</em>
           </span>
         </button>
       `).join("")}
@@ -1192,12 +1227,12 @@ function officialStickerPackHome() {
 function officialStickerPackDetail(pack) {
   if (!pack) return officialStickerPackHome();
   return `
-    <section class="official-pack-detail" aria-label="${escapeHtml(pack.title)}">
+    <section class="official-pack-detail" aria-label="${escapeHtml(pack.name)}">
       <header class="official-pack-detail-header">
-        <button type="button" data-action="close-official-sticker-pack" aria-label="返回官方贴纸包">‹</button>
+        <button type="button" data-action="close-official-sticker-pack" aria-label="返回官方贴纸包">← 返回</button>
         <div>
-          <strong>${escapeHtml(pack.title)}</strong>
-          <span>${escapeHtml(pack.subtitle)}</span>
+          <strong>${escapeHtml(pack.name)}</strong>
+          <span>${pack.stickers.length} stickers</span>
         </div>
       </header>
       <div class="official-pack-sticker-grid">
@@ -1208,11 +1243,9 @@ function officialStickerPackDetail(pack) {
             data-action="add-official-sticker"
             data-pack-id="${escapeHtml(pack.id)}"
             data-sticker-id="${escapeHtml(sticker.id)}"
-            aria-label="添加 ${escapeHtml(sticker.content || "官方")} 贴纸"
+            aria-label="添加 ${escapeHtml(sticker.image || "官方")} 贴纸"
           >
-            ${sticker.stickerType === "image"
-              ? `<img src="${escapeHtml(sticker.imageDataUrl || sticker.src || "")}" alt="" draggable="false" />`
-              : `<span>${escapeHtml(sticker.content || "✨")}</span>`}
+            ${officialStickerMarkup(sticker)}
           </button>
         `).join("")}
       </div>
@@ -4539,7 +4572,7 @@ document.addEventListener("click", async (event) => {
   if (action === "add-official-sticker") {
     const pack = officialStickerPackById(actionTarget.dataset.packId);
     const sticker = pack?.stickers.find((item) => item.id === actionTarget.dataset.stickerId);
-    if (sticker) await addStickerElement(sticker);
+    if (sticker) await addStickerElement(officialStickerCanvasPayload(sticker));
     return;
   }
   if (action === "add-sticker") {

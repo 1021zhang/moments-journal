@@ -1701,10 +1701,13 @@ img.no-ios-callout,
   display: grid;
   min-width: 0;
   padding: 0;
-  border: 0;
-  background: transparent;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
   text-align: left;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -1713,11 +1716,28 @@ img.no-ios-callout,
   display: block;
   aspect-ratio: 1.7;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.34);
-  border-radius: 8px;
+  border: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 0;
   background: #ededeb;
   color: #111111;
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.14);
+}
+
+.official-pack-card:nth-child(2) .official-pack-cover {
+  background: #f2e6df;
+}
+
+.official-pack-card:nth-child(3) .official-pack-cover {
+  background: #dfe9ed;
+}
+
+.official-pack-card:nth-child(4) .official-pack-cover {
+  background: #ebe5d8;
+}
+
+.official-pack-card:nth-child(5) .official-pack-cover {
+  background: #e6e2eb;
 }
 
 .official-pack-cover.has-image {
@@ -1766,6 +1786,13 @@ img.no-ios-callout,
   transform: rotate(-5deg);
 }
 
+.official-pack-cover-stickers img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .official-pack-cover-stickers i:nth-child(even) {
   transform: translateY(12px) rotate(6deg);
 }
@@ -1787,7 +1814,7 @@ img.no-ios-callout,
   align-items: start;
   justify-content: space-between;
   gap: 14px;
-  padding: 10px 2px 0;
+  padding: 12px 14px 13px;
 }
 
 .official-pack-meta > span {
@@ -1826,7 +1853,7 @@ img.no-ios-callout,
 
 .official-pack-detail-header {
   display: grid;
-  grid-template-columns: 38px 1fr;
+  grid-template-columns: 78px 1fr;
   align-items: center;
   gap: 9px;
   margin-bottom: 16px;
@@ -1835,15 +1862,15 @@ img.no-ios-callout,
 .official-pack-detail-header button {
   display: grid;
   place-items: center;
-  width: 36px;
+  width: 76px;
   height: 36px;
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 50%;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
-  font-size: 28px;
-  font-weight: 400;
+  font-size: 13px;
+  font-weight: 650;
   line-height: 1;
 }
 
