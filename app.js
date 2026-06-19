@@ -1173,7 +1173,16 @@ function officialStickerPackHome() {
     <div class="official-pack-shelf" aria-label="官方贴纸包">
       ${officialStickerPacks.map((pack) => `
         <button class="official-pack-package" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}" aria-label="打开 ${escapeHtml(pack.title)}">
-          <img src="${escapeHtml(pack.packageImage)}" alt="${escapeHtml(pack.title)} 贴纸包" draggable="false" />
+          <span class="official-pack-package-visual">
+            <img src="${escapeHtml(pack.packageImage)}" alt="${escapeHtml(pack.title)} 贴纸包" draggable="false" />
+          </span>
+          <span class="official-pack-package-info">
+            <span>
+              <strong>${escapeHtml(pack.title)}</strong>
+              <small>${escapeHtml(pack.subtitle)}</small>
+            </span>
+            <em>${pack.stickers.length} stickers</em>
+          </span>
         </button>
       `).join("")}
     </div>

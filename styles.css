@@ -1694,27 +1694,84 @@ img.no-ios-callout,
 .official-pack-shelf {
   display: grid;
   place-items: start center;
-  padding: 6px 0 28px;
+  padding: 0 0 24px;
 }
 
 .official-pack-package {
-  width: min(310px, 94%);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 50px;
+  width: min(336px, 96%);
+  aspect-ratio: 1.15 / 1;
   padding: 0;
-  border: 0;
-  background: transparent;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  background: #232323;
+  color: #ffffff;
   filter: drop-shadow(0 20px 28px rgba(0, 0, 0, 0.2));
   -webkit-tap-highlight-color: transparent;
   transition: transform 150ms ease, filter 150ms ease;
 }
 
-.official-pack-package img {
+.official-pack-package-visual {
+  min-height: 0;
+  overflow: hidden;
+  background: #252525;
+}
+
+.official-pack-package-visual img {
   display: block;
   width: 100%;
-  height: auto;
-  border-radius: 18px;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 58%;
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+.official-pack-package-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 7px 11px 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(20, 20, 20, 0.96);
+  text-align: left;
+}
+
+.official-pack-package-info > span {
+  display: grid;
+  min-width: 0;
+}
+
+.official-pack-package-info strong,
+.official-pack-package-info small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.official-pack-package-info strong {
+  font-size: 13px;
+  font-weight: 720;
+}
+
+.official-pack-package-info small,
+.official-pack-package-info em {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.official-pack-package-info small {
+  margin-top: 2px;
+}
+
+.official-pack-package-info em {
+  flex: 0 0 auto;
 }
 
 .official-pack-package:active {
