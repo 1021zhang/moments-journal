@@ -1,5 +1,5 @@
 {
   "scripts": {
-    "build": "node --check app.js && node --check service-worker.js"
+    "build": "node --check sticker-packs.js && node --check app.js && node --check service-worker.js"
   }
 }

@@ -1900,6 +1900,12 @@ img.no-ios-callout,
   white-space: nowrap;
 }
 
+.official-pack-detail-header small {
+  margin-top: 2px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+}
+
 .official-pack-sticker-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
