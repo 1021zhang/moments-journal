@@ -1693,162 +1693,33 @@ img.no-ios-callout,
 
 .official-pack-shelf {
   display: grid;
-  gap: 18px;
-  padding: 2px 0 20px;
+  place-items: start center;
+  padding: 6px 0 28px;
 }
 
-.official-pack-card {
-  display: grid;
-  min-width: 0;
+.official-pack-package {
+  width: min(310px, 94%);
   padding: 0;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-  text-align: left;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.official-pack-cover {
-  position: relative;
-  display: block;
-  aspect-ratio: 1.7;
-  overflow: hidden;
   border: 0;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 0;
-  background: #ededeb;
-  color: #111111;
-  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.14);
+  background: transparent;
+  filter: drop-shadow(0 20px 28px rgba(0, 0, 0, 0.2));
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 150ms ease, filter 150ms ease;
 }
 
-.official-pack-card:only-child .official-pack-cover {
-  aspect-ratio: 1.5;
-}
-
-.official-pack-card:nth-child(2) .official-pack-cover {
-  background: #f2e6df;
-}
-
-.official-pack-card:nth-child(3) .official-pack-cover {
-  background: #dfe9ed;
-}
-
-.official-pack-card:nth-child(4) .official-pack-cover {
-  background: #ebe5d8;
-}
-
-.official-pack-card:nth-child(5) .official-pack-cover {
-  background: #e6e2eb;
-}
-
-.official-pack-cover.has-image {
-  background-image: var(--pack-cover);
-  background-position: center;
-  background-size: cover;
-}
-
-.official-pack-cover::before {
-  position: absolute;
-  inset: 14px;
-  border: 1px solid rgba(0, 0, 0, 0.14);
-  border-radius: 6px;
-  content: "";
-}
-
-.official-pack-cover-brand {
-  position: absolute;
-  top: 25px;
-  left: 27px;
-  font-family: "Avenir Next", "Helvetica Neue", sans-serif;
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0;
-}
-
-.official-pack-cover-stickers {
-  position: absolute;
-  inset: 48px 32px 30px;
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-}
-
-.official-pack-cover-stickers i {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.7);
-  font-size: 24px;
-  font-style: normal;
-  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.08);
-  transform: rotate(-5deg);
-}
-
-.official-pack-cover-stickers img {
+.official-pack-package img {
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: contain;
+  height: auto;
+  border-radius: 18px;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
-.official-pack-cover-stickers i:nth-child(even) {
-  transform: translateY(12px) rotate(6deg);
-}
-
-.official-pack-cover-edition {
-  position: absolute;
-  right: 27px;
-  bottom: 22px;
-  padding: 4px 7px;
-  border: 1px solid rgba(0, 0, 0, 0.18);
-  border-radius: 4px;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0;
-}
-
-.official-pack-meta {
-  display: flex;
-  align-items: start;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 12px 14px 13px;
-}
-
-.official-pack-meta > span {
-  display: grid;
-  min-width: 0;
-}
-
-.official-pack-meta strong {
-  overflow: hidden;
-  font-size: 16px;
-  font-weight: 750;
-  letter-spacing: 0;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.official-pack-meta small {
-  margin-top: 3px;
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.official-pack-meta em {
-  flex: 0 0 auto;
-  color: rgba(255, 255, 255, 0.64);
-  font-size: 12px;
-  font-style: normal;
+.official-pack-package:active {
+  filter: drop-shadow(0 14px 20px rgba(0, 0, 0, 0.18));
+  transform: translateY(2px) scale(0.985);
 }
 
 .official-pack-detail {

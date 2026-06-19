@@ -1,12 +1,11 @@
 /** @typedef {{ id: string, image: string }} StickerItem */
-/** @typedef {{ id: string, title: string, subtitle: string, coverImage: string, stickers: StickerItem[] }} StickerPack */
+/** @typedef {{ id: string, title: string, packageImage: string, stickers: StickerItem[] }} StickerPack */
 
-function createOfficialStickerPack(id, title, subtitle, coverImage, images) {
+function createOfficialStickerPack(id, title, packageImage, images) {
   return {
     id,
     title,
-    subtitle,
-    coverImage,
+    packageImage,
     stickers: images.map((image, index) => ({ id: `${id}-${index + 1}`, image }))
   };
 }
@@ -16,8 +15,7 @@ const officialStickerPacks = [
   createOfficialStickerPack(
     "moments-pack-01",
     "Moments Pack 01",
-    "Daily Moments",
-    "assets/sticker-packs/moments-pack-01/cover.png",
+    "assets/sticker-packs/moments-pack-01/package.png",
     ["⏰", "🪑", "💡", "🧸", "🍼", "🧱", "today", "good day"]
   )
 ];

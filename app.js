@@ -1172,23 +1172,8 @@ function officialStickerPackHome() {
   return `
     <div class="official-pack-shelf" aria-label="官方贴纸包">
       ${officialStickerPacks.map((pack) => `
-        <button class="official-pack-card" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}">
-          <span class="official-pack-cover ${pack.coverImage ? "has-image" : ""}" ${pack.coverImage ? `style="--pack-cover:url('${escapeCssUrl(pack.coverImage)}')"` : ""}>
-            ${pack.coverImage ? "" : `
-              <span class="official-pack-cover-brand">MOMENTS</span>
-              <span class="official-pack-cover-stickers" aria-hidden="true">
-                ${pack.stickers.slice(0, 5).map((sticker) => `<i>${officialStickerMarkup(sticker)}</i>`).join("")}
-              </span>
-              <span class="official-pack-cover-edition">${pack.stickers.length} STICKERS</span>
-            `}
-          </span>
-          <span class="official-pack-meta">
-            <span>
-              <strong>${escapeHtml(pack.title)}</strong>
-              <small>${escapeHtml(pack.subtitle)}</small>
-            </span>
-            <em>${pack.stickers.length} stickers</em>
-          </span>
+        <button class="official-pack-package" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}" aria-label="打开 ${escapeHtml(pack.title)}">
+          <img src="${escapeHtml(pack.packageImage)}" alt="${escapeHtml(pack.title)} 贴纸包" draggable="false" />
         </button>
       `).join("")}
     </div>
@@ -1203,8 +1188,6 @@ function officialStickerPackDetail(pack) {
         <button type="button" data-action="close-official-sticker-pack" aria-label="返回官方贴纸包">← 返回</button>
         <div>
           <strong>${escapeHtml(pack.title)}</strong>
-          <span>${escapeHtml(pack.subtitle)}</span>
-          <small>${pack.stickers.length} Stickers</small>
         </div>
       </header>
       <div class="official-pack-sticker-grid">
