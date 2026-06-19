@@ -69,20 +69,8 @@ function createOfficialStickerPack(id, name, subtitle, images, cover = "") {
 
 /** @type {StickerPack[]} */
 const officialStickerPacks = [
-  createOfficialStickerPack("moments-pack-01", "Moments Pack 01", "Daily stickers", [
+  createOfficialStickerPack("moments-pack-01", "Moments Pack 01", "Official stickers", [
     "❤️", "🌸", "☁️", "⭐", "☕", "🌙", "✨", "🌷", "🎀", "📷", "🎂", "📍"
-  ]),
-  createOfficialStickerPack("baby-pack-01", "Baby Pack 01", "Baby memories", [
-    "👶", "🍼", "🧸", "🫧", "🌙", "⭐", "💛", "🐣", "🎀", "☁️", "🛁", "🧦"
-  ]),
-  createOfficialStickerPack("travel-pack-01", "Travel Pack 01", "Travel moments", [
-    "✈️", "🧳", "📍", "🗺️", "📷", "🌊", "⛰️", "🚆", "☀️", "🏕️", "🌴", "🎫"
-  ]),
-  createOfficialStickerPack("hand-drawn-pack-01", "Hand Drawn Pack 01", "Hand drawn collection", [
-    "✏️", "🖍️", "🎨", "🌼", "〰️", "💭", "✨", "♡", "☺️", "☁️", "🌙", "⭐"
-  ]),
-  createOfficialStickerPack("seasonal-pack-01", "Seasonal Pack 01", "Seasonal stickers", [
-    "🌸", "☀️", "🍂", "❄️", "🌧️", "🌈", "🍓", "🎃", "🎄", "🧣", "🌻", "🍁"
   ])
 ];
 

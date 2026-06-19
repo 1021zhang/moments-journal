@@ -1724,6 +1724,10 @@ img.no-ios-callout,
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.14);
 }
 
+.official-pack-card:only-child .official-pack-cover {
+  aspect-ratio: 1.5;
+}
+
 .official-pack-card:nth-child(2) .official-pack-cover {
   background: #f2e6df;
 }
