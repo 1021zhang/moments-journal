@@ -1713,6 +1713,82 @@ img.no-ios-callout,
   transition: transform 150ms ease, filter 150ms ease;
 }
 
+.official-pack-package.is-idle,
+.official-pack-package.is-loading,
+.official-pack-package.is-failed {
+  grid-template-rows: 1fr;
+  border-color: rgba(255, 255, 255, 0.56);
+  background: rgba(236, 238, 240, 0.92);
+  color: #34363a;
+  filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.1));
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.official-pack-package-skeleton {
+  position: relative;
+  display: grid;
+  align-content: end;
+  gap: 8px;
+  min-height: 100%;
+  overflow: hidden;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.72) 0 22%, transparent 23%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.62), rgba(215, 219, 223, 0.68));
+}
+
+.official-pack-package-skeleton::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 28%, rgba(255, 255, 255, 0.68) 46%, transparent 64%);
+  content: "";
+  transform: translateX(-100%);
+  animation: official-pack-shimmer 1.25s ease-in-out infinite;
+}
+
+.official-pack-package-skeleton i {
+  width: 48%;
+  height: 9px;
+  border-radius: 999px;
+  background: rgba(130, 136, 142, 0.18);
+}
+
+.official-pack-package-skeleton i:last-child {
+  width: 30%;
+  height: 7px;
+}
+
+.official-pack-package-fallback {
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  min-height: 100%;
+  padding: 20px;
+  text-align: center;
+}
+
+.official-pack-package-fallback strong {
+  font-size: 15px;
+}
+
+.official-pack-package-fallback small {
+  color: rgba(52, 54, 58, 0.58);
+  font-size: 12px;
+}
+
+@keyframes official-pack-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .official-pack-package-skeleton::after {
+    animation: none;
+  }
+}
+
 .official-pack-package-visual {
   min-height: 0;
   overflow: hidden;

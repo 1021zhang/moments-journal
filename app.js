@@ -110,6 +110,7 @@ const state = {
   userPhotos: [],
   canvasElements: [],
   customStickers: [],
+  officialPackImageStatus: {},
   db: null,
   storageMode: "indexedDB",
   undoHistory: {}
@@ -184,6 +185,7 @@ const textSizeSliderGesture = {
   active: false,
   pointerId: null
 };
+const officialPackImagePreloaders = new Map();
 function loadNotes() {
   try {
     return JSON.parse(localStorage.getItem(noteStorageKey) || "{}");
@@ -1114,6 +1116,41 @@ function officialStickerPackById(packId) {
   return officialStickerPacks.find((pack) => pack.id === packId) || null;
 }
 
+function shouldRefreshOfficialStickerPackHome() {
+  return state.view === "single"
+    && state.activePanel === "sticker"
+    && state.stickerLibraryTab === "official"
+    && !state.activeOfficialStickerPackId;
+}
+
+function preloadOfficialStickerPackImages() {
+  officialStickerPacks.forEach((pack) => {
+    const status = state.officialPackImageStatus[pack.id];
+    if (status === "loading" || status === "loaded" || !pack.packageImage) return;
+
+    state.officialPackImageStatus[pack.id] = "loading";
+    const image = new Image();
+    officialPackImagePreloaders.set(pack.id, image);
+
+    image.onload = async () => {
+      try {
+        await image.decode?.();
+      } catch {
+        // onload already confirms the image is usable when decode is unavailable.
+      }
+      state.officialPackImageStatus[pack.id] = "loaded";
+      officialPackImagePreloaders.delete(pack.id);
+      if (shouldRefreshOfficialStickerPackHome()) render();
+    };
+    image.onerror = () => {
+      state.officialPackImageStatus[pack.id] = "failed";
+      officialPackImagePreloaders.delete(pack.id);
+      if (shouldRefreshOfficialStickerPackHome()) render();
+    };
+    image.src = pack.packageImage;
+  });
+}
+
 function isStickerImageAsset(image) {
   const source = String(image || "");
   return /^(?:data:|blob:|https?:|\/|\.\/|\.\.\/)/.test(source)
@@ -1171,20 +1208,36 @@ function personalStickerLibrary() {
 function officialStickerPackHome() {
   return `
     <div class="official-pack-shelf" aria-label="官方贴纸包">
-      ${officialStickerPacks.map((pack) => `
-        <button class="official-pack-package" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}" aria-label="打开 ${escapeHtml(pack.title)}">
-          <span class="official-pack-package-visual">
-            <img src="${escapeHtml(pack.packageImage)}" alt="${escapeHtml(pack.title)} 贴纸包" draggable="false" />
-          </span>
-          <span class="official-pack-package-info">
-            <span>
-              <strong>${escapeHtml(pack.title)}</strong>
-              <small>${escapeHtml(pack.subtitle)}</small>
+      ${officialStickerPacks.map((pack) => {
+        const imageStatus = state.officialPackImageStatus[pack.id] || "idle";
+        const content = imageStatus === "loaded" ? `
+            <span class="official-pack-package-visual">
+              <img src="${escapeHtml(pack.packageImage)}" alt="${escapeHtml(pack.title)} 贴纸包" draggable="false" />
             </span>
-            <em>${pack.stickers.length} stickers</em>
-          </span>
-        </button>
-      `).join("")}
+            <span class="official-pack-package-info">
+              <span>
+                <strong>${escapeHtml(pack.title)}</strong>
+                <small>${escapeHtml(pack.subtitle)}</small>
+              </span>
+              <em>${pack.stickers.length} stickers</em>
+            </span>
+          ` : imageStatus === "failed" ? `
+            <span class="official-pack-package-fallback">
+              <strong>${escapeHtml(pack.title)}</strong>
+              <small>Loading failed</small>
+            </span>
+          ` : `
+            <span class="official-pack-package-skeleton" aria-label="${escapeHtml(pack.title)} 加载中">
+              <i></i>
+              <i></i>
+            </span>
+          `;
+        return `
+          <button class="official-pack-package is-${imageStatus}" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}" aria-label="打开 ${escapeHtml(pack.title)}">
+            ${content}
+          </button>
+        `;
+      }).join("")}
     </div>
   `;
 }
@@ -4431,6 +4484,7 @@ document.addEventListener("click", async (event) => {
       state.activeOfficialStickerPackId = "";
       state.stickerSheetState = "collapsed";
       stickerSheetDrag.ignoreNextToggle = false;
+      preloadOfficialStickerPackImages();
     }
     closeStickerMenus();
     render();
@@ -4439,6 +4493,7 @@ document.addEventListener("click", async (event) => {
   if (action === "set-sticker-library-tab") {
     state.stickerLibraryTab = actionTarget.dataset.tab === "official" ? "official" : "personal";
     state.activeOfficialStickerPackId = "";
+    if (state.stickerLibraryTab === "official") preloadOfficialStickerPackImages();
     closeStickerMenus();
     render();
     return;
