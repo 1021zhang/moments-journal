@@ -1260,7 +1260,7 @@ function officialStickerPackDetail(pack) {
             data-action="add-official-sticker"
             data-pack-id="${escapeHtml(pack.id)}"
             data-sticker-id="${escapeHtml(sticker.id)}"
-            aria-label="添加 ${escapeHtml(sticker.image || "官方")} 贴纸"
+            aria-label="添加 ${escapeHtml(sticker.name || sticker.id || "官方")} 贴纸"
           >
             ${officialStickerMarkup(sticker)}
           </button>

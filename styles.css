@@ -1694,6 +1694,7 @@ img.no-ios-callout,
 .official-pack-shelf {
   display: grid;
   place-items: start center;
+  gap: 18px;
   padding: 0 0 24px;
 }
 
