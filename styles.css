@@ -1691,11 +1691,39 @@ img.no-ios-callout,
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
 }
 
+.official-pack-browser-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: -2px 0 10px;
+}
+
+.official-pack-browser-toolbar button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 19px;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .official-pack-shelf {
   display: grid;
   place-items: start center;
   gap: 18px;
   padding: 0 0 24px;
+}
+
+.official-pack-browser.is-grid .official-pack-shelf {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  place-items: stretch;
+  gap: 10px;
+  width: 100%;
 }
 
 .official-pack-package {
@@ -1812,13 +1840,33 @@ img.no-ios-callout,
 .official-pack-package-info {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  justify-content: flex-end;
   min-width: 0;
   padding: 7px 11px 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(20, 20, 20, 0.96);
   text-align: left;
+}
+
+.official-pack-browser.is-grid .official-pack-package {
+  grid-template-rows: auto;
+  width: 100%;
+  border-radius: 10px;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.12));
+}
+
+.official-pack-browser.is-grid .official-pack-package-info {
+  display: none;
+}
+
+.official-pack-browser.is-grid .official-pack-package.is-idle,
+.official-pack-browser.is-grid .official-pack-package.is-loading,
+.official-pack-browser.is-grid .official-pack-package.is-failed {
+  aspect-ratio: 4 / 3;
+}
+
+.official-pack-browser.is-grid .official-pack-package-fallback strong {
+  display: none;
 }
 
 .official-pack-package-info > span {

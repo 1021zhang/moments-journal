@@ -2,6 +2,7 @@ const noteStorageKey = "moments-journal.notes";
 const localPhotosKey = "moments-journal.photos";
 const localElementsKey = "moments-journal.canvas-elements";
 const localCustomStickersKey = "moments-journal.custom-stickers";
+const officialPackViewModeKey = "moments-journal.official-pack-view-mode";
 const dbName = "moments-journal";
 const photoStoreName = "photos";
 const elementStoreName = "canvasElements";
@@ -73,6 +74,7 @@ const state = {
   selectedItemType: "",
   activePanel: "",
   stickerLibraryTab: "personal",
+  officialPackViewMode: loadOfficialPackViewMode(),
   activeOfficialStickerPackId: "",
   stickerSheetState: "collapsed",
   settingsSheetOpen: false,
@@ -191,6 +193,22 @@ function loadNotes() {
     return JSON.parse(localStorage.getItem(noteStorageKey) || "{}");
   } catch {
     return {};
+  }
+}
+
+function loadOfficialPackViewMode() {
+  try {
+    return localStorage.getItem(officialPackViewModeKey) === "list" ? "list" : "grid";
+  } catch {
+    return "grid";
+  }
+}
+
+function saveOfficialPackViewMode() {
+  try {
+    localStorage.setItem(officialPackViewModeKey, state.officialPackViewMode);
+  } catch {
+    // Keep the in-memory preference when storage is unavailable.
   }
 }
 
@@ -1206,39 +1224,40 @@ function personalStickerLibrary() {
 }
 
 function officialStickerPackHome() {
+  const viewMode = state.officialPackViewMode === "list" ? "list" : "grid";
   return `
-    <div class="official-pack-shelf" aria-label="官方贴纸包">
-      ${officialStickerPacks.map((pack) => {
-        const imageStatus = state.officialPackImageStatus[pack.id] || "idle";
-        const content = imageStatus === "loaded" ? `
-            <span class="official-pack-package-visual">
-              <img src="${escapeHtml(pack.packageImage)}" alt="${escapeHtml(pack.title)} 贴纸包" draggable="false" />
-            </span>
-            <span class="official-pack-package-info">
-              <span>
-                <strong>${escapeHtml(pack.title)}</strong>
-                <small>${escapeHtml(pack.subtitle)}</small>
+    <section class="official-pack-browser is-${viewMode}" aria-label="官方贴纸包浏览">
+      <div class="official-pack-browser-toolbar">
+        <button type="button" data-action="toggle-official-pack-view-mode" aria-label="切换到${viewMode === "grid" ? "列表" : "网格"}模式" title="切换显示模式">⊞</button>
+      </div>
+      <div class="official-pack-shelf" aria-label="官方贴纸包">
+        ${officialStickerPacks.map((pack) => {
+          const imageStatus = state.officialPackImageStatus[pack.id] || "idle";
+          const content = imageStatus === "loaded" ? `
+              <span class="official-pack-package-visual">
+                <img src="${escapeHtml(pack.packageImage)}" alt="${escapeHtml(pack.title)} 贴纸包" draggable="false" />
               </span>
-              <em>${pack.stickers.length} stickers</em>
-            </span>
-          ` : imageStatus === "failed" ? `
-            <span class="official-pack-package-fallback">
-              <strong>${escapeHtml(pack.title)}</strong>
-              <small>Loading failed</small>
-            </span>
-          ` : `
-            <span class="official-pack-package-skeleton" aria-label="${escapeHtml(pack.title)} 加载中">
-              <i></i>
-              <i></i>
-            </span>
+              <span class="official-pack-package-info">
+                <em>${pack.stickers.length} stickers</em>
+              </span>
+            ` : imageStatus === "failed" ? `
+              <span class="official-pack-package-fallback">
+                <small>Loading failed</small>
+              </span>
+            ` : `
+              <span class="official-pack-package-skeleton" aria-label="${escapeHtml(pack.title)} 加载中">
+                <i></i>
+                <i></i>
+              </span>
+            `;
+          return `
+            <button class="official-pack-package is-${imageStatus}" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}" aria-label="打开 ${escapeHtml(pack.title)}">
+              ${content}
+            </button>
           `;
-        return `
-          <button class="official-pack-package is-${imageStatus}" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}" aria-label="打开 ${escapeHtml(pack.title)}">
-            ${content}
-          </button>
-        `;
-      }).join("")}
-    </div>
+        }).join("")}
+      </div>
+    </section>
   `;
 }
 
@@ -4495,6 +4514,12 @@ document.addEventListener("click", async (event) => {
     state.activeOfficialStickerPackId = "";
     if (state.stickerLibraryTab === "official") preloadOfficialStickerPackImages();
     closeStickerMenus();
+    render();
+    return;
+  }
+  if (action === "toggle-official-pack-view-mode") {
+    state.officialPackViewMode = state.officialPackViewMode === "grid" ? "list" : "grid";
+    saveOfficialPackViewMode();
     render();
     return;
   }
