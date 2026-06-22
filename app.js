@@ -1296,7 +1296,7 @@ function stickerSheet() {
 
   return `
     <button class="sticker-backdrop" type="button" data-action="close-panel" aria-label="关闭贴纸"></button>
-    <section class="sticker-sheet ${sheetState}" aria-label="贴纸库" data-sticker-sheet>
+    <section class="sticker-sheet ${sheetState}" role="dialog" aria-modal="true" aria-label="贴纸库" data-sticker-sheet>
       <header class="sticker-sheet-header">
         <button class="sheet-grabber" type="button" data-action="toggle-sticker-sheet" data-sticker-sheet-handle aria-label="展开或收起贴纸"></button>
       </header>
@@ -1490,10 +1490,11 @@ function renderSingleDay() {
   const noteDialogTitle = note.trim() ? "编辑记录" : "添加记录";
   const dayElements = elementsForDate(day.dateKey);
   const canUndo = undoStackForDate(day.dateKey).length > 0;
+  const modalBackgroundAttrs = state.activePanel === "sticker" ? 'inert aria-hidden="true"' : "";
 
   return `
     <main class="phone-screen single-day-view" aria-label="单日编辑页面">
-      <header class="day-page-header">
+      <header class="day-page-header" ${modalBackgroundAttrs}>
         <div class="header-side header-left">
           <button class="header-action back-button" type="button" data-action="daybook">返回</button>
         </div>
@@ -1508,12 +1509,12 @@ function renderSingleDay() {
         </div>
       </header>
 
-      <header class="single-header">
+      <header class="single-header" ${modalBackgroundAttrs}>
         ${dateTitle(day)}
         ${note ? `<p class="single-note">${safeNote}</p>` : ""}
       </header>
 
-      <section class="free-canvas" aria-label="自由排版画布">
+      <section class="free-canvas" aria-label="自由排版画布" ${modalBackgroundAttrs}>
         ${day.photos.map(freeCanvasPhoto).join("")}
         ${dayElements.map(canvasElement).join("")}
         <div class="floating-toolbox" aria-label="画布工具">
@@ -1591,6 +1592,8 @@ function render() {
   const app = document.querySelector("#app");
   app.innerHTML = renderView(state.view);
   document.body.classList.toggle("settings-open", state.settingsSheetOpen);
+  document.body.classList.toggle("sticker-panel-open", state.activePanel === "sticker");
+  document.documentElement.classList.toggle("sticker-panel-open", state.activePanel === "sticker");
   resetHorizontalScroll();
   scheduleCanvasSafetyRepair();
 }
@@ -4305,6 +4308,29 @@ function endTextSizeSlider(event) {
 document.addEventListener("pointerdown", (event) => {
   if (isPageTransitioning) return;
   if (stopDaybookNavPointerEvent(event)) return;
+
+  if (state.activePanel === "sticker") {
+    const sheetTarget = event.target.closest(".sticker-sheet");
+    const backdropTarget = event.target.closest(".sticker-backdrop");
+
+    if (backdropTarget) {
+      event.stopPropagation();
+      return;
+    }
+
+    if (!sheetTarget) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    startCustomStickerPress(event);
+    if (event.target.closest("[data-sticker-sheet-handle]")) {
+      startStickerSheetDrag(event);
+    }
+    return;
+  }
+
   if (startDayPress(event)) return;
   startCustomStickerPress(event);
   startCanvasStickerPress(event);
@@ -4396,6 +4422,12 @@ document.addEventListener("gesturestart", preventViewportGesture, { passive: fal
 document.addEventListener("gesturechange", preventViewportGesture, { passive: false });
 document.addEventListener("gestureend", preventViewportGesture, { passive: false });
 document.addEventListener("touchstart", preventStickerTouchStart, { passive: false });
+document.addEventListener("touchmove", (event) => {
+  if (state.activePanel !== "sticker") return;
+  if (!event.target.closest(".sticker-backdrop")) return;
+  event.preventDefault();
+  event.stopPropagation();
+}, { passive: false });
 document.addEventListener("contextmenu", preventStickerNativeInteraction);
 document.addEventListener("selectstart", preventStickerNativeInteraction);
 document.addEventListener("dragstart", preventStickerNativeInteraction);
@@ -4405,6 +4437,15 @@ document.addEventListener("touchcancel", stopDaybookNavPointerEvent);
 
 document.addEventListener("click", async (event) => {
   if (isPageTransitioning) return;
+
+  if (
+    state.activePanel === "sticker"
+    && !event.target.closest(".sticker-sheet, .sticker-backdrop")
+  ) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    return;
+  }
 
   const dayTarget = event.target.closest("[data-day]");
   const actionTarget = event.target.closest("[data-action]");
@@ -4500,6 +4541,9 @@ document.addEventListener("click", async (event) => {
       state.activeOfficialStickerPackId = "";
       state.stickerSheetState = "collapsed";
       stickerSheetDrag.ignoreNextToggle = false;
+      clearCanvasStickerPress();
+      activePointers.clear();
+      setDeleteZoneVisible(false);
       preloadOfficialStickerPackImages();
     }
     closeStickerMenus();
