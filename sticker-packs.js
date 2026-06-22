@@ -55,8 +55,26 @@ const catY2KPackStickers = createStickerItems(
   ]
 );
 
+const positiveTalkPackStickers = createStickerItems(
+  "assets/sticker-packs/positive-talk-pack",
+  [
+    ["positive-breathe", "Breathe"],
+    ["positive-small-steps", "Small Steps"],
+    ["positive-good-things", "Good Things"],
+    ["positive-begin-again", "Begin Again"],
+    ["positive-rest-process", "Rest Process"],
+    ["positive-good-pace", "Good Pace"],
+    ["positive-soft-hearts", "Soft Hearts"],
+    ["positive-today-enough", "Today Enough"],
+    ["positive-trust-timing", "Trust Timing"],
+    ["positive-kindness", "Kindness"],
+    ["positive-more-light", "More Light"],
+    ["positive-keep-going", "Keep Going"]
+  ]
+);
+
 // Official sticker pack cover spec:
-// 1200x900, 4:3, pure white background, safe area 80px, object-fit contain.
+// 1200x900, 4:3, transparent background, safe area 80px, object-fit contain.
 /** @type {StickerPack[]} */
 const officialStickerPacks = [
   createOfficialStickerPack(
@@ -81,5 +99,12 @@ const officialStickerPacks = [
     "Cute Y2K cat stickers",
     "assets/sticker-packs/cat-y2k-pack/package.png",
     catY2KPackStickers
+  ),
+  createOfficialStickerPack(
+    "official-positive-talk-pack",
+    "Positive Talk Pack",
+    "Uplifting quote stickers",
+    "assets/sticker-packs/positive-talk-pack/package.png",
+    positiveTalkPackStickers
   )
 ];

@@ -1728,15 +1728,15 @@ img.no-ios-callout,
 
 .official-pack-package {
   display: grid;
-  grid-template-rows: auto 50px;
+  grid-template-rows: auto;
   width: min(336px, 96%);
   padding: 0;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 16px;
-  background: #232323;
-  color: #ffffff;
-  filter: drop-shadow(0 20px 28px rgba(0, 0, 0, 0.2));
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  filter: drop-shadow(0 16px 20px rgba(0, 0, 0, 0.16));
   -webkit-tap-highlight-color: transparent;
   transition: transform 150ms ease, filter 150ms ease;
 }
@@ -1745,8 +1745,10 @@ img.no-ios-callout,
 .official-pack-package.is-loading,
 .official-pack-package.is-failed {
   grid-template-rows: 1fr;
-  aspect-ratio: 1.112 / 1;
-  border-color: rgba(255, 255, 255, 0.56);
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  border-radius: 16px;
   background: rgba(236, 238, 240, 0.92);
   color: #34363a;
   filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.1));
@@ -1822,8 +1824,8 @@ img.no-ios-callout,
   width: 100%;
   aspect-ratio: 4 / 3;
   min-height: 0;
-  overflow: hidden;
-  background: #ffffff;
+  overflow: visible;
+  background: transparent;
 }
 
 .official-pack-package-visual img {
@@ -1837,26 +1839,10 @@ img.no-ios-callout,
   -webkit-user-drag: none;
 }
 
-.official-pack-package-info {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 0;
-  padding: 7px 11px 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(20, 20, 20, 0.96);
-  text-align: left;
-}
-
 .official-pack-browser.is-grid .official-pack-package {
   grid-template-rows: auto;
   width: 100%;
-  border-radius: 10px;
   filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.12));
-}
-
-.official-pack-browser.is-grid .official-pack-package-info {
-  display: none;
 }
 
 .official-pack-browser.is-grid .official-pack-package.is-idle,
@@ -1867,38 +1853,6 @@ img.no-ios-callout,
 
 .official-pack-browser.is-grid .official-pack-package-fallback strong {
   display: none;
-}
-
-.official-pack-package-info > span {
-  display: grid;
-  min-width: 0;
-}
-
-.official-pack-package-info strong,
-.official-pack-package-info small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.official-pack-package-info strong {
-  font-size: 13px;
-  font-weight: 720;
-}
-
-.official-pack-package-info small,
-.official-pack-package-info em {
-  color: rgba(255, 255, 255, 0.58);
-  font-size: 10px;
-  font-style: normal;
-}
-
-.official-pack-package-info small {
-  margin-top: 2px;
-}
-
-.official-pack-package-info em {
-  flex: 0 0 auto;
 }
 
 .official-pack-package:active {

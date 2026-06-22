@@ -8,14 +8,14 @@ This document defines the long-term presentation standard for every official sti
 - Aspect ratio: **4:3 landscape**
 - Format: PNG
 - Filename: `package.png` (preferred) or `cover.png`
-- Background: solid white `#FFFFFF`
+- Background: transparent
 - Safe area: at least **80 px** on every edge
 - Package placement: centered and fully visible
 - Recommended package width: 85%–92% of the canvas when its proportions allow it
 - Do not crop, stretch, rotate, or push the package against an edge
-- Do not use black, tinted, gradient, photographic, or scene backgrounds
+- Do not bake white cards, black bars, tinted fields, gradients, photographs, or scenes behind the package
 
-The cover contains only the package artwork. Pack title, description, and sticker count below the cover are rendered by the app. Text that is physically part of the package artwork may remain in the package image.
+The cover contains only the isolated package artwork. Text that is physically part of the package artwork may remain in the image.
 
 ## App rendering
 
@@ -27,7 +27,7 @@ object-fit: contain;
 object-position: center;
 ```
 
-The metadata area is fixed at 50 px and must not depend on the source image dimensions.
+The browser displays the transparent package image directly on the glass panel with a subtle drop shadow. It does not render a card background, title, description, or sticker count. The full package button remains the click target in both list and grid modes.
 
 ## Naming and folders
 
@@ -57,10 +57,10 @@ No page component changes should be required.
 ## Release checklist
 
 - Cover is exactly 1200 × 900
-- Background is solid white
+- Background is transparent
 - Complete package is visible with safe margins
-- No metadata bar is baked into the cover
-- Title, subtitle, and count align with existing cards
+- No card background or metadata bar is baked into the cover
+- Browser shows only the package artwork, with no title, subtitle, or count
 - Detail stickers match the package contents
 - Clicking a sticker inserts it into the canvas
 - `npm run build` passes

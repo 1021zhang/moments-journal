@@ -1237,9 +1237,6 @@ function officialStickerPackHome() {
               <span class="official-pack-package-visual">
                 <img src="${escapeHtml(pack.packageImage)}" alt="${escapeHtml(pack.title)} 贴纸包" draggable="false" />
               </span>
-              <span class="official-pack-package-info">
-                <em>${pack.stickers.length} stickers</em>
-              </span>
             ` : imageStatus === "failed" ? `
               <span class="official-pack-package-fallback">
                 <small>Loading failed</small>
