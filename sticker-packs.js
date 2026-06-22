@@ -55,6 +55,8 @@ const catY2KPackStickers = createStickerItems(
   ]
 );
 
+// Official sticker pack cover spec:
+// 1200x900, 4:3, safe area 80px, object-fit contain.
 /** @type {StickerPack[]} */
 const officialStickerPacks = [
   createOfficialStickerPack(

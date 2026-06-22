@@ -1700,9 +1700,8 @@ img.no-ios-callout,
 
 .official-pack-package {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) 50px;
+  grid-template-rows: auto 50px;
   width: min(336px, 96%);
-  aspect-ratio: 1.15 / 1;
   padding: 0;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -1718,6 +1717,7 @@ img.no-ios-callout,
 .official-pack-package.is-loading,
 .official-pack-package.is-failed {
   grid-template-rows: 1fr;
+  aspect-ratio: 1.112 / 1;
   border-color: rgba(255, 255, 255, 0.56);
   background: rgba(236, 238, 240, 0.92);
   color: #34363a;
@@ -1791,9 +1791,11 @@ img.no-ios-callout,
 }
 
 .official-pack-package-visual {
+  width: 100%;
+  aspect-ratio: 4 / 3;
   min-height: 0;
   overflow: hidden;
-  background: #252525;
+  background: #f2f0ec;
 }
 
 .official-pack-package-visual img {
