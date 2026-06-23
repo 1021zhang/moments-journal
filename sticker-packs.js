@@ -73,52 +73,6 @@ const positiveTalkPackStickers = createStickerItems(
   ]
 );
 
-const englandFanPackStickers = createStickerItems(
-  "assets/sticker-packs/england-fan-pack",
-  [
-    ["england-character", "England Character"],
-    ["england-home-jersey", "England Home Jersey"],
-    ["england-red-jersey", "England Red Jersey"],
-    ["england-polo-shirt", "England Polo Shirt"],
-    ["england-white-shorts", "England White Shorts"],
-    ["england-navy-shorts", "England Navy Shorts"],
-    ["england-white-socks", "England White Socks"],
-    ["england-red-socks", "England Red Socks"],
-    ["england-boots", "England Boots"],
-    ["england-football", "Football"],
-    ["england-scarf", "England Scarf"],
-    ["england-pennant", "England Pennant"],
-    ["england-bag", "England Bag"],
-    ["england-bottle", "England Bottle"],
-    ["england-foam-finger", "Foam Finger"],
-    ["england-hat", "England Hat"]
-  ]
-);
-
-const brasilFanPackStickers = createStickerItems(
-  "assets/sticker-packs/brasil-fan-pack",
-  [
-    ["brasil-character", "Brasil Character"],
-    ["brasil-yellow-jersey", "Brasil Yellow Jersey"],
-    ["brasil-blue-jersey", "Brasil Blue Jersey"],
-    ["brasil-white-shirt", "Brasil White Shirt"],
-    ["brasil-blue-shorts", "Brasil Blue Shorts"],
-    ["brasil-white-shorts", "Brasil White Shorts"],
-    ["brasil-green-shorts", "Brasil Green Shorts"],
-    ["brasil-yellow-socks", "Brasil Yellow Socks"],
-    ["brasil-white-socks", "Brasil White Socks"],
-    ["brasil-boots", "Brasil Boots"],
-    ["brasil-football", "Football"],
-    ["brasil-scarf", "Brasil Scarf"],
-    ["brasil-pennant", "Brasil Pennant"],
-    ["brasil-headband", "Brasil Headband"],
-    ["brasil-sunglasses", "Brasil Sunglasses"],
-    ["brasil-bag", "Brasil Bag"],
-    ["brasil-drum", "Brasil Drum"],
-    ["brasil-bottle", "Brasil Bottle"]
-  ]
-);
-
 // Official sticker pack cover spec:
 // 1200x900, 4:3, transparent background, safe area 80px, object-fit contain.
 /** @type {StickerPack[]} */
@@ -152,19 +106,5 @@ const officialStickerPacks = [
     "Uplifting quote stickers",
     "assets/sticker-packs/positive-talk-pack/package.png",
     positiveTalkPackStickers
-  ),
-  createOfficialStickerPack(
-    "official-england-fan-pack",
-    "England Fan Pack",
-    "Soccer dress-up stickers",
-    "assets/sticker-packs/england-fan-pack/package.png",
-    englandFanPackStickers
-  ),
-  createOfficialStickerPack(
-    "official-brasil-fan-pack",
-    "Brasil Fan Pack",
-    "Soccer dress-up stickers",
-    "assets/sticker-packs/brasil-fan-pack/package.png",
-    brasilFanPackStickers
   )
 ];
