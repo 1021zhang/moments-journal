@@ -73,6 +73,24 @@ const positiveTalkPackStickers = createStickerItems(
   ]
 );
 
+const worldCupStarPackStickers = createStickerItems(
+  "assets/sticker-packs/world-cup-star-pack",
+  [
+    ["world-cup-messi-card", "Messi Card"],
+    ["world-cup-vinicius-card", "Vinicius Jr Card"],
+    ["world-cup-mbappe-card", "Mbappe Card"],
+    ["world-cup-bellingham-card", "Bellingham Card"],
+    ["world-cup-yamal-card", "Lamine Yamal Card"],
+    ["world-cup-ronaldo-card", "Ronaldo Card"],
+    ["world-cup-musiala-card", "Musiala Card"],
+    ["world-cup-dembele-card", "Dembele Card"],
+    ["world-cup-football", "Football"],
+    ["world-cup-trophy", "Trophy"],
+    ["world-cup-stars-logo", "World Cup Stars"],
+    ["world-cup-card-pack", "Card Pack"]
+  ]
+);
+
 // Official sticker pack cover spec:
 // 1200x900, 4:3, transparent background, safe area 80px, object-fit contain.
 /** @type {StickerPack[]} */
@@ -106,5 +124,12 @@ const officialStickerPacks = [
     "Uplifting quote stickers",
     "assets/sticker-packs/positive-talk-pack/package.png",
     positiveTalkPackStickers
+  ),
+  createOfficialStickerPack(
+    "official-world-cup-star-pack",
+    "World Cup Star Pack",
+    "Football star card stickers",
+    "assets/sticker-packs/world-cup-star-pack/package.png",
+    worldCupStarPackStickers
   )
 ];
