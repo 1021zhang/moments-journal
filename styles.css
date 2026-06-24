@@ -1122,6 +1122,24 @@ img.no-ios-callout,
   touch-action: none;
 }
 
+.canvas-empty-state {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  margin: 0;
+  color: #a5a5a5;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  text-align: center;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 .canvas-item {
   position: absolute;
   --lift-scale: 1;

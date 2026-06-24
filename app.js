@@ -785,6 +785,22 @@ async function ensureLayoutsForCanvasElements() {
   if (changed) await Promise.all(state.canvasElements.map((element) => saveCanvasElement(element)));
 }
 
+function userDayModel(dateKey, photos = []) {
+  return {
+    id: `user-${dateKey}`,
+    dateKey,
+    isUserDay: true,
+    note: "",
+    photos,
+    ...relativeLabel(dateKey)
+  };
+}
+
+function userDayDateKey(dayId) {
+  const match = /^user-(\d{4}-\d{2}-\d{2})$/.exec(dayId || "");
+  return match?.[1] || "";
+}
+
 function buildUserDayModels() {
   const groups = new Map();
 
@@ -798,19 +814,20 @@ function buildUserDayModels() {
 
   return Array.from(groups.entries())
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([dateKey, photos]) => ({
-      id: `user-${dateKey}`,
-      dateKey,
-      isUserDay: true,
-      note: "",
-      photos,
-      ...relativeLabel(dateKey)
-    }));
+    .map(([dateKey, photos]) => userDayModel(dateKey, photos));
 }
 
 function getDay(dayId = state.activeDayId) {
   const userDays = buildUserDayModels();
-  return userDays.find((day) => day.id === dayId) || userDays[0] || null;
+  const activeDay = userDays.find((day) => day.id === dayId);
+  if (activeDay) return activeDay;
+
+  const emptyDateKey = userDayDateKey(dayId);
+  if (state.view === "single" && emptyDateKey) {
+    return userDayModel(emptyDateKey);
+  }
+
+  return userDays[0] || null;
 }
 
 function polaroid(photo, options = {}) {
@@ -1515,6 +1532,9 @@ function renderSingleDay() {
       </header>
 
       <section class="free-canvas" aria-label="自由排版画布" ${modalBackgroundAttrs}>
+        ${day.photos.length
+          ? ""
+          : '<p class="canvas-empty-state">添加照片开始记录今天</p>'}
         ${day.photos.map(freeCanvasPhoto).join("")}
         ${dayElements.map(canvasElement).join("")}
         <div class="floating-toolbox" aria-label="画布工具">
