@@ -43,11 +43,21 @@ assets/sticker-packs/<pack-id>/
 
 Sticker images should be transparent PNG files. Every sticker needs a stable, unique `id`, a human-readable `name`, and its asset path.
 
+Before registering new sticker PNGs, normalize them so the alpha bounds are tight and every asset keeps a small transparent safety margin:
+
+```bash
+python3 scripts/normalize-sticker-assets.py \
+  assets/sticker-packs/<pack-id>/sticker-01.png \
+  assets/sticker-packs/<pack-id>/sticker-02.png
+```
+
+Use `--edge-fringe 1 --alpha-threshold 160` only for assets with a visible dark or semitransparent fringe outside the intended white sticker border. Always inspect the result so the script does not remove intentional artwork.
+
 ## Adding a pack
 
 1. Create `assets/sticker-packs/<pack-id>/`.
 2. Export a 1200 × 900 `package.png` using the cover rules above.
-3. Add the transparent sticker PNG files.
+3. Add and normalize the transparent sticker PNG files.
 4. Add one `createOfficialStickerPack(...)` entry in `sticker-packs.js`.
 5. Verify the package card, detail grid, and canvas insertion.
 6. Add the package cover to the app-shell cache in `service-worker.js` and bump the cache version.

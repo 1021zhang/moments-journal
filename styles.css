@@ -1302,6 +1302,7 @@ img.no-ios-callout,
   display: block;
   width: 100%;
   height: 100%;
+  background: transparent;
   border-radius: 6px;
   object-fit: contain;
   filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.12));
@@ -1311,6 +1312,15 @@ img.no-ios-callout,
 
 .canvas-sticker.image-sticker.clipboard-sticker img {
   border-radius: 0;
+  filter: none;
+}
+
+.canvas-sticker.image-sticker.official-image-sticker,
+.canvas-sticker.image-sticker.official-image-sticker img {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   filter: none;
 }
 
@@ -1972,20 +1982,25 @@ img.no-ios-callout,
   place-items: center;
   aspect-ratio: 1;
   min-width: 0;
-  padding: 5px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
+  padding: 6px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
   color: #ffffff;
   font-size: 38px;
   line-height: 1;
-  overflow: hidden;
 }
 
 .official-pack-sticker img {
   display: block;
   width: 100%;
   height: 100%;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  filter: none;
   object-fit: contain;
   pointer-events: none;
 }

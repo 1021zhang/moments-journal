@@ -528,6 +528,7 @@ function defaultStickerElement(dateKey, sticker) {
     zIndex: maxCanvasZIndex(dateKey) + 1,
     fontSize: isTextSticker ? 22 : 56,
     color: sticker.color || "#222222",
+    assetType: sticker.assetType || "",
     aspectRatio: sticker.aspectRatio || (isImageSticker ? imageWidth / imageHeight : 1)
   };
 }
@@ -719,6 +720,40 @@ async function ensureLayoutsForCanvasElements() {
   let changed = false;
 
   state.canvasElements.forEach((element) => {
+    const imageSource = element.imageDataUrl || element.src || "";
+    if (
+      element.stickerType === "image"
+      && String(imageSource).startsWith("assets/sticker-packs/")
+    ) {
+      const imagePath = String(imageSource).split(/[?#]/)[0];
+      const officialSticker = officialStickerPacks
+        .flatMap((pack) => pack.stickers)
+        .find((sticker) => sticker.image.split(/[?#]/)[0] === imagePath);
+      if (element.assetType !== "official-sticker") {
+        element.assetType = "official-sticker";
+        changed = true;
+      }
+      if (officialSticker && imageSource !== officialSticker.image) {
+        element.src = officialSticker.image;
+        element.imageDataUrl = officialSticker.image;
+        changed = true;
+      }
+      if (
+        officialSticker?.aspectRatio
+        && Math.abs((element.aspectRatio || 1) - officialSticker.aspectRatio) > 0.001
+      ) {
+        element.aspectRatio = officialSticker.aspectRatio;
+        if (typeof element.width === "number" && typeof element.height === "number") {
+          if (officialSticker.aspectRatio >= 1) {
+            element.height = element.width / officialSticker.aspectRatio;
+          } else {
+            element.width = element.height * officialSticker.aspectRatio;
+          }
+        }
+        changed = true;
+      }
+    }
+
     if (typeof element.scale !== "number") {
       element.scale = 1;
       changed = true;
@@ -1128,7 +1163,8 @@ function canvasElement(element) {
   const stickerType = element.type === "emoji" ? "emoji" : element.stickerType;
   const stickerClass = [
     stickerType === "text" ? "text-sticker" : stickerType === "image" ? "image-sticker" : "emoji-sticker",
-    element.assetType === "clipboard" ? "clipboard-sticker" : ""
+    element.assetType === "clipboard" ? "clipboard-sticker" : "",
+    element.assetType === "official-sticker" ? "official-image-sticker" : ""
   ].filter(Boolean).join(" ");
   baseStyle.push(
     `--font-size:${element.fontSize}px`,
@@ -1200,7 +1236,12 @@ function officialStickerMarkup(sticker) {
 
 function officialStickerCanvasPayload(sticker) {
   if (isStickerImageAsset(sticker.image)) {
-    return { stickerType: "image", src: sticker.image, aspectRatio: 1 };
+    return {
+      stickerType: "image",
+      src: sticker.image,
+      aspectRatio: sticker.aspectRatio || 1,
+      assetType: sticker.assetType || "official-sticker"
+    };
   }
   if (/^[a-z\s]+$/i.test(sticker.image || "")) {
     return { stickerType: "text", content: sticker.image, color: "#222222" };

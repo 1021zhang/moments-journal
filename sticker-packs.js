@@ -1,4 +1,4 @@
-/** @typedef {{ id: string, name?: string, image: string }} StickerItem */
+/** @typedef {{ id: string, name?: string, image: string, aspectRatio?: number, assetType?: string }} StickerItem */
 /** @typedef {{ id: string, title: string, subtitle: string, packageImage: string, stickers: StickerItem[] }} StickerPack */
 
 function createOfficialStickerPack(id, title, subtitle, packageImage, stickers) {
@@ -11,11 +11,14 @@ function createOfficialStickerPack(id, title, subtitle, packageImage, stickers) 
   };
 }
 
-function createStickerItems(directory, definitions) {
-  return definitions.map(([id, name]) => ({
+function createStickerItems(directory, definitions, cacheVersion = "") {
+  const versionSuffix = cacheVersion ? `?v=${encodeURIComponent(cacheVersion)}` : "";
+  return definitions.map(([id, name, aspectRatio]) => ({
     id,
     name,
-    image: `${directory}/${id}.png`
+    image: `${directory}/${id}.png${versionSuffix}`,
+    aspectRatio,
+    assetType: "official-sticker"
   }));
 }
 
@@ -76,19 +79,25 @@ const positiveTalkPackStickers = createStickerItems(
 const worldCupStarPackStickers = createStickerItems(
   "assets/sticker-packs/world-cup-star-pack",
   [
-    ["world-cup-messi-card", "Messi Card"],
-    ["world-cup-vinicius-card", "Vinicius Jr Card"],
-    ["world-cup-mbappe-card", "Mbappe Card"],
-    ["world-cup-bellingham-card", "Bellingham Card"],
-    ["world-cup-yamal-card", "Lamine Yamal Card"],
-    ["world-cup-ronaldo-card", "Ronaldo Card"],
-    ["world-cup-musiala-card", "Musiala Card"],
-    ["world-cup-dembele-card", "Dembele Card"],
-    ["world-cup-football", "Football"],
-    ["world-cup-trophy", "Trophy"],
-    ["world-cup-stars-logo", "World Cup Stars"],
-    ["world-cup-card-pack", "Card Pack"]
-  ]
+    ["world-cup-messi-card", "Messi Card", 0.6903],
+    ["world-cup-vinicius-card", "Vinicius Jr Card", 0.7053],
+    ["world-cup-mbappe-card", "Mbappe Card", 0.7422],
+    ["world-cup-bellingham-card", "Bellingham Card", 0.7399],
+    ["world-cup-yamal-card", "Lamine Yamal Card", 0.7017],
+    ["world-cup-ronaldo-card", "Ronaldo Card", 0.7036],
+    ["world-cup-musiala-card", "Musiala Card", 0.755],
+    ["world-cup-dembele-card", "Dembele Card", 0.8235],
+    ["world-cup-neymar-card", "Neymar Card", 0.6984],
+    ["world-cup-kane-card", "Harry Kane Card", 0.697],
+    ["world-cup-pedri-card", "Pedri Card", 0.6712],
+    ["world-cup-haaland-card", "Erling Haaland Card", 0.6658],
+    ["world-cup-son-card", "Son Heung-min Card", 0.6984],
+    ["world-cup-football", "Football", 0.9196],
+    ["world-cup-trophy", "Trophy", 0.5991],
+    ["world-cup-stars-logo", "World Cup Stars", 1.8197],
+    ["world-cup-card-pack", "Card Pack", 0.875]
+  ],
+  "20260624-clean"
 );
 
 // Official sticker pack cover spec:
