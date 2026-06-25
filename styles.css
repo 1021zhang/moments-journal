@@ -1205,9 +1205,9 @@ img.no-ios-callout,
 
 .canvas-text-element {
   display: inline-block;
-  width: max-content;
-  max-width: none;
+  max-width: 80%;
   min-width: 0;
+  box-sizing: border-box;
   transform-origin: top left;
   padding: 0;
   border: 0;
@@ -1223,11 +1223,16 @@ img.no-ios-callout,
   line-height: var(--line-height, 1.15);
   text-align: var(--text-align);
   white-space: pre-wrap;
-  overflow-wrap: normal;
-  word-break: keep-all;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   overflow: visible;
   pointer-events: auto;
   touch-action: none;
+}
+
+.canvas-text-element.is-selected {
+  outline: 1px solid rgba(52, 120, 246, 0.62);
+  outline-offset: 4px;
 }
 
 .canvas-text-element[data-outline-style="black"] {

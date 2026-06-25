@@ -23,6 +23,7 @@ const appVersion = "1.0.0";
 const undoLimit = 50;
 const minTextFontSize = 12;
 const maxTextFontSize = 48;
+const maxTextWidth = Math.round(canvasWidth * 0.8);
 const textDefaults = {
   fontSize: 20,
   color: "#111111",
@@ -435,19 +436,55 @@ function textBackgroundPadding(style) {
   return { x: 0, y: 0 };
 }
 
+function wrapTextLine(line, maxCharactersPerLine) {
+  const characters = Array.from(line || "");
+  if (!characters.length) return [""];
+
+  const lines = [];
+  for (let index = 0; index < characters.length; index += maxCharactersPerLine) {
+    lines.push(characters.slice(index, index + maxCharactersPerLine).join(""));
+  }
+  return lines;
+}
+
+function wrappedTextLines(content, fontSize, maxContentWidth) {
+  const characterWidth = Math.max(1, fontSize * 0.62);
+  const maxCharactersPerLine = Math.max(1, Math.floor(maxContentWidth / characterWidth));
+  const sourceLines = String(content || "文字").split("\n");
+  const lines = sourceLines.flatMap((line) => wrapTextLine(line, maxCharactersPerLine));
+  const wrapped = sourceLines.some((line) => Array.from(line).length > maxCharactersPerLine);
+  const characterCount = Array.from(String(content || "").replace(/\s/g, "")).length;
+
+  return {
+    lines,
+    wrapped,
+    isLong: wrapped || characterCount > maxCharactersPerLine,
+    maxCharactersPerLine
+  };
+}
+
 function measureTextLayout(
   content,
   fontSize = textDefaults.fontSize,
   backgroundStyle = textDefaults.backgroundStyle,
   fontStyle = textDefaults.fontStyle
 ) {
-  const lines = String(content || "文字").split("\n");
-  const longestLine = lines.reduce((longest, line) => Math.max(longest, Array.from(line || " ").length), 1);
   const padding = textBackgroundPadding(backgroundStyle);
+  const maxContentWidth = maxTextWidth - padding.x * 2;
+  const wrappedText = wrappedTextLines(content, fontSize, maxContentWidth);
+  const lines = wrappedText.lines;
+  const longestLine = lines.reduce((longest, line) => Math.max(longest, Array.from(line || " ").length), 1);
   const { lineHeight } = textFontConfig(fontStyle);
-  const width = Math.max(44, Math.ceil(longestLine * fontSize * 0.62)) + padding.x * 2;
-  const height = Math.ceil(lines.length * fontSize * lineHeight) + padding.y * 2;
-  return { width, height };
+  const naturalWidth = Math.max(44, Math.ceil(longestLine * fontSize * 0.62)) + padding.x * 2;
+  const width = Math.min(maxTextWidth, naturalWidth);
+  const height = Math.ceil(lines.length * fontSize * lineHeight) + padding.y * 2 + 2;
+  return {
+    width,
+    height,
+    lines,
+    wrapped: wrappedText.wrapped,
+    isLong: wrappedText.isLong
+  };
 }
 
 function defaultTextElement(dateKey, content = "文字") {
@@ -472,7 +509,8 @@ function defaultTextElement(dateKey, content = "文字") {
     fontWeight: textDefaults.fontWeight,
     color: textDefaults.color,
     backgroundStyle,
-    textAlign: "center",
+    textAlign: size.isLong ? "left" : "center",
+    textAlignMode: "auto",
     letterSpacing: "0"
   });
 }
@@ -480,8 +518,8 @@ function defaultTextElement(dateKey, content = "文字") {
 function positionTextElement(element, point) {
   if (!point) return element;
 
-  const minX = -canvasWidth * 0.5;
-  const maxX = canvasWidth * 1.2;
+  const minX = 0;
+  const maxX = canvasWidth - element.width;
   const minY = -element.height * 0.8;
   const maxY = canvasHeight - element.height * 0.2;
   element.x = clamp(Math.round(point.x - element.width / 2), minX, maxX);
@@ -794,6 +832,10 @@ async function ensureLayoutsForCanvasElements() {
         element.outlineStyle = textDefaults.outlineStyle;
         changed = true;
       }
+      if (!element.textAlignMode) {
+        element.textAlignMode = element.textAlign === "left" || element.textAlign === "right" ? "manual" : "auto";
+        changed = true;
+      }
 
       const backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
       const fontStyle = normalizedTextFontStyle(element.fontStyle);
@@ -806,8 +848,24 @@ async function ensureLayoutsForCanvasElements() {
       element.outlineStyle = outlineStyle;
       applyTextFontConfig(element);
       const size = measureTextLayout(element.content, element.fontSize, element.backgroundStyle, element.fontStyle);
+      const previousWidth = Number(element.width) || size.width;
+      const previousCenterX = typeof element.x === "number"
+        ? element.x + previousWidth / 2
+        : canvasWidth / 2;
+      if (element.textAlignMode === "auto") {
+        const nextTextAlign = size.isLong ? "left" : "center";
+        if (element.textAlign !== nextTextAlign) {
+          element.textAlign = nextTextAlign;
+          changed = true;
+        }
+      }
       if (typeof element.width !== "number" || element.width !== size.width) {
         element.width = size.width;
+        element.x = clamp(
+          Math.round(previousCenterX - element.width / 2),
+          0,
+          canvasWidth - element.width
+        );
         changed = true;
       }
       if (typeof element.height !== "number" || element.height !== size.height) {
@@ -1144,7 +1202,15 @@ function canvasElement(element) {
     const backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
     const outlineStyle = normalizedTextOutlineStyle(element.outlineStyle);
     const fontConfig = textFontConfig(element.fontStyle);
+    const textLayout = measureTextLayout(
+      element.content,
+      element.fontSize,
+      backgroundStyle,
+      element.fontStyle
+    );
     baseStyle.push(
+      `width:${element.width}px`,
+      `height:${element.height}px`,
       `--font-size:${element.fontSize}px`,
       `--font-family:${escapeHtml(fontConfig.fontFamily)}`,
       `--font-weight:${escapeHtml(fontConfig.fontWeight)}`,
@@ -1156,7 +1222,7 @@ function canvasElement(element) {
     );
 
     return `
-      <div class="canvas-item canvas-text-element ${selected}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}">${escapeHtml(element.content)}</div>
+      <div class="canvas-item canvas-text-element ${selected}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}">${escapeHtml(textLayout.lines.join("\n"))}</div>
     `;
   }
 
@@ -2786,6 +2852,9 @@ function ensureTextElementStyle(element) {
   element.backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
   applyTextFontConfig(element);
   if (!element.textAlign) element.textAlign = "center";
+  if (!element.textAlignMode) {
+    element.textAlignMode = element.textAlign === "left" || element.textAlign === "right" ? "manual" : "auto";
+  }
   return element;
 }
 
@@ -3247,7 +3316,7 @@ function outlineColorForStyle(outlineStyle) {
 }
 
 function drawTextLines(context, text, width, fontSize, textAlign = "center", outlineStyle = "none", lineHeightRatio = 1.15) {
-  const lines = String(text || "").split("\n");
+  const lines = wrappedTextLines(text, fontSize, width).lines;
   const lineHeight = fontSize * lineHeightRatio;
   const outlineColor = outlineColorForStyle(outlineStyle);
   context.textAlign = textAlign;
@@ -3459,9 +3528,19 @@ function applyTextElementDom(element) {
   if (!node) return;
 
   const fontConfig = textFontConfig(element.fontStyle);
-  node.textContent = element.content || "";
+  const textLayout = measureTextLayout(
+    element.content,
+    element.fontSize,
+    element.backgroundStyle,
+    element.fontStyle
+  );
+  node.textContent = textLayout.lines.join("\n");
   node.dataset.backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
   node.dataset.outlineStyle = normalizedTextOutlineStyle(element.outlineStyle);
+  node.style.left = `${element.x}px`;
+  node.style.top = `${element.y}px`;
+  node.style.width = `${element.width}px`;
+  node.style.height = `${element.height}px`;
   node.style.setProperty("--font-size", `${element.fontSize}px`);
   node.style.setProperty("--font-family", fontConfig.fontFamily);
   node.style.setProperty("--font-weight", fontConfig.fontWeight);
@@ -3530,6 +3609,10 @@ function itemAspectRatio(item, itemType) {
 function syncTextLayoutSize(element) {
   if (!element || element.type !== "text") return;
   ensureTextElementStyle(element);
+  const previousWidth = Number(element.width) || 0;
+  const previousCenterX = typeof element.x === "number"
+    ? element.x + previousWidth / 2
+    : null;
   const size = measureTextLayout(
     element.content,
     element.fontSize || textDefaults.fontSize,
@@ -3538,6 +3621,23 @@ function syncTextLayoutSize(element) {
   );
   element.width = size.width;
   element.height = size.height;
+  if (element.textAlignMode === "auto") {
+    element.textAlign = size.isLong ? "left" : "center";
+  }
+  if (previousCenterX !== null) {
+    element.x = clamp(
+      Math.round(previousCenterX - element.width / 2),
+      0,
+      canvasWidth - element.width
+    );
+  }
+  if (typeof element.y === "number") {
+    element.y = clamp(
+      element.y,
+      0,
+      Math.max(0, canvasHeight - element.height)
+    );
+  }
 }
 
 async function persistInteractiveLayout(itemId, itemType) {
@@ -3632,10 +3732,10 @@ function applyInteractiveStyle(element, layout, itemType) {
   element.style.setProperty("--rotation", `${layout.rotation || 0}deg`);
   element.style.setProperty("--scale", layout.scale || 1);
 
-  element.style.width = itemType === "text" ? "max-content" : `${layout.width}px`;
-  element.style.height = itemType === "text" ? "auto" : `${layout.height}px`;
+  element.style.width = `${layout.width}px`;
+  element.style.height = `${layout.height}px`;
   if (itemType === "text") {
-    element.style.maxWidth = "none";
+    element.style.maxWidth = `${maxTextWidth}px`;
     element.style.minWidth = "0";
   }
 
@@ -4783,6 +4883,7 @@ document.addEventListener("click", async (event) => {
     updateSelectedTextElement((element) => {
       const index = alignments.indexOf(element.textAlign);
       element.textAlign = alignments[(index + 1) % alignments.length];
+      element.textAlignMode = "manual";
     });
     return;
   }
