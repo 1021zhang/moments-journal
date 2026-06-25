@@ -189,9 +189,8 @@ const textSizeSliderGesture = {
   active: false,
   pointerId: null
 };
-const textTapIntent = {
+const textClickGuard = {
   itemId: "",
-  action: "",
   expiresAt: 0
 };
 const officialPackImagePreloaders = new Map();
@@ -1230,10 +1229,6 @@ function canvasElement(element) {
     return `
       <div class="canvas-item canvas-text-element ${selected}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}">
         <span class="canvas-text-content">${escapeHtml(textLayout.lines.join("\n"))}</span>
-        <i class="text-selection-point is-top-left" aria-hidden="true"></i>
-        <i class="text-selection-point is-top-right" aria-hidden="true"></i>
-        <i class="text-selection-point is-bottom-left" aria-hidden="true"></i>
-        <i class="text-selection-point is-bottom-right" aria-hidden="true"></i>
       </div>
     `;
   }
@@ -4206,7 +4201,7 @@ function updateGesture(event) {
     const freeBounds = freeMoveBoundsForLayout(layout, gesture.itemType, dimensions);
     layout.x = clamp(gesture.startX + dx, freeBounds.minX, freeBounds.maxX);
     layout.y = clamp(gesture.startY + dy, freeBounds.minY, freeBounds.maxY);
-    if (Math.hypot(dx, dy) > 3) {
+    if (Math.hypot(dx, dy) > 5) {
       gesture.dragging = true;
       element.classList.add("is-dragging");
       if (gesture.itemType === "text") {
@@ -4261,16 +4256,18 @@ async function endGesture(event) {
   const element = elementForItem(itemId, itemType);
   const capturedPointers = gesture.capturedPointers.slice();
 
-  if (itemId && itemType === "text" && mode === "drag" && !shouldDelete) {
-    textTapIntent.itemId = itemId;
-    textTapIntent.action = didDrag ? "ignore" : wasSelected ? "edit" : "select";
-    textTapIntent.expiresAt = Date.now() + 500;
+  const textTapAction = itemId && itemType === "text" && mode === "drag" && !didDrag && !shouldDelete
+    ? wasSelected ? "edit" : "select"
+    : "";
+
+  if (itemId && itemType === "text" && mode === "drag") {
+    textClickGuard.itemId = itemId;
+    textClickGuard.expiresAt = Date.now() + 600;
     window.setTimeout(() => {
-      if (textTapIntent.itemId !== itemId) return;
-      textTapIntent.itemId = "";
-      textTapIntent.action = "";
-      textTapIntent.expiresAt = 0;
-    }, 600);
+      if (textClickGuard.itemId !== itemId) return;
+      textClickGuard.itemId = "";
+      textClickGuard.expiresAt = 0;
+    }, 700);
   }
 
   setDeleteZoneVisible(false);
@@ -4302,6 +4299,18 @@ async function endGesture(event) {
   gesture.wasSelected = false;
   gesture.surface = "";
 
+  if (textTapAction === "select") {
+    state.activePanel = "";
+    render();
+  } else if (textTapAction === "edit") {
+    const textElement = getCanvasElement(itemId);
+    if (textElement?.type === "text") {
+      beginTextEditorSession(textElement, { beforeSnapshot });
+      render();
+      focusTextComposer();
+    }
+  }
+
   if (shouldDelete && itemId) {
     await deleteInteractiveItem(itemId, itemType, beforeSnapshot);
     if (pointer) activePointers.delete(pointerId);
@@ -4317,9 +4326,9 @@ async function endGesture(event) {
   }
   if (pointer) activePointers.delete(pointerId);
   if (mode === "drag") debugInteraction("end drag", { elementId: itemId, itemType, deleted: false });
-  if (itemId && itemType === "text" && mode === "drag") {
+  if (itemId && itemType === "text" && mode === "drag" && didDrag) {
     render();
-  } else if (itemId && itemType === "text") {
+  } else if (itemId && itemType === "text" && mode !== "drag") {
     render();
   }
 }
@@ -4658,17 +4667,17 @@ document.addEventListener("click", async (event) => {
 
   if (textItem && !actionTarget) {
     const itemId = textItem.dataset.itemId;
-    const hasIntent = textTapIntent.itemId === itemId && Date.now() <= textTapIntent.expiresAt;
-    const action = hasIntent ? textTapIntent.action : selectedItem("text", itemId) ? "edit" : "select";
-    textTapIntent.itemId = "";
-    textTapIntent.action = "";
-    textTapIntent.expiresAt = 0;
-    if (action === "select" && itemId) {
-      selectItem("text", itemId);
-      state.activePanel = "";
-      render();
+    const guarded = textClickGuard.itemId === itemId && Date.now() <= textClickGuard.expiresAt;
+    textClickGuard.itemId = "";
+    textClickGuard.expiresAt = 0;
+    if (!guarded && itemId) {
+      if (selectedItem("text", itemId)) editTextElement(itemId);
+      else {
+        selectItem("text", itemId);
+        state.activePanel = "";
+        render();
+      }
     }
-    if (action === "edit" && itemId) editTextElement(itemId);
     return;
   }
 

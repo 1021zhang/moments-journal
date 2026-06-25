@@ -1228,6 +1228,10 @@ img.no-ios-callout,
   overflow: visible;
   pointer-events: auto;
   touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .canvas-text-element.is-selected {
@@ -1239,42 +1243,7 @@ img.no-ios-callout,
   display: block;
   width: 100%;
   white-space: inherit;
-}
-
-.text-selection-point {
-  position: absolute;
-  display: none;
-  width: 6px;
-  height: 6px;
-  border: 1px solid rgba(60, 60, 67, 0.28);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   pointer-events: none;
-}
-
-.canvas-text-element.is-selected .text-selection-point {
-  display: block;
-}
-
-.text-selection-point.is-top-left {
-  top: -8px;
-  left: -8px;
-}
-
-.text-selection-point.is-top-right {
-  top: -8px;
-  right: -8px;
-}
-
-.text-selection-point.is-bottom-left {
-  bottom: -8px;
-  left: -8px;
-}
-
-.text-selection-point.is-bottom-right {
-  right: -8px;
-  bottom: -8px;
 }
 
 .canvas-text-element[data-outline-style="black"] {
