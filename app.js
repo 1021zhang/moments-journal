@@ -145,6 +145,7 @@ const gesture = {
   capturedPointers: [],
   overDeleteZone: false,
   dragging: false,
+  wasSelected: false,
   centerX: 0,
   centerY: 0,
   beforeSnapshot: null
@@ -188,8 +189,9 @@ const textSizeSliderGesture = {
   active: false,
   pointerId: null
 };
-const textClickGuard = {
+const textTapIntent = {
   itemId: "",
+  action: "",
   expiresAt: 0
 };
 const officialPackImagePreloaders = new Map();
@@ -1226,7 +1228,13 @@ function canvasElement(element) {
     );
 
     return `
-      <div class="canvas-item canvas-text-element ${selected}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}">${escapeHtml(textLayout.lines.join("\n"))}</div>
+      <div class="canvas-item canvas-text-element ${selected}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}">
+        <span class="canvas-text-content">${escapeHtml(textLayout.lines.join("\n"))}</span>
+        <i class="text-selection-point is-top-left" aria-hidden="true"></i>
+        <i class="text-selection-point is-top-right" aria-hidden="true"></i>
+        <i class="text-selection-point is-bottom-left" aria-hidden="true"></i>
+        <i class="text-selection-point is-bottom-right" aria-hidden="true"></i>
+      </div>
     `;
   }
 
@@ -3538,7 +3546,8 @@ function applyTextElementDom(element) {
     element.backgroundStyle,
     element.fontStyle
   );
-  node.textContent = textLayout.lines.join("\n");
+  const textContent = node.querySelector(".canvas-text-content");
+  if (textContent) textContent.textContent = textLayout.lines.join("\n");
   node.dataset.backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
   node.dataset.outlineStyle = normalizedTextOutlineStyle(element.outlineStyle);
   node.style.left = `${element.x}px`;
@@ -4058,6 +4067,10 @@ function startPinchGesture(event, itemId, itemType) {
   const gestureElement = event.target.closest(".canvas-item") || elementForItem(itemId, itemType);
   capturePointerForGesture(gestureElement, event.pointerId);
   selectItem(itemType, itemId);
+  if (itemType === "text") {
+    state.activePanel = "";
+    document.querySelectorAll(".text-editor-panel").forEach((panel) => panel.remove());
+  }
   setDeleteZoneVisible(false);
 
   const center = centerBetween(pointers[0], pointers[1]);
@@ -4100,6 +4113,7 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   gesture.capturedPointers = [];
   gesture.capturedElement = null;
   capturePointerForGesture(gestureElement, event.pointerId);
+  gesture.wasSelected = selectedItem(itemType, itemId);
   selectItem(itemType, itemId);
   if (itemType === "text") state.activePanel = "";
   gesture.active = true;
@@ -4240,11 +4254,24 @@ async function endGesture(event) {
   const itemType = gesture.itemType;
   const mode = gesture.mode;
   const didDrag = mode === "drag" && gesture.dragging;
+  const wasSelected = gesture.wasSelected;
   const shouldDelete = mode === "drag" && gesture.dragging && (
     gesture.overDeleteZone || (event ? isPointerInDeleteZone(event.clientY) : false)
   );
   const element = elementForItem(itemId, itemType);
   const capturedPointers = gesture.capturedPointers.slice();
+
+  if (itemId && itemType === "text" && mode === "drag" && !shouldDelete) {
+    textTapIntent.itemId = itemId;
+    textTapIntent.action = didDrag ? "ignore" : wasSelected ? "edit" : "select";
+    textTapIntent.expiresAt = Date.now() + 500;
+    window.setTimeout(() => {
+      if (textTapIntent.itemId !== itemId) return;
+      textTapIntent.itemId = "";
+      textTapIntent.action = "";
+      textTapIntent.expiresAt = 0;
+    }, 600);
+  }
 
   setDeleteZoneVisible(false);
   element?.classList.remove("is-dragging", "is-over-delete", "is-gesturing");
@@ -4272,6 +4299,7 @@ async function endGesture(event) {
   gesture.capturedPointers = [];
   gesture.overDeleteZone = false;
   gesture.dragging = false;
+  gesture.wasSelected = false;
   gesture.surface = "";
 
   if (shouldDelete && itemId) {
@@ -4289,14 +4317,9 @@ async function endGesture(event) {
   }
   if (pointer) activePointers.delete(pointerId);
   if (mode === "drag") debugInteraction("end drag", { elementId: itemId, itemType, deleted: false });
-  if (itemId && itemType === "text" && didDrag) {
-    textClickGuard.itemId = itemId;
-    textClickGuard.expiresAt = Date.now() + 500;
-    window.setTimeout(() => {
-      if (textClickGuard.itemId !== itemId) return;
-      textClickGuard.itemId = "";
-      textClickGuard.expiresAt = 0;
-    }, 80);
+  if (itemId && itemType === "text" && mode === "drag") {
+    render();
+  } else if (itemId && itemType === "text") {
     render();
   }
 }
@@ -4635,10 +4658,17 @@ document.addEventListener("click", async (event) => {
 
   if (textItem && !actionTarget) {
     const itemId = textItem.dataset.itemId;
-    const guarded = textClickGuard.itemId === itemId && Date.now() <= textClickGuard.expiresAt;
-    textClickGuard.itemId = "";
-    textClickGuard.expiresAt = 0;
-    if (!guarded && itemId) editTextElement(itemId);
+    const hasIntent = textTapIntent.itemId === itemId && Date.now() <= textTapIntent.expiresAt;
+    const action = hasIntent ? textTapIntent.action : selectedItem("text", itemId) ? "edit" : "select";
+    textTapIntent.itemId = "";
+    textTapIntent.action = "";
+    textTapIntent.expiresAt = 0;
+    if (action === "select" && itemId) {
+      selectItem("text", itemId);
+      state.activePanel = "";
+      render();
+    }
+    if (action === "edit" && itemId) editTextElement(itemId);
     return;
   }
 
