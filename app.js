@@ -188,6 +188,10 @@ const textSizeSliderGesture = {
   active: false,
   pointerId: null
 };
+const textClickGuard = {
+  itemId: "",
+  expiresAt: 0
+};
 const officialPackImagePreloaders = new Map();
 function loadNotes() {
   try {
@@ -2914,7 +2918,7 @@ async function completeTextComposer() {
     editingElement.content = value;
     syncTextLayoutSize(editingElement);
     await saveCanvasElement(editingElement);
-    selectItem("text", editingElement.id);
+    clearSelection();
     commitUndoSnapshot(beforeSnapshot);
   }
 
@@ -4097,7 +4101,7 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   gesture.capturedElement = null;
   capturePointerForGesture(gestureElement, event.pointerId);
   selectItem(itemType, itemId);
-  if (itemType === "text") state.activePanel = "text";
+  if (itemType === "text") state.activePanel = "";
   gesture.active = true;
   gesture.mode = mode;
   gesture.itemId = itemId;
@@ -4191,6 +4195,9 @@ function updateGesture(event) {
     if (Math.hypot(dx, dy) > 3) {
       gesture.dragging = true;
       element.classList.add("is-dragging");
+      if (gesture.itemType === "text") {
+        document.querySelectorAll(".text-editor-panel").forEach((panel) => panel.remove());
+      }
       updateDragDeleteFeedback(event);
     } else {
       setDeleteZoneVisible(false);
@@ -4232,6 +4239,7 @@ async function endGesture(event) {
   const itemId = gesture.itemId;
   const itemType = gesture.itemType;
   const mode = gesture.mode;
+  const didDrag = mode === "drag" && gesture.dragging;
   const shouldDelete = mode === "drag" && gesture.dragging && (
     gesture.overDeleteZone || (event ? isPointerInDeleteZone(event.clientY) : false)
   );
@@ -4281,12 +4289,15 @@ async function endGesture(event) {
   }
   if (pointer) activePointers.delete(pointerId);
   if (mode === "drag") debugInteraction("end drag", { elementId: itemId, itemType, deleted: false });
-  if (itemId && itemType === "text") {
-    const textElement = getCanvasElement(itemId);
-    if (textElement?.type === "text") {
-      beginTextEditorSession(textElement, { beforeSnapshot: currentUndoSnapshot() });
-      render();
-    }
+  if (itemId && itemType === "text" && didDrag) {
+    textClickGuard.itemId = itemId;
+    textClickGuard.expiresAt = Date.now() + 500;
+    window.setTimeout(() => {
+      if (textClickGuard.itemId !== itemId) return;
+      textClickGuard.itemId = "";
+      textClickGuard.expiresAt = 0;
+    }, 80);
+    render();
   }
 }
 
@@ -4610,6 +4621,7 @@ document.addEventListener("click", async (event) => {
 
   const dayTarget = event.target.closest("[data-day]");
   const actionTarget = event.target.closest("[data-action]");
+  const textItem = event.target.closest('[data-item-type="text"]');
 
   if (daybookNavButtonTarget(event)) {
     event.stopPropagation();
@@ -4618,6 +4630,15 @@ document.addEventListener("click", async (event) => {
 
   if (dayTarget) {
     if (event.detail === 0) openDay(dayTarget.dataset.day);
+    return;
+  }
+
+  if (textItem && !actionTarget) {
+    const itemId = textItem.dataset.itemId;
+    const guarded = textClickGuard.itemId === itemId && Date.now() <= textClickGuard.expiresAt;
+    textClickGuard.itemId = "";
+    textClickGuard.expiresAt = 0;
+    if (!guarded && itemId) editTextElement(itemId);
     return;
   }
 
@@ -4921,12 +4942,6 @@ document.addEventListener("click", async (event) => {
   }
 
   render();
-});
-
-document.addEventListener("dblclick", (event) => {
-  const textItem = event.target.closest('[data-item-type="text"]');
-  if (!textItem) return;
-  editTextElement(textItem.dataset.itemId);
 });
 
 document.addEventListener("input", (event) => {
