@@ -1205,7 +1205,7 @@ img.no-ios-callout,
 
 .canvas-text-element {
   display: block;
-  max-width: 80%;
+  max-width: min(80vw, 320px);
   min-width: 0;
   box-sizing: border-box;
   transform-origin: top left;
@@ -1235,8 +1235,21 @@ img.no-ios-callout,
 }
 
 .canvas-text-element.is-selected {
-  outline: 1px solid rgba(60, 60, 67, 0.24);
+  outline: 1px solid rgba(0, 0, 0, 0.16);
   outline-offset: 4px;
+}
+
+.canvas-text-background {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  overflow: visible;
+  pointer-events: none;
 }
 
 .canvas-text-content {
@@ -1246,7 +1259,7 @@ img.no-ios-callout,
   pointer-events: none;
 }
 
-.canvas-text-element[data-outline-style="black"] {
+.canvas-text-element[data-outline-style="black"] .canvas-text-content {
   text-shadow:
     -1px -1px 0 #000000,
     1px -1px 0 #000000,
@@ -1254,7 +1267,7 @@ img.no-ios-callout,
     1px 1px 0 #000000;
 }
 
-.canvas-text-element[data-outline-style="white"] {
+.canvas-text-element[data-outline-style="white"] .canvas-text-content {
   text-shadow:
     -1px -1px 0 #ffffff,
     1px -1px 0 #ffffff,
@@ -1262,13 +1275,13 @@ img.no-ios-callout,
     1px 1px 0 #ffffff;
 }
 
-.canvas-text-element[data-background-style="white"] {
+.canvas-text-element[data-background-style="white"] .canvas-text-background {
   padding: 8px 12px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.95);
 }
 
-.canvas-text-element[data-background-style="glass"] {
+.canvas-text-element[data-background-style="glass"] .canvas-text-background {
   padding: 8px 12px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.45);
@@ -1276,7 +1289,7 @@ img.no-ios-callout,
   -webkit-backdrop-filter: blur(12px);
 }
 
-.canvas-text-element[data-background-style="pill"] {
+.canvas-text-element[data-background-style="pill"] .canvas-text-background {
   padding: 8px 16px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.92);

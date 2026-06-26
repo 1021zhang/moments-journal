@@ -1243,8 +1243,10 @@ function canvasElement(element) {
     );
 
     return `
-      <div class="canvas-item canvas-text-element ${selected}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}">
-        <span class="canvas-text-content">${escapeHtml(textLayout.lines.join("\n"))}</span>
+      <div class="canvas-item canvas-text-element text-item-wrapper ${selected}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}">
+        <div class="canvas-text-background text-item-background">
+          <span class="canvas-text-content text-item-content">${escapeHtml(textLayout.lines.join("\n"))}</span>
+        </div>
       </div>
     `;
   }
