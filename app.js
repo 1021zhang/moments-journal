@@ -436,9 +436,25 @@ function applyTextFontConfig(element) {
 
 function textBackgroundPadding(style) {
   const backgroundStyle = normalizedTextBackgroundStyle(style);
-  if (backgroundStyle === "pill") return { x: 14, y: 7 };
-  if (backgroundStyle === "white" || backgroundStyle === "glass") return { x: 10, y: 6 };
+  if (backgroundStyle === "pill") return { x: 16, y: 8 };
+  if (backgroundStyle === "white" || backgroundStyle === "glass") return { x: 12, y: 8 };
   return { x: 0, y: 0 };
+}
+
+function textBackgroundRadius(style, height = 0) {
+  const backgroundStyle = normalizedTextBackgroundStyle(style);
+  if (backgroundStyle === "pill") return Math.max(height / 2, 999);
+  if (backgroundStyle === "glass") return 16;
+  if (backgroundStyle === "white") return 14;
+  return 0;
+}
+
+function textBackgroundFill(style) {
+  const backgroundStyle = normalizedTextBackgroundStyle(style);
+  if (backgroundStyle === "pill") return "rgba(255, 255, 255, 0.92)";
+  if (backgroundStyle === "white") return "rgba(255, 255, 255, 0.95)";
+  if (backgroundStyle === "glass") return "rgba(255, 255, 255, 0.45)";
+  return "transparent";
 }
 
 function wrapTextLine(line, maxCharactersPerLine) {
@@ -3363,11 +3379,8 @@ function drawTextBackground(context, backgroundStyle, width, height) {
   if (style === "none") return;
 
   context.save();
-  context.shadowColor = style === "glass" ? "rgba(0, 0, 0, 0.08)" : "rgba(0, 0, 0, 0.1)";
-  context.shadowBlur = style === "glass" ? 12 : 10;
-  context.shadowOffsetY = 4;
-  context.fillStyle = style === "glass" ? "rgba(255, 255, 255, 0.58)" : "#ffffff";
-  drawRoundedRect(context, -width / 2, -height / 2, width, height, style === "pill" ? height / 2 : 10);
+  context.fillStyle = textBackgroundFill(style);
+  drawRoundedRect(context, -width / 2, -height / 2, width, height, textBackgroundRadius(style, height));
   context.fill();
   context.restore();
 }

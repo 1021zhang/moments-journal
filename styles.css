@@ -1204,7 +1204,7 @@ img.no-ios-callout,
 }
 
 .canvas-text-element {
-  display: inline-block;
+  display: block;
   max-width: 80%;
   min-width: 0;
   box-sizing: border-box;
@@ -1263,27 +1263,23 @@ img.no-ios-callout,
 }
 
 .canvas-text-element[data-background-style="white"] {
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: #ffffff;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1);
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .canvas-text-element[data-background-style="glass"] {
-  padding: 6px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.52);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.58);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  padding: 8px 12px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.45);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
 
 .canvas-text-element[data-background-style="pill"] {
-  padding: 7px 14px;
+  padding: 8px 16px;
   border-radius: 999px;
-  background: #ffffff;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .canvas-sticker {
