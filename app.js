@@ -1242,13 +1242,7 @@ function canvasElement(element) {
       `--line-height:${fontConfig.lineHeight}`
     );
 
-    return `
-      <div class="canvas-item canvas-text-element text-item-wrapper ${selected}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}">
-        <div class="canvas-text-background text-item-background">
-          <span class="canvas-text-content text-item-content">${escapeHtml(textLayout.lines.join("\n"))}</span>
-        </div>
-      </div>
-    `;
+    return `<div class="canvas-item canvas-text-element text-item-wrapper ${selected}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}"><span class="canvas-text-content text-item-content">${escapeHtml(textLayout.lines.join("\n"))}</span></div>`;
   }
 
   const stickerType = element.type === "emoji" ? "emoji" : element.stickerType;
