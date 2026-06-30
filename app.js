@@ -153,6 +153,7 @@ const gesture = {
 const activePointers = new Map();
 let isPageTransitioning = false;
 let canvasSafetyRepairFrame = 0;
+let textLayoutSyncFrame = 0;
 const dayPress = {
   element: null,
   dayId: "",
@@ -436,7 +437,7 @@ function applyTextFontConfig(element) {
 
 function textBackgroundPadding(style) {
   const backgroundStyle = normalizedTextBackgroundStyle(style);
-  if (backgroundStyle === "white" || backgroundStyle === "glass") return { x: 12, y: 8 };
+  if (backgroundStyle === "white" || backgroundStyle === "glass") return { x: 14, y: 8 };
   return { x: 0, y: 0 };
 }
 
@@ -449,7 +450,7 @@ function textBackgroundRadius(style, height = 0) {
 
 function textBackgroundFill(style) {
   const backgroundStyle = normalizedTextBackgroundStyle(style);
-  if (backgroundStyle === "white") return "rgba(255, 255, 255, 0.92)";
+  if (backgroundStyle === "white") return "rgba(255, 255, 255, 0.94)";
   if (backgroundStyle === "glass") return "rgba(255, 255, 255, 0.45)";
   return "transparent";
 }
@@ -1223,15 +1224,8 @@ function canvasElement(element) {
     const backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
     const outlineStyle = normalizedTextOutlineStyle(element.outlineStyle);
     const fontConfig = textFontConfig(element.fontStyle);
-    const textLayout = measureTextLayout(
-      element.content,
-      element.fontSize,
-      backgroundStyle,
-      element.fontStyle
-    );
     baseStyle.push(
-      `width:${element.width}px`,
-      `height:${element.height}px`,
+      `--max-text-width:${maxTextWidth}px`,
       `--font-size:${element.fontSize}px`,
       `--font-family:${escapeHtml(fontConfig.fontFamily)}`,
       `--font-weight:${escapeHtml(fontConfig.fontWeight)}`,
@@ -1242,7 +1236,7 @@ function canvasElement(element) {
       `--line-height:${fontConfig.lineHeight}`
     );
 
-    return `<div class="canvas-item canvas-text-element text-item-wrapper ${selected} ${editing}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}"><span class="canvas-text-content text-item-content">${escapeHtml(textLayout.lines.join("\n"))}</span></div>`;
+    return `<div class="canvas-item canvas-text-element text-item-wrapper ${selected} ${editing}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}"><span class="canvas-text-content text-item-content">${escapeHtml(element.content || "文字")}</span></div>`;
   }
 
   const stickerType = element.type === "emoji" ? "emoji" : element.stickerType;
@@ -1741,6 +1735,7 @@ function render() {
   document.body.classList.toggle("sticker-panel-open", state.activePanel === "sticker");
   document.documentElement.classList.toggle("sticker-panel-open", state.activePanel === "sticker");
   resetHorizontalScroll();
+  scheduleRenderedTextLayoutSync();
   scheduleCanvasSafetyRepair();
 }
 
@@ -3544,20 +3539,15 @@ function applyTextElementDom(element) {
   if (!node) return;
 
   const fontConfig = textFontConfig(element.fontStyle);
-  const textLayout = measureTextLayout(
-    element.content,
-    element.fontSize,
-    element.backgroundStyle,
-    element.fontStyle
-  );
   const textContent = node.querySelector(".canvas-text-content");
-  if (textContent) textContent.textContent = textLayout.lines.join("\n");
+  if (textContent) textContent.textContent = element.content || "文字";
   node.dataset.backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
   node.dataset.outlineStyle = normalizedTextOutlineStyle(element.outlineStyle);
   node.style.left = `${element.x}px`;
   node.style.top = `${element.y}px`;
-  node.style.width = `${element.width}px`;
-  node.style.height = `${element.height}px`;
+  node.style.width = "";
+  node.style.height = "";
+  node.style.setProperty("--max-text-width", `${maxTextWidth}px`);
   node.style.setProperty("--font-size", `${element.fontSize}px`);
   node.style.setProperty("--font-family", fontConfig.fontFamily);
   node.style.setProperty("--font-weight", fontConfig.fontWeight);
@@ -3749,11 +3739,15 @@ function applyInteractiveStyle(element, layout, itemType) {
   element.style.setProperty("--rotation", `${layout.rotation || 0}deg`);
   element.style.setProperty("--scale", layout.scale || 1);
 
-  element.style.width = `${layout.width}px`;
-  element.style.height = `${layout.height}px`;
   if (itemType === "text") {
+    element.style.width = "";
+    element.style.height = "";
     element.style.maxWidth = `${maxTextWidth}px`;
     element.style.minWidth = "0";
+    element.style.setProperty("--max-text-width", `${maxTextWidth}px`);
+  } else {
+    element.style.width = `${layout.width}px`;
+    element.style.height = `${layout.height}px`;
   }
 
   if (layout.fontSize) element.style.setProperty("--font-size", `${layout.fontSize}px`);
@@ -3881,6 +3875,31 @@ async function repairUnsafeCanvasItems(options = {}) {
   });
 
   if (repairs.length) await Promise.all(repairs);
+}
+
+function syncRenderedTextLayoutSizes() {
+  if (state.view !== "single") return;
+
+  document.querySelectorAll(".canvas-text-element").forEach((node) => {
+    const itemId = node.dataset.itemId;
+    const element = itemId ? getCanvasElement(itemId) : null;
+    if (!element || element.type !== "text") return;
+
+    const width = Math.ceil(node.offsetWidth || 0);
+    const height = Math.ceil(node.offsetHeight || 0);
+    if (!width || !height) return;
+
+    if (Math.abs((element.width || 0) - width) > 1) element.width = width;
+    if (Math.abs((element.height || 0) - height) > 1) element.height = height;
+  });
+}
+
+function scheduleRenderedTextLayoutSync() {
+  if (state.view !== "single" || textLayoutSyncFrame) return;
+  textLayoutSyncFrame = requestAnimationFrame(() => {
+    textLayoutSyncFrame = 0;
+    syncRenderedTextLayoutSizes();
+  });
 }
 
 function scheduleCanvasSafetyRepair() {
