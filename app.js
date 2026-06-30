@@ -1204,6 +1204,9 @@ function freeCanvasPhoto(photo) {
 
 function canvasElement(element) {
   const selected = selectedItem(element.type, element.id) ? "is-selected" : "";
+  const editing = element.type === "text" && state.textComposer.active && state.textComposer.editingId === element.id
+    ? "is-editing"
+    : "";
   const baseStyle = [
     `left:${element.x}px`,
     `top:${element.y}px`,
@@ -1242,7 +1245,7 @@ function canvasElement(element) {
       `--line-height:${fontConfig.lineHeight}`
     );
 
-    return `<div class="canvas-item canvas-text-element text-item-wrapper ${selected}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}"><span class="canvas-text-content text-item-content">${escapeHtml(textLayout.lines.join("\n"))}</span></div>`;
+    return `<div class="canvas-item canvas-text-element text-item-wrapper ${selected} ${editing}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}"><span class="canvas-text-content text-item-content">${escapeHtml(textLayout.lines.join("\n"))}</span></div>`;
   }
 
   const stickerType = element.type === "emoji" ? "emoji" : element.stickerType;
@@ -4258,7 +4261,6 @@ async function endGesture(event) {
   const itemType = gesture.itemType;
   const mode = gesture.mode;
   const didDrag = mode === "drag" && gesture.dragging;
-  const wasSelected = gesture.wasSelected;
   const shouldDelete = mode === "drag" && gesture.dragging && (
     gesture.overDeleteZone || (event ? isPointerInDeleteZone(event.clientY) : false)
   );
@@ -4266,7 +4268,7 @@ async function endGesture(event) {
   const capturedPointers = gesture.capturedPointers.slice();
 
   const textTapAction = itemId && itemType === "text" && mode === "drag" && !didDrag && !shouldDelete
-    ? wasSelected ? "edit" : "select"
+    ? "edit"
     : "";
 
   if (itemId && itemType === "text" && mode === "drag") {
@@ -4308,10 +4310,7 @@ async function endGesture(event) {
   gesture.wasSelected = false;
   gesture.surface = "";
 
-  if (textTapAction === "select") {
-    state.activePanel = "";
-    render();
-  } else if (textTapAction === "edit") {
+  if (textTapAction === "edit") {
     const textElement = getCanvasElement(itemId);
     if (textElement?.type === "text") {
       beginTextEditorSession(textElement, { beforeSnapshot });
@@ -4680,12 +4679,7 @@ document.addEventListener("click", async (event) => {
     textClickGuard.itemId = "";
     textClickGuard.expiresAt = 0;
     if (!guarded && itemId) {
-      if (selectedItem("text", itemId)) editTextElement(itemId);
-      else {
-        selectItem("text", itemId);
-        state.activePanel = "";
-        render();
-      }
+      editTextElement(itemId);
     }
     return;
   }
