@@ -29,7 +29,7 @@ const textDefaults = {
   color: "#111111",
   fontWeight: 700,
   backgroundStyle: "none",
-  fontStyle: "wenkai",
+  fontStyle: "system",
   outlineStyle: "none"
 };
 const textColorOptions = [
@@ -43,17 +43,6 @@ const textBackgroundOptions = [
   { label: "无", value: "none" },
   { label: "白底", value: "white" },
   { label: "半透明", value: "glass" }
-];
-const textFontStyleOptions = [
-  { label: "系统", value: "system" },
-  { label: "手写", value: "handwritten" },
-  { label: "文楷", value: "wenkai" },
-  { label: "标题", value: "headline" }
-];
-const textOutlineOptions = [
-  { label: "无", value: "none" },
-  { label: "黑边", value: "black" },
-  { label: "白边", value: "white" }
 ];
 const mockPhotos = [
   { id: "mock-cafe", type: "mock", caption: "cafe", src: "https://picsum.photos/seed/moments-cafe/320/320" },
@@ -379,18 +368,13 @@ function normalizedTextBackgroundStyle(style) {
 }
 
 function normalizedTextFontStyle(style) {
-  const legacyMap = {
-    default: "system",
-    soft: "handwritten",
-    journal: "wenkai",
-    typewriter: "system"
-  };
-  const nextStyle = legacyMap[style] || style;
-  return textFontStyleOptions.some((option) => option.value === nextStyle) ? nextStyle : textDefaults.fontStyle;
+  void style;
+  return textDefaults.fontStyle;
 }
 
 function normalizedTextOutlineStyle(style) {
-  return textOutlineOptions.some((option) => option.value === style) ? style : textDefaults.outlineStyle;
+  void style;
+  return textDefaults.outlineStyle;
 }
 
 function textFontConfig(style) {
@@ -1515,12 +1499,6 @@ function textEditorPanel() {
 
   const value = state.textComposer.editingId === element.id ? state.textComposer.value : element.content;
   const color = state.textComposer.editingId === element.id ? state.textComposer.color : element.color || textDefaults.color;
-  const fontStyle = normalizedTextFontStyle(
-    state.textComposer.editingId === element.id ? state.textComposer.fontStyle : element.fontStyle
-  );
-  const outlineStyle = normalizedTextOutlineStyle(
-    state.textComposer.editingId === element.id ? state.textComposer.outlineStyle : element.outlineStyle
-  );
   const backgroundStyle = normalizedTextBackgroundStyle(
     state.textComposer.editingId === element.id ? state.textComposer.backgroundStyle : element.backgroundStyle
   );
@@ -1541,14 +1519,6 @@ function textEditorPanel() {
       >${escapeHtml(value)}</textarea>
       <div class="text-editor-controls">
         <div class="text-editor-row">
-          <span>风格</span>
-          <div class="text-segmented-control text-font-control">
-            ${textFontStyleOptions.map((option) => `
-              <button class="${fontStyle === option.value ? "is-active" : ""}" type="button" data-action="text-font-style" data-font-style="${option.value}">${option.label}</button>
-            `).join("")}
-          </div>
-        </div>
-        <div class="text-editor-row">
           <span>颜色</span>
           <div class="text-color-control">
             ${textColorOptions.map((option) => `
@@ -1562,14 +1532,6 @@ function textEditorPanel() {
               >
                 <i style="--swatch-color:${option.value}"></i>
               </button>
-            `).join("")}
-          </div>
-        </div>
-        <div class="text-editor-row">
-          <span>描边</span>
-          <div class="text-segmented-control text-outline-control">
-            ${textOutlineOptions.map((option) => `
-              <button class="${outlineStyle === option.value ? "is-active" : ""}" type="button" data-action="text-outline" data-outline-style="${option.value}">${option.label}</button>
             `).join("")}
           </div>
         </div>
@@ -3583,23 +3545,6 @@ async function applyTextComposerPatch(patch, options = {}) {
   if (options.renderControls) render();
 }
 
-function textStyle(styleId) {
-  return {
-    classic: {
-      fontStyle: "system"
-    },
-    signature: {
-      fontStyle: "handwritten"
-    },
-    editor: {
-      fontStyle: "system"
-    },
-    poster: {
-      fontStyle: "headline"
-    }
-  }[styleId];
-}
-
 function surfaceDimensions(surface) {
   return { width: canvasWidth, height: canvasHeight };
 }
@@ -4930,16 +4875,6 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "delete-photo" || action === "delete-element") return;
-  if (action === "text-font-style") {
-    const fontStyle = normalizedTextFontStyle(actionTarget.dataset.fontStyle);
-    await applyTextComposerPatch({ fontStyle }, { renderControls: true });
-    return;
-  }
-  if (action === "text-style") {
-    const style = textStyle(actionTarget.dataset.style);
-    if (style) updateSelectedTextElement((element) => Object.assign(element, style));
-    return;
-  }
   if (action === "text-color") {
     const color = actionTarget.dataset.color;
     if (color) {
@@ -4950,11 +4885,6 @@ document.addEventListener("click", async (event) => {
   if (action === "text-background") {
     const backgroundStyle = normalizedTextBackgroundStyle(actionTarget.dataset.backgroundStyle);
     await applyTextComposerPatch({ backgroundStyle }, { renderControls: true });
-    return;
-  }
-  if (action === "text-outline") {
-    const outlineStyle = normalizedTextOutlineStyle(actionTarget.dataset.outlineStyle);
-    await applyTextComposerPatch({ outlineStyle }, { renderControls: true });
     return;
   }
   if (action === "text-align") {
