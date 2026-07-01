@@ -453,7 +453,7 @@ function wrapTextLine(line, maxCharactersPerLine) {
 function wrappedTextLines(content, fontSize, maxContentWidth) {
   const characterWidth = Math.max(1, fontSize * 0.62);
   const maxCharactersPerLine = Math.max(1, Math.floor(maxContentWidth / characterWidth));
-  const sourceLines = String(content || "文字").split("\n");
+  const sourceLines = String(content || "输入文字").split("\n");
   const lines = sourceLines.flatMap((line) => wrapTextLine(line, maxCharactersPerLine));
   const wrapped = sourceLines.some((line) => Array.from(line).length > maxCharactersPerLine);
   const characterCount = Array.from(String(content || "").replace(/\s/g, "")).length;
@@ -490,7 +490,7 @@ function measureTextLayout(
   };
 }
 
-function defaultTextElement(dateKey, content = "文字") {
+function defaultTextElement(dateKey, content = "") {
   const fontSize = textDefaults.fontSize;
   const backgroundStyle = textDefaults.backgroundStyle;
   const size = measureTextLayout(content, fontSize, backgroundStyle, textDefaults.fontStyle);
@@ -1208,6 +1208,9 @@ function canvasElement(element) {
     const backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
     const outlineStyle = normalizedTextOutlineStyle(element.outlineStyle);
     const fontConfig = textFontConfig(element.fontStyle);
+    const showDraftPlaceholder = element.isTextDraft && !String(element.content || "").trim();
+    const placeholderClass = showDraftPlaceholder ? "is-draft-placeholder" : "";
+    const displayContent = showDraftPlaceholder ? "输入文字" : element.content;
     baseStyle.push(
       `--max-text-width:${maxTextWidth}px`,
       `--font-size:${element.fontSize}px`,
@@ -1220,7 +1223,7 @@ function canvasElement(element) {
       `--line-height:${fontConfig.lineHeight}`
     );
 
-    return `<div class="canvas-item canvas-text-element text-item-wrapper ${selected} ${editing}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}"><span class="canvas-text-content text-item-content">${escapeHtml(element.content || "文字")}</span></div>`;
+    return `<div class="canvas-item canvas-text-element text-item-wrapper ${selected} ${editing} ${placeholderClass}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}"><span class="canvas-text-content text-item-content">${escapeHtml(displayContent || "")}</span></div>`;
   }
 
   const stickerType = element.type === "emoji" ? "emoji" : element.stickerType;
@@ -1514,7 +1517,7 @@ function textEditorPanel() {
         id="textComposerInput"
         class="text-editor-input"
         data-text-composer
-        placeholder="写点什么……"
+        placeholder="输入文字"
         rows="2"
       >${escapeHtml(value)}</textarea>
       <div class="text-editor-controls">
@@ -1563,7 +1566,7 @@ function textSizeSlider() {
     <div
       class="text-size-slider"
       data-text-size-slider
-      style="--slider-progress:${progress}"
+      style="--slider-progress:${progress * 100}%"
       role="slider"
       aria-label="字号"
       aria-valuemin="${minTextFontSize}"
@@ -2783,9 +2786,10 @@ async function addTextElement(point = null) {
 
   const undoBefore = snapshotForDate(day.dateKey);
   const element = positionTextElement(defaultTextElement(day.dateKey), point);
+  element.isTextDraft = true;
   state.pendingInsertPoint = null;
   state.activePanel = "text";
-  await saveCanvasElement(element);
+  state.canvasElements.push(element);
   selectItem("text", element.id);
   openTextComposer(element.id, { beforeSnapshot: undoBefore });
 }
@@ -2888,6 +2892,7 @@ async function completeTextComposer() {
   if (editingElement?.type === "text") {
     ensureTextElementStyle(editingElement);
     editingElement.content = value;
+    delete editingElement.isTextDraft;
     syncTextLayoutSize(editingElement);
     await saveCanvasElement(editingElement);
     clearSelection();
@@ -3502,7 +3507,9 @@ function applyTextElementDom(element) {
 
   const fontConfig = textFontConfig(element.fontStyle);
   const textContent = node.querySelector(".canvas-text-content");
-  if (textContent) textContent.textContent = element.content || "文字";
+  const showDraftPlaceholder = element.isTextDraft && !String(element.content || "").trim();
+  if (textContent) textContent.textContent = showDraftPlaceholder ? "输入文字" : element.content || "";
+  node.classList.toggle("is-draft-placeholder", showDraftPlaceholder);
   node.dataset.backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
   node.dataset.outlineStyle = normalizedTextOutlineStyle(element.outlineStyle);
   node.style.left = `${element.x}px`;
@@ -3540,7 +3547,9 @@ async function applyTextComposerPatch(patch, options = {}) {
   applyTextFontConfig(element);
   syncTextLayoutSize(element);
   applyTextElementDom(element);
-  await saveCanvasElement(element);
+  if (!element.isTextDraft) {
+    await saveCanvasElement(element);
+  }
 
   if (options.renderControls) render();
 }
@@ -4430,7 +4439,7 @@ function syncTextSizeSliderDom(fontSize) {
 
   const size = clamp(Number(fontSize) || textDefaults.fontSize, minTextFontSize, maxTextFontSize);
   const progress = (size - minTextFontSize) / (maxTextFontSize - minTextFontSize);
-  slider.style.setProperty("--slider-progress", progress);
+  slider.style.setProperty("--slider-progress", `${progress * 100}%`);
   slider.setAttribute("aria-valuenow", String(size));
 }
 
