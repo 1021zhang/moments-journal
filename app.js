@@ -3686,6 +3686,8 @@ function applyInteractiveStyle(element, layout, itemType) {
 
   element.style.left = `${layout.x}px`;
   element.style.top = `${layout.y}px`;
+  element.style.removeProperty("--gesture-translate-x");
+  element.style.removeProperty("--gesture-translate-y");
   const visualZIndex = element.classList.contains("is-gesturing")
     ? Math.max(layout.zIndex || 1, 1300)
     : layout.zIndex || 1;
@@ -3716,6 +3718,14 @@ function applyInteractiveStyle(element, layout, itemType) {
     element.dataset.backgroundStyle = normalizedTextBackgroundStyle(layout.backgroundStyle);
     element.dataset.outlineStyle = normalizedTextOutlineStyle(layout.outlineStyle);
   }
+}
+
+function applyInteractiveDragTransform(element, layout) {
+  if (!element || !layout) return;
+
+  element.style.zIndex = String(Math.max(layout.zIndex || 1, 1300));
+  element.style.setProperty("--gesture-translate-x", `${layout.x - gesture.startX}px`);
+  element.style.setProperty("--gesture-translate-y", `${layout.y - gesture.startY}px`);
 }
 
 function overlapSize(rect, bounds) {
@@ -4025,6 +4035,20 @@ async function deleteInteractiveItem(itemId, itemType, beforeSnapshot = currentU
   render();
 }
 
+function animateInteractiveItemDeletion(itemId, itemType) {
+  const element = elementForItem(itemId, itemType);
+  if (!element) return Promise.resolve();
+
+  element.classList.remove("is-gesturing", "is-dragging", "is-over-delete");
+  // Force the current transform to be committed before the exit class is applied.
+  void element.offsetWidth;
+  element.classList.add("is-deleting");
+
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, 170);
+  });
+}
+
 function capturePointerForGesture(element, pointerId) {
   if (!element || pointerId === undefined) return;
   element.setPointerCapture?.(pointerId);
@@ -4183,6 +4207,7 @@ function updateGesture(event) {
     const freeBounds = freeMoveBoundsForLayout(layout, gesture.itemType, dimensions);
     layout.x = clamp(gesture.startX + dx, freeBounds.minX, freeBounds.maxX);
     layout.y = clamp(gesture.startY + dy, freeBounds.minY, freeBounds.maxY);
+    applyInteractiveDragTransform(element, layout);
     if (Math.hypot(dx, dy) > 5) {
       gesture.dragging = true;
       element.classList.add("is-dragging");
@@ -4193,6 +4218,7 @@ function updateGesture(event) {
     } else {
       setDeleteZoneVisible(false);
     }
+    return;
   }
 
   if (gesture.mode === "resize") {
@@ -4252,7 +4278,7 @@ async function endGesture(event) {
   }
 
   setDeleteZoneVisible(false);
-  element?.classList.remove("is-dragging", "is-over-delete", "is-gesturing");
+  element?.classList.remove("is-dragging", "is-over-delete");
   capturedPointers.forEach(({ element: capturedElement, pointerId: capturedPointerId }) => {
     if (capturedElement?.hasPointerCapture?.(capturedPointerId)) {
       try {
@@ -4290,6 +4316,7 @@ async function endGesture(event) {
   }
 
   if (shouldDelete && itemId) {
+    await animateInteractiveItemDeletion(itemId, itemType);
     await deleteInteractiveItem(itemId, itemType, beforeSnapshot);
     if (pointer) activePointers.delete(pointerId);
     debugInteraction("end drag", { elementId: itemId, itemType, deleted: true });
@@ -4298,7 +4325,13 @@ async function endGesture(event) {
 
   if (itemId) {
     if (itemType !== "text") clampElementToSafeBounds(itemId, itemType);
-    applyInteractiveStyle(elementForItem(itemId, itemType), getInteractiveLayout(itemId, itemType), itemType);
+    const committedElement = elementForItem(itemId, itemType);
+    applyInteractiveStyle(committedElement, getInteractiveLayout(itemId, itemType), itemType);
+    if (committedElement) {
+      // Commit left/top and clear the temporary translation before transitions resume.
+      void committedElement.offsetWidth;
+      committedElement.classList.remove("is-gesturing");
+    }
     await persistInteractiveLayout(itemId, itemType);
     commitUndoSnapshot(beforeSnapshot);
   }
@@ -4573,10 +4606,22 @@ document.addEventListener("pointerdown", (event) => {
     return;
   }
 
-  if (event.target.classList.contains("free-canvas") && state.selectedPhotoId) {
-    clearSelection();
-    state.activePanel = "";
-    render();
+  if (event.target.classList.contains("free-canvas")) {
+    if (state.activePanel === "text" && state.textComposer.active) {
+      void completeTextComposer();
+      return;
+    }
+
+    if (
+      state.selectedPhotoId
+      || state.stickerContextMenu.open
+      || state.personalStickerMenu.open
+    ) {
+      clearSelection();
+      closeStickerMenus();
+      state.activePanel = "";
+      render();
+    }
   }
 });
 
