@@ -13,6 +13,7 @@ const stackPreviewWidth = 358;
 const stackPreviewHeight = 390;
 const deleteRevealHeight = 180;
 const deleteActiveHeight = 110;
+const alignmentSnapThreshold = 10;
 const minItemScale = 0.25;
 const maxItemScale = 4;
 const minTextScale = 0.4;
@@ -133,6 +134,7 @@ const gesture = {
   capturedPointers: [],
   overDeleteZone: false,
   dragging: false,
+  alignmentTargets: [],
   wasSelected: false,
   centerX: 0,
   centerY: 0,
@@ -1622,6 +1624,8 @@ function renderSingleDay() {
           : '<p class="canvas-empty-state">添加照片开始记录今天</p>'}
         ${day.photos.map(freeCanvasPhoto).join("")}
         ${dayElements.map(canvasElement).join("")}
+        <div class="alignment-guide alignment-guide-vertical" data-alignment-guide="vertical" aria-hidden="true"></div>
+        <div class="alignment-guide alignment-guide-horizontal" data-alignment-guide="horizontal" aria-hidden="true"></div>
         <div class="floating-toolbox" aria-label="画布工具">
           <button type="button" data-action="add-text" aria-label="添加文字" title="添加文字"><span class="toolbox-text-mark" aria-hidden="true">Aa</span></button>
           <button type="button" data-action="open-sticker-panel" aria-label="添加贴纸" title="添加贴纸">
@@ -3728,6 +3732,97 @@ function applyInteractiveDragTransform(element, layout) {
   element.style.setProperty("--gesture-translate-y", `${layout.y - gesture.startY}px`);
 }
 
+function alignmentTargetsForItem(itemId) {
+  const day = getDay();
+  if (!day) return [];
+
+  const targets = [{
+    x: canvasWidth / 2,
+    y: canvasHeight / 2,
+    source: "canvas"
+  }];
+  const items = [
+    ...day.photos,
+    ...elementsForDate(day.dateKey)
+  ];
+
+  items.forEach((item) => {
+    if (!item || item.id === itemId) return;
+
+    const width = Number(item.width) || 0;
+    const height = Number(item.height) || 0;
+    if (!width || !height) return;
+
+    targets.push({
+      x: (Number(item.x) || 0) + width / 2,
+      y: (Number(item.y) || 0) + height / 2,
+      source: "item"
+    });
+  });
+
+  return targets;
+}
+
+function nearestAlignmentTarget(value, axis) {
+  let nearest = null;
+  let nearestDistance = alignmentSnapThreshold + 1;
+
+  gesture.alignmentTargets.forEach((target) => {
+    const coordinate = target[axis];
+    const distance = Math.abs(value - coordinate);
+    if (distance <= alignmentSnapThreshold && distance < nearestDistance) {
+      nearest = coordinate;
+      nearestDistance = distance;
+    }
+  });
+
+  return nearest;
+}
+
+function setAlignmentGuides({ x = null, y = null } = {}) {
+  const vertical = document.querySelector('[data-alignment-guide="vertical"]');
+  const horizontal = document.querySelector('[data-alignment-guide="horizontal"]');
+  const showVertical = Number.isFinite(x);
+  const showHorizontal = Number.isFinite(y);
+
+  if (vertical) {
+    if (showVertical) vertical.style.left = `${x}px`;
+    vertical.classList.toggle("is-visible", showVertical);
+  }
+  if (horizontal) {
+    if (showHorizontal) horizontal.style.top = `${y}px`;
+    horizontal.classList.toggle("is-visible", showHorizontal);
+  }
+}
+
+function hideAlignmentGuides() {
+  setAlignmentGuides();
+}
+
+function applySmartAlignment(layout, bounds) {
+  const width = Number(layout.width) || 0;
+  const height = Number(layout.height) || 0;
+  const centerX = (Number(layout.x) || 0) + width / 2;
+  const centerY = (Number(layout.y) || 0) + height / 2;
+  const targetX = nearestAlignmentTarget(centerX, "x");
+  const targetY = nearestAlignmentTarget(centerY, "y");
+  let guideX = null;
+  let guideY = null;
+
+  if (Number.isFinite(targetX)) {
+    const snappedX = clamp(targetX - width / 2, bounds.minX, bounds.maxX);
+    layout.x = snappedX;
+    if (Math.abs(snappedX + width / 2 - targetX) < 0.5) guideX = targetX;
+  }
+  if (Number.isFinite(targetY)) {
+    const snappedY = clamp(targetY - height / 2, bounds.minY, bounds.maxY);
+    layout.y = snappedY;
+    if (Math.abs(snappedY + height / 2 - targetY) < 0.5) guideY = targetY;
+  }
+
+  setAlignmentGuides({ x: guideX, y: guideY });
+}
+
 function overlapSize(rect, bounds) {
   return {
     width: Math.max(0, Math.min(rect.right, bounds.right) - Math.max(rect.left, bounds.left)),
@@ -4064,6 +4159,7 @@ function startPinchGesture(event, itemId, itemType) {
   if (!layout || pointers.length < 2) return false;
 
   event.preventDefault();
+  hideAlignmentGuides();
   clearCanvasStickerPress();
   const gestureElement = event.target.closest(".canvas-item") || elementForItem(itemId, itemType);
   capturePointerForGesture(gestureElement, event.pointerId);
@@ -4090,6 +4186,7 @@ function startPinchGesture(event, itemId, itemType) {
   gesture.startPinchCenterY = center.y;
   gesture.overDeleteZone = false;
   gesture.dragging = false;
+  gesture.alignmentTargets = [];
   gesture.beforeSnapshot = gesture.beforeSnapshot || currentUndoSnapshot();
 
   const day = getDay();
@@ -4110,6 +4207,7 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   if (itemType === "text") syncTextLayoutSize(layout);
 
   event.preventDefault();
+  hideAlignmentGuides();
   const gestureElement = event.target.closest(".canvas-item");
   gesture.capturedPointers = [];
   gesture.capturedElement = null;
@@ -4135,6 +4233,7 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   gesture.pointerId = event.pointerId;
   gesture.overDeleteZone = false;
   gesture.dragging = false;
+  gesture.alignmentTargets = mode === "drag" ? alignmentTargetsForItem(itemId) : [];
   gesture.beforeSnapshot = currentUndoSnapshot();
 
   const rect = gestureElement?.getBoundingClientRect()
@@ -4207,8 +4306,15 @@ function updateGesture(event) {
     const freeBounds = freeMoveBoundsForLayout(layout, gesture.itemType, dimensions);
     layout.x = clamp(gesture.startX + dx, freeBounds.minX, freeBounds.maxX);
     layout.y = clamp(gesture.startY + dy, freeBounds.minY, freeBounds.maxY);
+    const didMove = Math.hypot(dx, dy) > 5;
+    const canAlign = didMove && deleteZoneState(event.clientY) === "hidden";
+    if (canAlign) {
+      applySmartAlignment(layout, freeBounds);
+    } else {
+      hideAlignmentGuides();
+    }
     applyInteractiveDragTransform(element, layout);
-    if (Math.hypot(dx, dy) > 5) {
+    if (didMove) {
       gesture.dragging = true;
       element.classList.add("is-dragging");
       if (gesture.itemType === "text") {
@@ -4249,6 +4355,7 @@ async function endGesture(event) {
   const pointer = activePointers.get(pointerId);
 
   if (!gesture.active) {
+    hideAlignmentGuides();
     if (pointer) activePointers.delete(pointerId);
     return;
   }
@@ -4278,6 +4385,7 @@ async function endGesture(event) {
   }
 
   setDeleteZoneVisible(false);
+  hideAlignmentGuides();
   element?.classList.remove("is-dragging", "is-over-delete");
   capturedPointers.forEach(({ element: capturedElement, pointerId: capturedPointerId }) => {
     if (capturedElement?.hasPointerCapture?.(capturedPointerId)) {
@@ -4303,6 +4411,7 @@ async function endGesture(event) {
   gesture.capturedPointers = [];
   gesture.overDeleteZone = false;
   gesture.dragging = false;
+  gesture.alignmentTargets = [];
   gesture.wasSelected = false;
   gesture.surface = "";
 
