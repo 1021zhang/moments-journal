@@ -1135,24 +1135,44 @@ img.no-ios-callout,
   letter-spacing: 0.01em;
   text-align: center;
   pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
   transform: translate(-50%, -50%);
   user-select: none;
   -webkit-user-select: none;
+  transition:
+    opacity 180ms ease,
+    visibility 0s linear 180ms;
+}
+
+.canvas-empty-state.is-visible {
+  visibility: visible;
+  opacity: 1;
+  transition:
+    opacity 180ms ease,
+    visibility 0s linear 0s;
 }
 
 .alignment-guide {
   position: absolute;
   z-index: 1100;
   pointer-events: none;
+  visibility: hidden;
   opacity: 0;
-  background: rgba(92, 117, 255, 0.46);
-  box-shadow: 0 0 0.5px rgba(126, 102, 255, 0.28);
-  transition: opacity 70ms ease-out;
+  background: rgba(92, 117, 255, 0.34);
+  box-shadow: 0 0 0.5px rgba(126, 102, 255, 0.18);
+  transition:
+    opacity 170ms ease-out,
+    visibility 0s linear 170ms;
   will-change: opacity;
 }
 
 .alignment-guide.is-visible {
+  visibility: visible;
   opacity: 1;
+  transition:
+    opacity 60ms ease-out,
+    visibility 0s linear 0s;
 }
 
 .alignment-guide-vertical {

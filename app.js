@@ -145,6 +145,7 @@ const activePointers = new Map();
 let isPageTransitioning = false;
 let canvasSafetyRepairFrame = 0;
 let textLayoutSyncFrame = 0;
+let canvasEmptyStateFrame = 0;
 const dayPress = {
   element: null,
   dayId: "",
@@ -1593,6 +1594,7 @@ function renderSingleDay() {
   const safeNote = escapeHtml(note);
   const noteDialogTitle = note.trim() ? "编辑记录" : "添加记录";
   const dayElements = elementsForDate(day.dateKey);
+  const isCanvasEmpty = day.photos.length === 0 && dayElements.length === 0;
   const canUndo = undoStackForDate(day.dateKey).length > 0;
   const modalBackgroundAttrs = state.activePanel === "sticker" ? 'inert aria-hidden="true"' : "";
 
@@ -1619,9 +1621,7 @@ function renderSingleDay() {
       </header>
 
       <section class="free-canvas" aria-label="自由排版画布" ${modalBackgroundAttrs}>
-        ${day.photos.length
-          ? ""
-          : '<p class="canvas-empty-state">添加照片开始记录今天</p>'}
+        <p class="canvas-empty-state ${isCanvasEmpty ? "is-visible" : ""}" aria-hidden="${isCanvasEmpty ? "false" : "true"}">添加照片开始记录今天</p>
         ${day.photos.map(freeCanvasPhoto).join("")}
         ${dayElements.map(canvasElement).join("")}
         <div class="alignment-guide alignment-guide-vertical" data-alignment-guide="vertical" aria-hidden="true"></div>
@@ -1699,7 +1699,44 @@ function resetHorizontalScroll() {
 
 function render() {
   const app = document.querySelector("#app");
+  const previousSingleView = app.firstElementChild?.classList.contains("single-day-view")
+    ? app.firstElementChild
+    : null;
+  const previousEmptyState = previousSingleView?.querySelector(".canvas-empty-state") || null;
+  const wasEmptyStateVisible = previousEmptyState?.classList.contains("is-visible") || false;
+
   app.innerHTML = renderView(state.view);
+
+  const nextSingleView = app.firstElementChild?.classList.contains("single-day-view")
+    ? app.firstElementChild
+    : null;
+  const renderedEmptyState = nextSingleView?.querySelector(".canvas-empty-state") || null;
+  if (canvasEmptyStateFrame) cancelAnimationFrame(canvasEmptyStateFrame);
+  canvasEmptyStateFrame = 0;
+
+  if (previousEmptyState && renderedEmptyState) {
+    const shouldShowEmptyState = renderedEmptyState.classList.contains("is-visible");
+    renderedEmptyState.replaceWith(previousEmptyState);
+    previousEmptyState.classList.toggle("is-visible", wasEmptyStateVisible);
+    previousEmptyState.setAttribute("aria-hidden", wasEmptyStateVisible ? "false" : "true");
+
+    if (wasEmptyStateVisible !== shouldShowEmptyState) {
+      canvasEmptyStateFrame = requestAnimationFrame(() => {
+        canvasEmptyStateFrame = 0;
+        previousEmptyState.classList.toggle("is-visible", shouldShowEmptyState);
+        previousEmptyState.setAttribute("aria-hidden", shouldShowEmptyState ? "false" : "true");
+      });
+    }
+  } else if (renderedEmptyState?.classList.contains("is-visible")) {
+    renderedEmptyState.classList.remove("is-visible");
+    renderedEmptyState.setAttribute("aria-hidden", "true");
+    canvasEmptyStateFrame = requestAnimationFrame(() => {
+      canvasEmptyStateFrame = 0;
+      renderedEmptyState.classList.add("is-visible");
+      renderedEmptyState.setAttribute("aria-hidden", "false");
+    });
+  }
+
   document.body.classList.toggle("settings-open", state.settingsSheetOpen);
   document.body.classList.toggle("sticker-panel-open", state.activePanel === "sticker");
   document.documentElement.classList.toggle("sticker-panel-open", state.activePanel === "sticker");
