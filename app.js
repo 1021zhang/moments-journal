@@ -900,19 +900,36 @@ function userDayDateKey(dayId) {
   return match?.[1] || "";
 }
 
+function compareDateKeysDescending(dateKeyA, dateKeyB) {
+  const timeA = dateFromKey(dateKeyA).getTime();
+  const timeB = dateFromKey(dateKeyB).getTime();
+  if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) {
+    return timeB - timeA;
+  }
+  return String(dateKeyB).localeCompare(String(dateKeyA));
+}
+
 function buildUserDayModels() {
   const groups = new Map();
+  const ensureDay = (dateKey) => {
+    if (!dateKey) return null;
+    if (!groups.has(dateKey)) groups.set(dateKey, []);
+    return groups.get(dateKey);
+  };
 
   state.userPhotos
     .slice()
     .sort((a, b) => b.addedAt.localeCompare(a.addedAt))
     .forEach((photo) => {
-      if (!groups.has(photo.dateKey)) groups.set(photo.dateKey, []);
-      groups.get(photo.dateKey).push(normalizeUserPhoto(photo));
+      ensureDay(photo.dateKey)?.push(normalizeUserPhoto(photo));
     });
 
+  state.canvasElements.forEach((element) => {
+    ensureDay(element.dateKey);
+  });
+
   return Array.from(groups.entries())
-    .sort(([a], [b]) => b.localeCompare(a))
+    .sort(([dateKeyA], [dateKeyB]) => compareDateKeysDescending(dateKeyA, dateKeyB))
     .map(([dateKey, photos]) => userDayModel(dateKey, photos));
 }
 
