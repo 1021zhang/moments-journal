@@ -1148,6 +1148,65 @@ function renderEmptyDaybook() {
   `;
 }
 
+function daybookStickerPreview(element, index) {
+  const tilt = ["-3deg", "2deg", "-1deg", "3deg"][index] || "0deg";
+  const imageSource = element.imageDataUrl || element.src || "";
+  const content = element.content || "✨";
+
+  return `
+    <figure class="day-canvas-preview day-sticker-preview" style="--preview-tilt:${tilt}" aria-hidden="true">
+      ${imageSource
+        ? `<img src="${escapeHtml(imageSource)}" alt="" draggable="false" />`
+        : `<span class="day-sticker-glyph">${escapeHtml(content)}</span>`}
+    </figure>
+  `;
+}
+
+function daybookTextPreview(element, index) {
+  const tilt = ["-2deg", "1deg", "-1deg", "2deg"][index] || "0deg";
+  return `
+    <figure
+      class="day-canvas-preview day-text-preview"
+      style="--preview-tilt:${tilt};--preview-text-color:${escapeHtml(element.color || textDefaults.color)}"
+      aria-hidden="true"
+    >
+      <span>${escapeHtml(element.content || "文字")}</span>
+    </figure>
+  `;
+}
+
+function daybookFallbackPreview() {
+  return `
+    <figure class="day-canvas-preview day-fallback-preview" aria-hidden="true">
+      <span>Moment</span>
+    </figure>
+  `;
+}
+
+function daybookPreviewMarkup(day) {
+  if (day.photos.length) {
+    return day.photos.slice(0, 4).map((photo, index) =>
+      polaroid(photo, {
+        tilt: ["-3deg", "1deg", "-1deg", "3deg"][index] || "1deg",
+        size: "strip-photo"
+      })
+    ).join("");
+  }
+
+  const dayElements = elementsForDate(day.dateKey);
+  const stickers = dayElements.filter((element) => element.type === "sticker" || element.type === "emoji");
+  if (stickers.length) {
+    return stickers.slice(0, 4).map(daybookStickerPreview).join("");
+  }
+
+  const textItems = dayElements.filter((element) => element.type === "text");
+  if (textItems.length) {
+    return textItems.slice(0, 4).map(daybookTextPreview).join("");
+  }
+
+  return dayElements.length ? daybookFallbackPreview() : "";
+}
+
 function renderDaybook() {
   const days = buildUserDayModels();
   if (!days.length) return renderEmptyDaybook();
@@ -1165,12 +1224,7 @@ function renderDaybook() {
           <button class="day-section" type="button" data-day="${day.id}" aria-label="打开 ${day.date}">
             ${dateTitle(day, { includeWeekday: true })}
             <div class="photo-strip">
-              ${day.photos.slice(0, 4).map((photo, index) =>
-                polaroid(photo, {
-                  tilt: ["-3deg", "1deg", "-1deg", "3deg"][index] || "1deg",
-                  size: "strip-photo"
-                })
-              ).join("")}
+              ${daybookPreviewMarkup(day)}
             </div>
             ${notePreviewFor(day)
               ? `<p class="day-note-preview">${escapeHtml(notePreviewFor(day))}</p>`
@@ -1641,8 +1695,6 @@ function renderSingleDay() {
         <p class="canvas-empty-state ${isCanvasEmpty ? "is-visible" : ""}" aria-hidden="${isCanvasEmpty ? "false" : "true"}">添加照片开始记录今天</p>
         ${day.photos.map(freeCanvasPhoto).join("")}
         ${dayElements.map(canvasElement).join("")}
-        <div class="alignment-guide alignment-guide-vertical" data-alignment-guide="vertical" aria-hidden="true"></div>
-        <div class="alignment-guide alignment-guide-horizontal" data-alignment-guide="horizontal" aria-hidden="true"></div>
         <div class="floating-toolbox" aria-label="画布工具">
           <button type="button" data-action="add-text" aria-label="添加文字" title="添加文字"><span class="toolbox-text-mark" aria-hidden="true">Aa</span></button>
           <button type="button" data-action="open-sticker-panel" aria-label="添加贴纸" title="添加贴纸">
@@ -3833,26 +3885,6 @@ function nearestAlignmentTarget(value, axis) {
   return nearest;
 }
 
-function setAlignmentGuides({ x = null, y = null } = {}) {
-  const vertical = document.querySelector('[data-alignment-guide="vertical"]');
-  const horizontal = document.querySelector('[data-alignment-guide="horizontal"]');
-  const showVertical = Number.isFinite(x);
-  const showHorizontal = Number.isFinite(y);
-
-  if (vertical) {
-    if (showVertical) vertical.style.left = `${x}px`;
-    vertical.classList.toggle("is-visible", showVertical);
-  }
-  if (horizontal) {
-    if (showHorizontal) horizontal.style.top = `${y}px`;
-    horizontal.classList.toggle("is-visible", showHorizontal);
-  }
-}
-
-function hideAlignmentGuides() {
-  setAlignmentGuides();
-}
-
 function applySmartAlignment(layout, bounds) {
   const width = Number(layout.width) || 0;
   const height = Number(layout.height) || 0;
@@ -3860,21 +3892,13 @@ function applySmartAlignment(layout, bounds) {
   const centerY = (Number(layout.y) || 0) + height / 2;
   const targetX = nearestAlignmentTarget(centerX, "x");
   const targetY = nearestAlignmentTarget(centerY, "y");
-  let guideX = null;
-  let guideY = null;
 
   if (Number.isFinite(targetX)) {
-    const snappedX = clamp(targetX - width / 2, bounds.minX, bounds.maxX);
-    layout.x = snappedX;
-    if (Math.abs(snappedX + width / 2 - targetX) < 0.5) guideX = targetX;
+    layout.x = clamp(targetX - width / 2, bounds.minX, bounds.maxX);
   }
   if (Number.isFinite(targetY)) {
-    const snappedY = clamp(targetY - height / 2, bounds.minY, bounds.maxY);
-    layout.y = snappedY;
-    if (Math.abs(snappedY + height / 2 - targetY) < 0.5) guideY = targetY;
+    layout.y = clamp(targetY - height / 2, bounds.minY, bounds.maxY);
   }
-
-  setAlignmentGuides({ x: guideX, y: guideY });
 }
 
 function overlapSize(rect, bounds) {
@@ -4213,7 +4237,6 @@ function startPinchGesture(event, itemId, itemType) {
   if (!layout || pointers.length < 2) return false;
 
   event.preventDefault();
-  hideAlignmentGuides();
   clearCanvasStickerPress();
   const gestureElement = event.target.closest(".canvas-item") || elementForItem(itemId, itemType);
   capturePointerForGesture(gestureElement, event.pointerId);
@@ -4261,7 +4284,6 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   if (itemType === "text") syncTextLayoutSize(layout);
 
   event.preventDefault();
-  hideAlignmentGuides();
   const gestureElement = event.target.closest(".canvas-item");
   gesture.capturedPointers = [];
   gesture.capturedElement = null;
@@ -4364,8 +4386,6 @@ function updateGesture(event) {
     const canAlign = didMove && deleteZoneState(event.clientY) === "hidden";
     if (canAlign) {
       applySmartAlignment(layout, freeBounds);
-    } else {
-      hideAlignmentGuides();
     }
     applyInteractiveDragTransform(element, layout);
     if (didMove) {
@@ -4409,7 +4429,6 @@ async function endGesture(event) {
   const pointer = activePointers.get(pointerId);
 
   if (!gesture.active) {
-    hideAlignmentGuides();
     if (pointer) activePointers.delete(pointerId);
     return;
   }
@@ -4439,7 +4458,6 @@ async function endGesture(event) {
   }
 
   setDeleteZoneVisible(false);
-  hideAlignmentGuides();
   element?.classList.remove("is-dragging", "is-over-delete");
   capturedPointers.forEach(({ element: capturedElement, pointerId: capturedPointerId }) => {
     if (capturedElement?.hasPointerCapture?.(capturedPointerId)) {

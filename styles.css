@@ -954,6 +954,70 @@ img.no-ios-callout,
     0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
+.day-canvas-preview {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 104px;
+  height: 104px;
+  margin: 5px -14px 0 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid rgba(0, 0, 0, 0.045);
+  border-radius: 12px;
+  background: rgba(248, 248, 248, 0.78);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.07),
+    0 2px 5px rgba(0, 0, 0, 0.04);
+  transform: rotate(var(--preview-tilt, 0deg));
+  transform-origin: center;
+}
+
+.day-canvas-preview:last-child {
+  margin-right: 0;
+}
+
+.day-sticker-preview img {
+  display: block;
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 7px rgba(0, 0, 0, 0.1));
+}
+
+.day-sticker-glyph {
+  font-size: 52px;
+  line-height: 1;
+}
+
+.day-text-preview {
+  padding: 12px 10px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--preview-text-color, #111111);
+}
+
+.day-text-preview span {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+}
+
+.day-fallback-preview {
+  color: rgba(17, 17, 17, 0.38);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .day-section.is-pressing .photo-strip {
   transform: scale(0.99);
 }
@@ -1151,42 +1215,6 @@ img.no-ios-callout,
   transition:
     opacity 180ms ease,
     visibility 0s linear 0s;
-}
-
-.alignment-guide {
-  position: absolute;
-  z-index: 1100;
-  pointer-events: none;
-  visibility: hidden;
-  opacity: 0;
-  background: rgba(92, 117, 255, 0.34);
-  box-shadow: 0 0 0.5px rgba(126, 102, 255, 0.18);
-  transition:
-    opacity 170ms ease-out,
-    visibility 0s linear 170ms;
-  will-change: opacity;
-}
-
-.alignment-guide.is-visible {
-  visibility: visible;
-  opacity: 1;
-  transition:
-    opacity 60ms ease-out,
-    visibility 0s linear 0s;
-}
-
-.alignment-guide-vertical {
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  transform: translateX(-0.5px);
-}
-
-.alignment-guide-horizontal {
-  left: 0;
-  right: 0;
-  height: 1px;
-  transform: translateY(-0.5px);
 }
 
 .canvas-item {
