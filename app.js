@@ -66,7 +66,6 @@ const state = {
   stickerLibraryTab: "personal",
   officialPackViewMode: loadOfficialPackViewMode(),
   activeOfficialStickerPackId: "",
-  officialPackOpeningOverlay: { packId: "", packageImage: "", title: "", left: 0, top: 0, width: 0, height: 0 },
   stickerSheetState: "collapsed",
   settingsSheetOpen: false,
   isExportingBackup: false,
@@ -148,7 +147,6 @@ let canvasSafetyRepairFrame = 0;
 let textLayoutSyncFrame = 0;
 let canvasEmptyStateFrame = 0;
 let daybookTimelineSyncFrame = 0;
-let officialPackOpeningTimer = 0;
 const dayPress = {
   element: null,
   dayId: "",
@@ -1415,86 +1413,6 @@ function shouldRefreshOfficialStickerPackHome() {
     && !state.activeOfficialStickerPackId;
 }
 
-function triggerLightHaptic() {
-  try {
-    navigator.vibrate?.(8);
-  } catch {
-    // Haptics are best-effort and not supported on every platform.
-  }
-}
-
-function prefersReducedMotion() {
-  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || false;
-}
-
-function officialPackOpeningDuration() {
-  return prefersReducedMotion() ? 0 : 480;
-}
-
-function emptyOfficialPackOpeningOverlay() {
-  return { packId: "", packageImage: "", title: "", left: 0, top: 0, width: 0, height: 0 };
-}
-
-function clearOfficialPackOpeningTimer() {
-  if (!officialPackOpeningTimer) return;
-  window.clearTimeout(officialPackOpeningTimer);
-  officialPackOpeningTimer = 0;
-}
-
-function resetOfficialPackOpeningOverlay() {
-  clearOfficialPackOpeningTimer();
-  state.officialPackOpeningOverlay = emptyOfficialPackOpeningOverlay();
-}
-
-function completeOfficialPackOpening(packId) {
-  officialPackOpeningTimer = 0;
-  if (state.officialPackOpeningOverlay.packId !== packId) return;
-  state.activeOfficialStickerPackId = packId;
-  state.officialPackOpeningOverlay = emptyOfficialPackOpeningOverlay();
-  render();
-}
-
-function openOfficialStickerPackWithOverlay(packId, sourceElement) {
-  const pack = officialStickerPackById(packId);
-  if (!pack || state.officialPackOpeningOverlay.packId) return;
-
-  triggerLightHaptic();
-  if (prefersReducedMotion()) {
-    state.activeOfficialStickerPackId = pack.id;
-    state.officialPackOpeningOverlay = emptyOfficialPackOpeningOverlay();
-    render();
-    return;
-  }
-
-  const rect = sourceElement?.getBoundingClientRect?.();
-  if (!rect || rect.width <= 0 || rect.height <= 0) {
-    state.activeOfficialStickerPackId = pack.id;
-    state.officialPackOpeningOverlay = emptyOfficialPackOpeningOverlay();
-    render();
-    return;
-  }
-
-  state.officialPackOpeningOverlay = {
-    packId: pack.id,
-    packageImage: pack.packageImage,
-    title: pack.title,
-    left: rect.left,
-    top: rect.top,
-    width: rect.width,
-    height: rect.height
-  };
-  render();
-
-  clearOfficialPackOpeningTimer();
-  officialPackOpeningTimer = window.setTimeout(() => completeOfficialPackOpening(pack.id), officialPackOpeningDuration());
-}
-
-function closeOfficialStickerPack() {
-  resetOfficialPackOpeningOverlay();
-  state.activeOfficialStickerPackId = "";
-  render();
-}
-
 function preloadOfficialStickerPackImages() {
   officialStickerPacks.forEach((pack) => {
     const status = state.officialPackImageStatus[pack.id];
@@ -1548,27 +1466,6 @@ function officialStickerCanvasPayload(sticker) {
     return { stickerType: "text", content: sticker.image, color: "#222222" };
   }
   return { stickerType: "emoji", content: sticker.image || "✨", color: "#222222" };
-}
-
-function officialStickerPackOpeningOverlay() {
-  const overlay = state.officialPackOpeningOverlay;
-  if (!overlay.packId) return "";
-
-  const style = [
-    `--pack-left:${Math.round(overlay.left)}px`,
-    `--pack-top:${Math.round(overlay.top)}px`,
-    `--pack-width:${Math.round(overlay.width)}px`,
-    `--pack-height:${Math.round(overlay.height)}px`
-  ].join(";");
-
-  return `
-    <div class="official-pack-opening-overlay" style="${style}" aria-hidden="true">
-      <div class="official-pack-opening-backdrop"></div>
-      <div class="official-pack-opening-snapshot">
-        <img src="${escapeHtml(overlay.packageImage)}" alt="" draggable="false" />
-      </div>
-    </div>
-  `;
 }
 
 function personalStickerLibrary() {
@@ -1690,7 +1587,6 @@ function stickerSheet() {
           : activePack ? officialStickerPackDetail(activePack) : officialStickerPackHome()}
       </div>
     </section>
-    ${officialStickerPackOpeningOverlay()}
   `;
 }
 
@@ -3366,7 +3262,6 @@ async function saveCanvasStickerToLibrary(itemId, name) {
   await saveCustomSticker(sticker);
   closeStickerNameDialog();
   state.stickerLibraryTab = "personal";
-  resetOfficialPackOpeningOverlay();
   state.activeOfficialStickerPackId = "";
   showToast("已添加到我的贴纸");
   render();
@@ -5263,12 +5158,10 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "open-sticker-panel") {
     if (state.activePanel === "sticker") {
-      resetOfficialPackOpeningOverlay();
       state.activePanel = "";
     } else {
       state.activePanel = "sticker";
       state.stickerLibraryTab = "personal";
-      resetOfficialPackOpeningOverlay();
       state.activeOfficialStickerPackId = "";
       state.stickerSheetState = "collapsed";
       stickerSheetDrag.ignoreNextToggle = false;
@@ -5283,7 +5176,6 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "set-sticker-library-tab") {
     state.stickerLibraryTab = actionTarget.dataset.tab === "official" ? "official" : "personal";
-    resetOfficialPackOpeningOverlay();
     state.activeOfficialStickerPackId = "";
     if (state.stickerLibraryTab === "official") preloadOfficialStickerPackImages();
     closeStickerMenus();
@@ -5298,11 +5190,13 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "open-official-sticker-pack") {
     const pack = officialStickerPackById(actionTarget.dataset.packId);
-    if (pack) openOfficialStickerPackWithOverlay(pack.id, actionTarget);
+    if (pack) state.activeOfficialStickerPackId = pack.id;
+    render();
     return;
   }
   if (action === "close-official-sticker-pack") {
-    closeOfficialStickerPack();
+    state.activeOfficialStickerPackId = "";
+    render();
     return;
   }
   if (action === "toggle-sticker-sheet") {
@@ -5456,7 +5350,6 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "close-panel") {
-    resetOfficialPackOpeningOverlay();
     state.activePanel = "";
     state.customStickerManageMode = false;
     closeStickerMenus();
