@@ -146,6 +146,7 @@ let isPageTransitioning = false;
 let canvasSafetyRepairFrame = 0;
 let textLayoutSyncFrame = 0;
 let canvasEmptyStateFrame = 0;
+let daybookTimelineSyncFrame = 0;
 const dayPress = {
   element: null,
   dayId: "",
@@ -933,6 +934,80 @@ function buildUserDayModels() {
     .map(([dateKey, photos]) => userDayModel(dateKey, photos));
 }
 
+function daybookTimelineDates(days) {
+  const todayKey = todayDateKey();
+  const contentDateKeys = days.map((day) => day.dateKey).filter(Boolean);
+  const endDate = dateFromKey(todayKey);
+
+  contentDateKeys.forEach((dateKey) => {
+    const date = dateFromKey(dateKey);
+    if (Number.isFinite(date.getTime()) && date > endDate) {
+      endDate.setTime(date.getTime());
+    }
+  });
+
+  const startDate = new Date(endDate);
+  startDate.setDate(startDate.getDate() - 13);
+
+  contentDateKeys.forEach((dateKey) => {
+    const date = dateFromKey(dateKey);
+    if (Number.isFinite(date.getTime()) && date < startDate) {
+      startDate.setTime(date.getTime());
+    }
+  });
+
+  const dates = [];
+  const cursor = new Date(startDate);
+  cursor.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+  while (cursor <= endDate) {
+    dates.push(dateKeyFromDate(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return dates;
+}
+
+function timelineMonthLabel(dateKey) {
+  const date = dateFromKey(dateKey);
+  return new Intl.DateTimeFormat("en", { month: "short" }).format(date);
+}
+
+function renderDaybookTimeline(days) {
+  const contentDateKeys = new Set(days.map((day) => day.dateKey));
+  const activeDateKey = days[0]?.dateKey || todayDateKey();
+
+  return `
+    <section class="daybook-timeline-shell" data-daybook-timeline data-active-date="${escapeHtml(activeDateKey)}" aria-label="日期轴">
+      <div class="daybook-timeline-frame">
+        <button class="daybook-timeline-arrow" type="button" data-action="timeline-scroll" data-direction="-1" aria-label="向前浏览日期">‹</button>
+        <div class="daybook-timeline" data-daybook-timeline-strip tabindex="0" aria-label="最近日期">
+          ${daybookTimelineDates(days).map((dateKey) => {
+            const date = dateFromKey(dateKey);
+            const isActive = dateKey === activeDateKey;
+            const hasContent = contentDateKeys.has(dateKey);
+            return `
+              <button
+                class="daybook-timeline-date ${isActive ? "is-active" : ""} ${hasContent ? "has-content" : ""}"
+                type="button"
+                data-action="timeline-date"
+                data-date-key="${escapeHtml(dateKey)}"
+                aria-label="${escapeHtml(dayMonthText(date, date.getFullYear() !== new Date().getFullYear()))}${hasContent ? "，有内容" : ""}"
+                aria-current="${isActive ? "date" : "false"}"
+              >
+                <span class="daybook-timeline-day">${date.getDate()}</span>
+                <span class="daybook-timeline-month">${escapeHtml(timelineMonthLabel(dateKey))}</span>
+                <i aria-hidden="true"></i>
+              </button>
+            `;
+          }).join("")}
+        </div>
+        <button class="daybook-timeline-arrow" type="button" data-action="timeline-scroll" data-direction="1" aria-label="向后浏览日期">›</button>
+        <button class="daybook-timeline-today" type="button" data-action="timeline-today" hidden>Today</button>
+      </div>
+    </section>
+  `;
+}
+
 function getDay(dayId = state.activeDayId) {
   const userDays = buildUserDayModels();
   const activeDay = userDays.find((day) => day.id === dayId);
@@ -1140,6 +1215,8 @@ function renderEmptyDaybook() {
         <button class="round-button daybook-add-button" type="button" data-action="add-photo" aria-label="添加照片" title="添加照片">+</button>
       </header>
 
+      ${renderDaybookTimeline([])}
+
       <section class="empty-daybook">
         <p>添加照片，开始记录你的 Daybook。</p>
         <button class="home-add-button" type="button" data-action="add-photo" aria-label="添加照片" title="添加照片">+</button>
@@ -1219,9 +1296,11 @@ function renderDaybook() {
         <button class="round-button daybook-add-button" type="button" data-action="add-photo" aria-label="添加照片" title="添加照片">+</button>
       </header>
 
+      ${renderDaybookTimeline(days)}
+
       <div class="day-feed">
         ${days.map((day) => `
-          <button class="day-section" type="button" data-day="${day.id}" aria-label="打开 ${day.date}">
+          <button class="day-section" type="button" data-day="${day.id}" data-date-key="${day.dateKey}" aria-label="打开 ${day.date}">
             ${dateTitle(day, { includeWeekday: true })}
             <div class="photo-strip">
               ${daybookPreviewMarkup(day)}
@@ -1810,6 +1889,7 @@ function render() {
   document.body.classList.toggle("sticker-panel-open", state.activePanel === "sticker");
   document.documentElement.classList.toggle("sticker-panel-open", state.activePanel === "sticker");
   resetHorizontalScroll();
+  initializeDaybookTimeline();
   scheduleRenderedTextLayoutSync();
   scheduleCanvasSafetyRepair();
 }
@@ -1973,6 +2053,114 @@ function stopDaybookNavPointerEvent(event) {
   event.stopPropagation();
   clearDayPress();
   return true;
+}
+
+function daybookTimelineElements() {
+  const shell = document.querySelector("[data-daybook-timeline]");
+  const strip = shell?.querySelector("[data-daybook-timeline-strip]") || null;
+  return { shell, strip };
+}
+
+function centerDaybookTimelineDate(dateKey, behavior = "smooth") {
+  const button = document.querySelector(`.daybook-timeline-date[data-date-key="${dateKey}"]`);
+  const strip = button?.closest("[data-daybook-timeline-strip]");
+  if (!button || !strip) return;
+
+  const targetLeft = button.offsetLeft - ((strip.clientWidth - button.offsetWidth) / 2);
+  strip.scrollTo({ left: Math.max(0, targetLeft), behavior });
+}
+
+function setDaybookTimelineActiveDate(dateKey, options = {}) {
+  if (!dateKey) return;
+  const { shell } = daybookTimelineElements();
+  if (!shell) return;
+
+  shell.dataset.activeDate = dateKey;
+  shell.querySelectorAll(".daybook-timeline-date").forEach((button) => {
+    const isActive = button.dataset.dateKey === dateKey;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-current", isActive ? "date" : "false");
+  });
+
+  const todayButton = shell.querySelector(".daybook-timeline-today");
+  if (todayButton) todayButton.hidden = dateKey === todayDateKey();
+  if (options.center) centerDaybookTimelineDate(dateKey, options.behavior || "smooth");
+}
+
+function daybookTimelineActiveDateFromScroll() {
+  const sections = Array.from(document.querySelectorAll(".day-section[data-date-key]"));
+  if (!sections.length) return todayDateKey();
+
+  const timeline = document.querySelector("[data-daybook-timeline]");
+  const timelineBottom = timeline?.getBoundingClientRect().bottom || 0;
+  const referenceY = Math.max(96, timelineBottom + 18);
+  let activeDateKey = sections[0].dataset.dateKey;
+
+  sections.forEach((section) => {
+    const rect = section.getBoundingClientRect();
+    if (rect.top <= referenceY) activeDateKey = section.dataset.dateKey;
+  });
+
+  return activeDateKey || todayDateKey();
+}
+
+function syncDaybookTimelineFromScroll() {
+  daybookTimelineSyncFrame = 0;
+  if (state.view !== "daybook") return;
+  const activeDateKey = daybookTimelineActiveDateFromScroll();
+  setDaybookTimelineActiveDate(activeDateKey, { center: true, behavior: "smooth" });
+}
+
+function scheduleDaybookTimelineSync() {
+  if (state.view !== "daybook" || daybookTimelineSyncFrame) return;
+  daybookTimelineSyncFrame = requestAnimationFrame(syncDaybookTimelineFromScroll);
+}
+
+function animateWindowScrollTo(targetY, duration = 300) {
+  const startY = window.scrollY || document.documentElement.scrollTop || 0;
+  const distance = targetY - startY;
+  if (Math.abs(distance) < 1) return;
+
+  const start = performance.now();
+  const ease = (t) => 1 - Math.pow(1 - t, 3);
+  const step = (now) => {
+    const progress = clamp((now - start) / duration, 0, 1);
+    window.scrollTo(0, startY + (distance * ease(progress)));
+    if (progress < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function scrollDaybookToDate(dateKey) {
+  if (!dateKey) return;
+  const section = document.querySelector(`.day-section[data-date-key="${dateKey}"]`);
+  setDaybookTimelineActiveDate(dateKey, { center: true });
+
+  if (!section) {
+    if (dateKey === todayDateKey()) animateWindowScrollTo(0, 300);
+    return;
+  }
+
+  const timeline = document.querySelector("[data-daybook-timeline]");
+  const offset = (timeline?.getBoundingClientRect().height || 0) + 18;
+  const targetY = Math.max(0, window.scrollY + section.getBoundingClientRect().top - offset);
+  animateWindowScrollTo(targetY, 300);
+  window.setTimeout(scheduleDaybookTimelineSync, 340);
+}
+
+function scrollDaybookTimeline(direction) {
+  const { strip } = daybookTimelineElements();
+  if (!strip) return;
+  const amount = Math.max(120, strip.clientWidth * 0.72);
+  strip.scrollBy({ left: amount * direction, behavior: "smooth" });
+}
+
+function initializeDaybookTimeline() {
+  if (state.view !== "daybook") return;
+  requestAnimationFrame(() => {
+    const activeDateKey = daybookTimelineActiveDateFromScroll();
+    setDaybookTimelineActiveDate(activeDateKey, { center: true, behavior: "auto" });
+  });
 }
 
 function editNote() {
@@ -4809,6 +4997,7 @@ document.addEventListener("pointerdown", (event) => {
 window.addEventListener("pointermove", moveElementDrag);
 window.addEventListener("pointerup", endElementDrag);
 window.addEventListener("pointercancel", endElementDrag);
+window.addEventListener("scroll", scheduleDaybookTimelineSync, { passive: true });
 window.addEventListener("pointermove", moveStickerSheetDrag);
 window.addEventListener("pointerup", endStickerSheetDrag);
 window.addEventListener("pointercancel", endStickerSheetDrag);
@@ -4883,6 +5072,21 @@ document.addEventListener("click", async (event) => {
   if (!actionTarget) return;
 
   const action = actionTarget.dataset.action;
+  if (action === "timeline-date") {
+    event.stopPropagation();
+    scrollDaybookToDate(actionTarget.dataset.dateKey);
+    return;
+  }
+  if (action === "timeline-scroll") {
+    event.stopPropagation();
+    scrollDaybookTimeline(Number(actionTarget.dataset.direction || 1));
+    return;
+  }
+  if (action === "timeline-today") {
+    event.stopPropagation();
+    scrollDaybookToDate(todayDateKey());
+    return;
+  }
   if (action === "open-daybook") {
     window.setTimeout(() => {
       navigateToPage("daybook", "forward");

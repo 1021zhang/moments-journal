@@ -398,6 +398,145 @@ img.no-ios-callout,
   outline-offset: 4px;
 }
 
+.daybook-timeline-shell {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  margin: -12px -16px 30px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.055);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.055);
+  background: rgba(255, 255, 255, 0.94);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+.daybook-timeline-frame {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.daybook-timeline {
+  display: flex;
+  flex: 1 1 auto;
+  gap: 8px;
+  min-width: 0;
+  padding: 2px 2px 4px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.daybook-timeline::-webkit-scrollbar {
+  display: none;
+}
+
+.daybook-timeline-date {
+  -webkit-appearance: none;
+  appearance: none;
+  display: grid;
+  flex: 0 0 38px;
+  grid-template-rows: 19px 13px 6px;
+  justify-items: center;
+  align-items: center;
+  min-height: 46px;
+  padding: 5px 0 4px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: #9a9a9a;
+  scroll-snap-align: center;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.daybook-timeline-date:active {
+  transform: scale(0.96);
+}
+
+.daybook-timeline-date.is-active {
+  background: #ffffff;
+  color: #141414;
+  box-shadow:
+    0 5px 14px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(0, 0, 0, 0.055);
+}
+
+.daybook-timeline-day {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.daybook-timeline-month {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+
+.daybook-timeline-date i {
+  display: block;
+  width: 4px;
+  height: 4px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+}
+
+.daybook-timeline-date.has-content i {
+  opacity: 0.55;
+}
+
+.daybook-timeline-date.is-active.has-content i {
+  opacity: 0.78;
+}
+
+.daybook-timeline-arrow,
+.daybook-timeline-today {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 0 0 auto;
+  min-height: 34px;
+  border: 0;
+  background: transparent;
+  color: #8a8a8a;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.daybook-timeline-arrow {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  padding: 0;
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.daybook-timeline-today {
+  min-width: 48px;
+  padding: 0 7px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.045);
+  color: #404040;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.daybook-timeline-today[hidden] {
+  display: none;
+}
+
 .memory-home {
   position: relative;
   min-height: 100svh;
@@ -817,6 +956,7 @@ img.no-ios-callout,
   min-height: 0;
   margin: 0;
   padding: 0 0 2px;
+  scroll-margin-top: 96px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -2850,6 +2990,14 @@ img.no-ios-callout,
 
   .photo-strip .polaroid {
     margin-right: -18px;
+  }
+
+  .daybook-timeline {
+    gap: 6px;
+  }
+
+  .daybook-timeline-date {
+    flex-basis: 36px;
   }
 
   .date-heading {
