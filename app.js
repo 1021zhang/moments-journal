@@ -1438,6 +1438,14 @@ function prefersReducedMotion() {
   return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || false;
 }
 
+function officialPackOpeningDuration() {
+  return prefersReducedMotion() ? 40 : 430;
+}
+
+function officialPackDetailTransitionDuration() {
+  return prefersReducedMotion() ? 40 : 200;
+}
+
 function openOfficialStickerPackWithAnimation(packId) {
   const pack = officialStickerPackById(packId);
   if (!pack || state.officialPackTransition.mode) return;
@@ -1447,8 +1455,6 @@ function openOfficialStickerPackWithAnimation(packId) {
   state.officialPackTransition = { mode: "opening", packId: pack.id };
   render();
 
-  const openingDuration = prefersReducedMotion() ? 40 : 380;
-  const detailEnterDuration = prefersReducedMotion() ? 40 : 220;
   officialPackTransitionTimer = window.setTimeout(() => {
     officialPackTransitionTimer = 0;
     state.activeOfficialStickerPackId = pack.id;
@@ -1461,8 +1467,8 @@ function openOfficialStickerPackWithAnimation(packId) {
         state.officialPackTransition = { mode: "", packId: "" };
         render();
       }
-    }, detailEnterDuration);
-  }, openingDuration);
+    }, officialPackDetailTransitionDuration());
+  }, officialPackOpeningDuration());
 }
 
 function closeOfficialStickerPackWithAnimation() {
@@ -1473,13 +1479,12 @@ function closeOfficialStickerPackWithAnimation() {
   state.officialPackTransition = { mode: "closing", packId };
   render();
 
-  const closingDuration = prefersReducedMotion() ? 40 : 190;
   officialPackTransitionTimer = window.setTimeout(() => {
     officialPackTransitionTimer = 0;
     state.activeOfficialStickerPackId = "";
     state.officialPackTransition = { mode: "", packId: "" };
     render();
-  }, closingDuration);
+  }, officialPackDetailTransitionDuration());
 }
 
 function preloadOfficialStickerPackImages() {
@@ -1597,7 +1602,9 @@ function officialStickerPackHome() {
             `;
           return `
             <button class="official-pack-package is-${imageStatus} ${isOpening ? "is-opening" : ""}" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}" aria-label="打开 ${escapeHtml(pack.title)}" ${isOpening ? "disabled" : ""}>
-              ${content}
+              <span class="official-pack-package-animation-layer">
+                ${content}
+              </span>
             </button>
           `;
         }).join("")}
