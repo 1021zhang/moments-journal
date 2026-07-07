@@ -100,6 +100,26 @@ const worldCupStarPackStickers = createStickerItems(
   "20260624-clean"
 );
 
+const urbanZooPackStickers = createStickerItems(
+  "assets/sticker-packs/urban-zoo",
+  [
+    ["gorilla", "Gorilla 大猩猩", 0.8777],
+    ["lion", "Lion 狮子", 1.0749],
+    ["penguin", "Penguin 企鹅", 0.5482],
+    ["cheetah", "Cheetah 猎豹", 1.1367],
+    ["panda", "Panda 熊猫", 0.5903],
+    ["milk-cow", "Milk Cow 奶牛", 1.0888],
+    ["zebra", "Zebra 斑马", 0.7224],
+    ["rabbit", "Rabbit 兔子", 0.5894],
+    ["cat", "Cat 猫", 0.7747],
+    ["puppy", "Puppy 小狗", 0.7233],
+    ["animals-label", "Animals 手写标签", 2.0472],
+    ["good-day", "Good Day", 1.0333],
+    ["doodle-heart", "Doodle Heart", 0.9254],
+    ["doodle-star", "Doodle Star", 0.8346]
+  ]
+);
+
 // Official sticker pack cover spec:
 // 1200x900, 4:3, transparent background, safe area 80px, object-fit contain.
 /** @type {StickerPack[]} */
@@ -140,5 +160,12 @@ const officialStickerPacks = [
     "Football star card stickers",
     "assets/sticker-packs/world-cup-star-pack/package.png",
     worldCupStarPackStickers
+  ),
+  createOfficialStickerPack(
+    "urban-zoo",
+    "Urban Zoo 城市动物园",
+    "Black and white doodle animals",
+    "assets/sticker-packs/urban-zoo/package.png",
+    urbanZooPackStickers
   )
 ];
