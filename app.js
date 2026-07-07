@@ -66,6 +66,7 @@ const state = {
   stickerLibraryTab: "personal",
   officialPackViewMode: loadOfficialPackViewMode(),
   activeOfficialStickerPackId: "",
+  officialPackTransition: { mode: "", packId: "" },
   stickerSheetState: "collapsed",
   settingsSheetOpen: false,
   isExportingBackup: false,
@@ -147,6 +148,7 @@ let canvasSafetyRepairFrame = 0;
 let textLayoutSyncFrame = 0;
 let canvasEmptyStateFrame = 0;
 let daybookTimelineSyncFrame = 0;
+let officialPackTransitionTimer = 0;
 const dayPress = {
   element: null,
   dayId: "",
@@ -1413,6 +1415,73 @@ function shouldRefreshOfficialStickerPackHome() {
     && !state.activeOfficialStickerPackId;
 }
 
+function clearOfficialPackTransitionTimer() {
+  if (!officialPackTransitionTimer) return;
+  window.clearTimeout(officialPackTransitionTimer);
+  officialPackTransitionTimer = 0;
+}
+
+function resetOfficialPackTransition() {
+  clearOfficialPackTransitionTimer();
+  state.officialPackTransition = { mode: "", packId: "" };
+}
+
+function triggerLightHaptic() {
+  try {
+    navigator.vibrate?.(8);
+  } catch {
+    // Haptics are best-effort and not supported on every platform.
+  }
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || false;
+}
+
+function openOfficialStickerPackWithAnimation(packId) {
+  const pack = officialStickerPackById(packId);
+  if (!pack || state.officialPackTransition.mode) return;
+
+  clearOfficialPackTransitionTimer();
+  triggerLightHaptic();
+  state.officialPackTransition = { mode: "opening", packId: pack.id };
+  render();
+
+  const openingDuration = prefersReducedMotion() ? 40 : 380;
+  const detailEnterDuration = prefersReducedMotion() ? 40 : 220;
+  officialPackTransitionTimer = window.setTimeout(() => {
+    officialPackTransitionTimer = 0;
+    state.activeOfficialStickerPackId = pack.id;
+    state.officialPackTransition = { mode: "entering", packId: pack.id };
+    render();
+
+    officialPackTransitionTimer = window.setTimeout(() => {
+      officialPackTransitionTimer = 0;
+      if (state.officialPackTransition.mode === "entering") {
+        state.officialPackTransition = { mode: "", packId: "" };
+        render();
+      }
+    }, detailEnterDuration);
+  }, openingDuration);
+}
+
+function closeOfficialStickerPackWithAnimation() {
+  const packId = state.activeOfficialStickerPackId;
+  if (!packId || state.officialPackTransition.mode === "closing") return;
+
+  clearOfficialPackTransitionTimer();
+  state.officialPackTransition = { mode: "closing", packId };
+  render();
+
+  const closingDuration = prefersReducedMotion() ? 40 : 190;
+  officialPackTransitionTimer = window.setTimeout(() => {
+    officialPackTransitionTimer = 0;
+    state.activeOfficialStickerPackId = "";
+    state.officialPackTransition = { mode: "", packId: "" };
+    render();
+  }, closingDuration);
+}
+
 function preloadOfficialStickerPackImages() {
   officialStickerPacks.forEach((pack) => {
     const status = state.officialPackImageStatus[pack.id];
@@ -1510,6 +1579,8 @@ function officialStickerPackHome() {
       <div class="official-pack-shelf" aria-label="官方贴纸包">
         ${officialStickerPacks.map((pack) => {
           const imageStatus = state.officialPackImageStatus[pack.id] || "idle";
+          const isOpening = state.officialPackTransition.mode === "opening"
+            && state.officialPackTransition.packId === pack.id;
           const content = imageStatus === "loaded" ? `
               <span class="official-pack-package-visual">
                 <img src="${escapeHtml(pack.packageImage)}" alt="${escapeHtml(pack.title)} 贴纸包" draggable="false" />
@@ -1525,7 +1596,7 @@ function officialStickerPackHome() {
               </span>
             `;
           return `
-            <button class="official-pack-package is-${imageStatus}" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}" aria-label="打开 ${escapeHtml(pack.title)}">
+            <button class="official-pack-package is-${imageStatus} ${isOpening ? "is-opening" : ""}" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}" aria-label="打开 ${escapeHtml(pack.title)}" ${isOpening ? "disabled" : ""}>
               ${content}
             </button>
           `;
@@ -1537,8 +1608,11 @@ function officialStickerPackHome() {
 
 function officialStickerPackDetail(pack) {
   if (!pack) return officialStickerPackHome();
+  const transitionMode = state.officialPackTransition.packId === pack.id
+    ? state.officialPackTransition.mode
+    : "";
   return `
-    <section class="official-pack-detail" aria-label="${escapeHtml(pack.title)}">
+    <section class="official-pack-detail ${transitionMode ? `is-${transitionMode}` : ""}" aria-label="${escapeHtml(pack.title)}">
       <header class="official-pack-detail-header">
         <button type="button" data-action="close-official-sticker-pack" aria-label="返回官方贴纸包">← 返回</button>
         <div>
@@ -3262,6 +3336,7 @@ async function saveCanvasStickerToLibrary(itemId, name) {
   await saveCustomSticker(sticker);
   closeStickerNameDialog();
   state.stickerLibraryTab = "personal";
+  resetOfficialPackTransition();
   state.activeOfficialStickerPackId = "";
   showToast("已添加到我的贴纸");
   render();
@@ -5158,10 +5233,12 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "open-sticker-panel") {
     if (state.activePanel === "sticker") {
+      resetOfficialPackTransition();
       state.activePanel = "";
     } else {
       state.activePanel = "sticker";
       state.stickerLibraryTab = "personal";
+      resetOfficialPackTransition();
       state.activeOfficialStickerPackId = "";
       state.stickerSheetState = "collapsed";
       stickerSheetDrag.ignoreNextToggle = false;
@@ -5176,6 +5253,7 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "set-sticker-library-tab") {
     state.stickerLibraryTab = actionTarget.dataset.tab === "official" ? "official" : "personal";
+    resetOfficialPackTransition();
     state.activeOfficialStickerPackId = "";
     if (state.stickerLibraryTab === "official") preloadOfficialStickerPackImages();
     closeStickerMenus();
@@ -5190,13 +5268,11 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "open-official-sticker-pack") {
     const pack = officialStickerPackById(actionTarget.dataset.packId);
-    if (pack) state.activeOfficialStickerPackId = pack.id;
-    render();
+    if (pack) openOfficialStickerPackWithAnimation(pack.id);
     return;
   }
   if (action === "close-official-sticker-pack") {
-    state.activeOfficialStickerPackId = "";
-    render();
+    closeOfficialStickerPackWithAnimation();
     return;
   }
   if (action === "toggle-sticker-sheet") {
@@ -5350,6 +5426,7 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "close-panel") {
+    resetOfficialPackTransition();
     state.activePanel = "";
     state.customStickerManageMode = false;
     closeStickerMenus();
