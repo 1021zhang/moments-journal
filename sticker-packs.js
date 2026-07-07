@@ -123,19 +123,20 @@ const urbanZooPackStickers = createStickerItems(
 const martiCerezoPackStickers = createStickerItems(
   "assets/sticker-packs/marti-cerezo",
   [
-    ["logo", "Marti Cerezo Logo", 1.9565],
-    ["girl-sneaker", "Girl with Sneaker 红帽女孩", 0.9565],
-    ["puffer-girl", "Puffer Girl 羽绒服女孩", 0.409],
-    ["baseball-jacket", "Baseball Jacket 蓝色棒球夹克", 0.7306],
-    ["red-white-sneaker", "Red White Sneaker 红白球鞋", 0.8843],
-    ["heart-shoes", "Heart Shoes 爱心鞋子", 1.1347],
-    ["red-cap", "Red Cap 红色帽子", 1.3858],
-    ["pigeon", "Pigeon 灰色鸽子", 0.7973],
-    ["flower-vase", "Flower Vase 花瓶", 0.7893],
-    ["marti-sign", "Marti Sign 地铁标牌", 1.5068],
-    ["mask-portrait", "Mask Portrait 面具头像", 1.024],
-    ["gold-cap", "Gold Cap 街头装饰", 0.9657]
-  ]
+    ["logo", "Marti Cerezo Logo", 1.7979],
+    ["girl-sneaker", "Girl with Sneaker 红帽女孩", 0.9595],
+    ["puffer-girl", "Puffer Girl 羽绒服女孩", 0.4336],
+    ["baseball-jacket", "Baseball Jacket 蓝色棒球夹克", 0.746],
+    ["red-white-sneaker", "Red White Sneaker 红白球鞋", 1.0695],
+    ["heart-shoes", "Heart Shoes 爱心鞋子", 1.1216],
+    ["red-cap", "Red Cap 红色帽子", 1.3319],
+    ["pigeon", "Pigeon 灰色鸽子", 0.8228],
+    ["flower-vase", "Flower Vase 花瓶", 0.8097],
+    ["marti-sign", "Marti Sign 地铁标牌", 1.4427],
+    ["mask-portrait", "Mask Portrait 面具头像", 1.0213],
+    ["gold-cap", "Gold Cap 街头装饰", 0.9703]
+  ],
+  "20260707-safe-crop"
 );
 
 // Official sticker pack cover spec:
