@@ -2144,14 +2144,6 @@ img.no-ios-callout,
   font-size: 12px;
 }
 
-.official-pack-package-animation-layer {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  transform-origin: center 42%;
-  will-change: transform, opacity;
-}
-
 @keyframes official-pack-shimmer {
   to {
     transform: translateX(100%);
@@ -2184,75 +2176,6 @@ img.no-ios-callout,
   -webkit-user-drag: none;
 }
 
-.official-pack-package.is-opening {
-  pointer-events: none;
-  animation: official-pack-press 120ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-.official-pack-package.is-opening .official-pack-package-animation-layer {
-  animation:
-    official-pack-bulge 165ms cubic-bezier(0.16, 1, 0.3, 1) 95ms both,
-    official-pack-open-away 170ms cubic-bezier(0.22, 1, 0.36, 1) 255ms forwards;
-}
-
-.official-pack-package.is-opening .official-pack-package-visual img {
-  animation: official-pack-glint 300ms ease-out 80ms both;
-}
-
-@keyframes official-pack-press {
-  0% {
-    transform: scale(1);
-  }
-
-  62% {
-    transform: scale(1.04);
-  }
-
-  100% {
-    transform: scale(1);
-  }
-}
-
-@keyframes official-pack-bulge {
-  0% {
-    transform: perspective(420px) translateY(0) scaleX(1) scaleY(1) rotateX(0deg);
-  }
-
-  58% {
-    transform: perspective(420px) translateY(-2px) scaleX(1.018) scaleY(1.028) rotateX(-2deg);
-  }
-
-  100% {
-    transform: perspective(420px) translateY(-1px) scaleX(1.006) scaleY(1.012) rotateX(0deg);
-  }
-}
-
-@keyframes official-pack-open-away {
-  from {
-    opacity: 1;
-    transform: perspective(420px) translateY(-1px) scaleX(1.006) scaleY(1.012);
-  }
-
-  to {
-    opacity: 0;
-    transform: perspective(420px) translateY(-10px) scaleX(0.99) scaleY(0.99);
-  }
-}
-
-@keyframes official-pack-glint {
-  0% {
-    filter: brightness(1) saturate(1);
-  }
-
-  48% {
-    filter: brightness(1.04) saturate(1.03);
-  }
-
-  100% {
-    filter: brightness(1) saturate(1);
-  }
-}
-
 .official-pack-browser.is-grid .official-pack-package {
   grid-template-rows: auto;
   width: 100%;
@@ -2274,57 +2197,91 @@ img.no-ios-callout,
   transform: translateY(2px) scale(0.985);
 }
 
+.official-pack-opening-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.official-pack-opening-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0);
+  animation: official-pack-opening-backdrop 480ms ease-out both;
+}
+
+.official-pack-opening-snapshot {
+  position: absolute;
+  left: var(--pack-left);
+  top: var(--pack-top);
+  width: var(--pack-width);
+  height: var(--pack-height);
+  display: grid;
+  place-items: center;
+  overflow: visible;
+  filter: drop-shadow(0 16px 20px rgba(0, 0, 0, 0.16));
+  transform-origin: center 42%;
+  will-change: transform, opacity, filter;
+  animation: official-pack-opening-snapshot 480ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.official-pack-opening-snapshot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+@keyframes official-pack-opening-backdrop {
+  0%,
+  52% {
+    background: rgba(255, 255, 255, 0);
+  }
+
+  100% {
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
+@keyframes official-pack-opening-snapshot {
+  0% {
+    opacity: 1;
+    filter: drop-shadow(0 16px 20px rgba(0, 0, 0, 0.16));
+    transform: perspective(520px) translateY(0) scale(1) scaleX(1) scaleY(1);
+  }
+
+  25% {
+    opacity: 1;
+    filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.18));
+    transform: perspective(520px) translateY(0) scale(1.04) scaleX(1) scaleY(1);
+  }
+
+  58% {
+    opacity: 1;
+    filter: drop-shadow(0 20px 28px rgba(0, 0, 0, 0.2));
+    transform: perspective(520px) translateY(-2px) scale(1.04) scaleX(1.03) scaleY(1.06) rotateX(-2deg);
+  }
+
+  100% {
+    opacity: 0;
+    filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.08));
+    transform: perspective(520px) translateY(-14px) scale(1.08) scaleX(1) scaleY(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .official-pack-opening-backdrop,
+  .official-pack-opening-snapshot {
+    animation: none;
+  }
+}
+
 .official-pack-detail {
   padding-bottom: 20px;
-}
-
-.official-pack-detail.is-entering {
-  animation: official-pack-detail-in 180ms ease-out both;
-}
-
-.official-pack-detail.is-entering .official-pack-sticker-grid {
-  animation: official-pack-stickers-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1) 40ms both;
-}
-
-.official-pack-detail.is-closing {
-  pointer-events: none;
-  animation: official-pack-detail-out 180ms ease-in both;
-}
-
-@keyframes official-pack-detail-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes official-pack-stickers-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.985);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes official-pack-detail-out {
-  from {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  to {
-    opacity: 0;
-    transform: translateY(6px);
-  }
 }
 
 .official-pack-detail-header {
@@ -2410,17 +2367,6 @@ img.no-ios-callout,
   filter: none;
   object-fit: contain;
   pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .official-pack-package.is-opening,
-  .official-pack-package.is-opening .official-pack-package-animation-layer,
-  .official-pack-package.is-opening .official-pack-package-visual img,
-  .official-pack-detail.is-entering,
-  .official-pack-detail.is-entering .official-pack-sticker-grid,
-  .official-pack-detail.is-closing {
-    animation: none;
-  }
 }
 
 .sticker-search {
