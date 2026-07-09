@@ -10,12 +10,21 @@ This document defines the long-term presentation standard for every official sti
 - Filename: `package.png` (preferred) or `cover.png`
 - Background: transparent
 - Safe area: at least **80 px** on every edge
+- Package style: a **virtual sticker package bag cover**
 - Package placement: centered and fully visible
 - Recommended package width: 85%–92% of the canvas when its proportions allow it
 - Do not crop, stretch, rotate, or push the package against an edge
 - Do not bake white cards, black bars, tinted fields, gradients, photographs, or scenes behind the package
 
-The cover contains only the isolated package artwork. Text that is physically part of the package artwork may remain in the image.
+Every official pack cover should look like an in-app sticker pack package, not a flat app card or a real product photo. Use the same visual family as the CAT Y2K PACK and POSITIVE TALK PACK covers:
+
+- Top card/header area with the pack title
+- Lower transparent soft plastic or jelly pouch
+- Several representative stickers displayed inside the pouch
+- Optional glitter, gel, sealed-plastic, scrapbook, or cute stationery details
+- Software-native package artwork, not studio photography or a real-world retail mockup
+
+The cover contains only the isolated package artwork. Text that is physically part of the package artwork may remain in the image. The cover is only a package preview; it must not be used as a sticker source.
 
 ## App rendering
 
@@ -43,7 +52,9 @@ assets/sticker-packs/<pack-id>/
 
 Sticker images should be transparent PNG files. Every sticker needs a stable, unique `id`, a human-readable `name`, and its asset path.
 
-Before registering new sticker PNGs, normalize them so the alpha bounds are tight and every asset keeps a small transparent safety margin:
+Each sticker must be created as its own transparent PNG. Do not slice stickers from the package cover or from a combined overview sheet intended only for presentation. Sticker artwork should include the white sticker cutline directly in the PNG and keep **8%–15% transparent safety margin** around the visible artwork so thumbnails and canvas insertion never clip the cutline.
+
+Before registering new sticker PNGs, normalize them so the alpha bounds are clean while preserving the required transparent safety margin:
 
 ```bash
 python3 scripts/normalize-sticker-assets.py \
@@ -57,7 +68,7 @@ Use `--edge-fringe 1 --alpha-threshold 160` only for assets with a visible dark 
 
 1. Create `assets/sticker-packs/<pack-id>/`.
 2. Export a 1200 × 900 `package.png` using the cover rules above.
-3. Add and normalize the transparent sticker PNG files.
+3. Add and normalize the individual transparent sticker PNG files.
 4. Add one `createOfficialStickerPack(...)` entry in `sticker-packs.js`.
 5. Verify the package card, detail grid, and canvas insertion.
 6. Add the package cover to the app-shell cache in `service-worker.js` and bump the cache version.
@@ -68,9 +79,14 @@ No page component changes should be required.
 
 - Cover is exactly 1200 × 900
 - Background is transparent
+- Cover is a virtual sticker package bag with a header and soft pouch
+- Cover is not a real product photo, studio mockup, or generic flat app card
 - Complete package is visible with safe margins
 - No card background or metadata bar is baked into the cover
 - Browser shows only the package artwork, with no title, subtitle, or count
 - Detail stickers match the package contents
+- Every sticker is an individual transparent PNG, not cut from the cover
+- Every sticker keeps 8%–15% transparent safety margin
+- White sticker cutline is complete and not clipped in detail thumbnails
 - Clicking a sticker inserts it into the canvas
 - `npm run build` passes
