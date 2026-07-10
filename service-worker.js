@@ -1,4 +1,4 @@
-const CACHE_NAME = "moments-journal-v65";
+const CACHE_NAME = "moments-journal-v66";
 const APP_SHELL = [
   "./",
   "index.html",
@@ -21,7 +21,8 @@ const APP_SHELL = [
   "assets/sticker-packs/positive-talk-pack/package.png",
   "assets/sticker-packs/world-cup-star-pack/package.png",
   "assets/sticker-packs/urban-zoo/package.png",
-  "assets/sticker-packs/marti-cerezo/package.png"
+  "assets/sticker-packs/marti-cerezo/package.png",
+  "assets/sticker-packs/mj-icons-pack/cover.png"
 ];
 
 function appShellPath(pathname) {

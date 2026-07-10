@@ -1,0 +1,24 @@
+{
+  "id": "mj-icons-pack",
+  "name": "MJ ICONS PACK",
+  "kind": "official",
+  "cover": "cover.png",
+  "preview": "preview-sheet.png",
+  "stickers": [
+    { "id": "purple-hat-mouse", "file": "01-purple-hat-mouse.png" },
+    { "id": "orange-disco", "file": "02-orange-disco.png" },
+    { "id": "tuxedo-stars", "file": "03-tuxedo-stars.png" },
+    { "id": "thriller-ghosts", "file": "04-thriller-ghosts.png" },
+    { "id": "white-suit-sparkles", "file": "05-white-suit-sparkles.png" },
+    { "id": "gold-stage-ribbons", "file": "06-gold-stage-ribbons.png" },
+    { "id": "military-helicopters", "file": "07-military-helicopters.png" },
+    { "id": "red-video-knife", "file": "08-red-video-knife.png" },
+    { "id": "blue-peace-bows", "file": "09-blue-peace-bows.png" }
+  ],
+  "rendering": {
+    "objectFit": "contain",
+    "retrim": false,
+    "useCoverAsSticker": false,
+    "usePreviewAsSticker": false
+  }
+}

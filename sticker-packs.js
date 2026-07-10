@@ -1,12 +1,13 @@
 /** @typedef {{ id: string, name?: string, image: string, aspectRatio?: number, assetType?: string }} StickerItem */
-/** @typedef {{ id: string, title: string, subtitle: string, packageImage: string, stickers: StickerItem[] }} StickerPack */
+/** @typedef {{ id: string, title: string, subtitle: string, packageImage: string, previewImage?: string, category?: string, stickers: StickerItem[] }} StickerPack */
 
-function createOfficialStickerPack(id, title, subtitle, packageImage, stickers) {
+function createOfficialStickerPack(id, title, subtitle, packageImage, stickers, options = {}) {
   return {
     id,
     title,
     subtitle,
     packageImage,
+    ...options,
     stickers
   };
 }
@@ -139,6 +140,72 @@ const martiCerezoPackStickers = createStickerItems(
   "20260707-safe-crop"
 );
 
+const mjIconsPackStickers = [
+  {
+    id: "purple-hat-mouse",
+    name: "Purple Hat Mouse",
+    image: "assets/sticker-packs/mj-icons-pack/01-purple-hat-mouse.png",
+    aspectRatio: 0.7934,
+    assetType: "official-sticker"
+  },
+  {
+    id: "orange-disco",
+    name: "Orange Disco",
+    image: "assets/sticker-packs/mj-icons-pack/02-orange-disco.png",
+    aspectRatio: 0.6789,
+    assetType: "official-sticker"
+  },
+  {
+    id: "tuxedo-stars",
+    name: "Tuxedo Stars",
+    image: "assets/sticker-packs/mj-icons-pack/03-tuxedo-stars.png",
+    aspectRatio: 0.6111,
+    assetType: "official-sticker"
+  },
+  {
+    id: "thriller-ghosts",
+    name: "Thriller Ghosts",
+    image: "assets/sticker-packs/mj-icons-pack/04-thriller-ghosts.png",
+    aspectRatio: 0.6439,
+    assetType: "official-sticker"
+  },
+  {
+    id: "white-suit-sparkles",
+    name: "White Suit Sparkles",
+    image: "assets/sticker-packs/mj-icons-pack/05-white-suit-sparkles.png",
+    aspectRatio: 0.7399,
+    assetType: "official-sticker"
+  },
+  {
+    id: "gold-stage-ribbons",
+    name: "Gold Stage Ribbons",
+    image: "assets/sticker-packs/mj-icons-pack/06-gold-stage-ribbons.png",
+    aspectRatio: 0.6325,
+    assetType: "official-sticker"
+  },
+  {
+    id: "military-helicopters",
+    name: "Military Helicopters",
+    image: "assets/sticker-packs/mj-icons-pack/07-military-helicopters.png",
+    aspectRatio: 0.627,
+    assetType: "official-sticker"
+  },
+  {
+    id: "red-video-knife",
+    name: "Red Video Knife",
+    image: "assets/sticker-packs/mj-icons-pack/08-red-video-knife.png",
+    aspectRatio: 0.6857,
+    assetType: "official-sticker"
+  },
+  {
+    id: "blue-peace-bows",
+    name: "Blue Peace Bows",
+    image: "assets/sticker-packs/mj-icons-pack/09-blue-peace-bows.png",
+    aspectRatio: 0.5332,
+    assetType: "official-sticker"
+  }
+];
+
 // Official sticker pack cover spec:
 // 1200x900, 4:3, transparent background, safe area 80px, object-fit contain.
 /** @type {StickerPack[]} */
@@ -193,5 +260,16 @@ const officialStickerPacks = [
     "Streetwear stickers / 街头女孩",
     "assets/sticker-packs/marti-cerezo/package.png",
     martiCerezoPackStickers
+  ),
+  createOfficialStickerPack(
+    "mj-icons-pack",
+    "MJ ICONS PACK",
+    "Character icon stickers",
+    "assets/sticker-packs/mj-icons-pack/cover.png",
+    mjIconsPackStickers,
+    {
+      previewImage: "assets/sticker-packs/mj-icons-pack/preview-sheet.png",
+      category: "official"
+    }
   )
 ];
