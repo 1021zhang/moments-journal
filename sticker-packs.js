@@ -121,25 +121,6 @@ const urbanZooPackStickers = createStickerItems(
   ]
 );
 
-const martiCerezoPackStickers = createStickerItems(
-  "assets/sticker-packs/marti-cerezo",
-  [
-    ["logo", "Marti Cerezo Logo", 1.7979],
-    ["girl-sneaker", "Girl with Sneaker 红帽女孩", 0.9595],
-    ["puffer-girl", "Puffer Girl 羽绒服女孩", 0.4336],
-    ["baseball-jacket", "Baseball Jacket 蓝色棒球夹克", 0.746],
-    ["red-white-sneaker", "Red White Sneaker 红白球鞋", 1.0695],
-    ["heart-shoes", "Heart Shoes 爱心鞋子", 1.1216],
-    ["red-cap", "Red Cap 红色帽子", 1.3319],
-    ["pigeon", "Pigeon 灰色鸽子", 0.8228],
-    ["flower-vase", "Flower Vase 花瓶", 0.8097],
-    ["marti-sign", "Marti Sign 地铁标牌", 1.4427],
-    ["mask-portrait", "Mask Portrait 面具头像", 1.0213],
-    ["gold-cap", "Gold Cap 街头装饰", 0.9703]
-  ],
-  "20260707-safe-crop"
-);
-
 const mjIconsPackStickers = [
   {
     id: "purple-hat-mouse",
@@ -211,22 +192,6 @@ const mjIconsPackStickers = [
 /** @type {StickerPack[]} */
 const officialStickerPacks = [
   createOfficialStickerPack(
-    "moments-pack-01",
-    "Moments Pack 01",
-    "Daily Moments",
-    "assets/sticker-packs/moments-pack-01/package.png",
-    [
-      { id: "clock", image: "assets/sticker-packs/moments-pack-01/clock.png" },
-      { id: "stool", image: "assets/sticker-packs/moments-pack-01/stool.png" },
-      { id: "lamp", image: "assets/sticker-packs/moments-pack-01/lamp.png" },
-      { id: "bear", image: "assets/sticker-packs/moments-pack-01/bear.png" },
-      { id: "bottle", image: "assets/sticker-packs/moments-pack-01/bottle.png" },
-      { id: "blocks", image: "assets/sticker-packs/moments-pack-01/blocks.png" },
-      { id: "today-label", image: "assets/sticker-packs/moments-pack-01/today-label.png" },
-      { id: "goodday-label", image: "assets/sticker-packs/moments-pack-01/goodday-label.png" }
-    ]
-  ),
-  createOfficialStickerPack(
     "official-cat-y2k-pack",
     "Cat Y2K Pack",
     "Cute Y2K cat stickers",
@@ -253,13 +218,6 @@ const officialStickerPacks = [
     "Black and white doodle animals",
     "assets/sticker-packs/urban-zoo/package.png",
     urbanZooPackStickers
-  ),
-  createOfficialStickerPack(
-    "marti-cerezo",
-    "Marti Cerezo Street Style",
-    "Streetwear stickers / 街头女孩",
-    "assets/sticker-packs/marti-cerezo/package.png",
-    martiCerezoPackStickers
   ),
   createOfficialStickerPack(
     "mj-icons-pack",
