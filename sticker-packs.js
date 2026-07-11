@@ -1,3 +1,5 @@
+// Official sticker assets must be independently exported RGBA PNGs: at least 1024px
+// on the short edge, 8%–15% transparent safety padding, and never cropped from pack covers or preview sheets.
 /** @typedef {{ id: string, name?: string, image: string, aspectRatio?: number, assetType?: string }} StickerItem */
 /** @typedef {{ id: string, title: string, subtitle: string, packageImage: string, previewImage?: string, category?: string, stickers: StickerItem[] }} StickerPack */
 
@@ -126,63 +128,63 @@ const mjIconsPackStickers = [
     id: "purple-hat-mouse",
     name: "Purple Hat Mouse",
     image: "assets/sticker-packs/mj-icons-pack/01-purple-hat-mouse.png",
-    aspectRatio: 0.7934,
+    aspectRatio: 0.7969,
     assetType: "official-sticker"
   },
   {
     id: "orange-disco",
     name: "Orange Disco",
     image: "assets/sticker-packs/mj-icons-pack/02-orange-disco.png",
-    aspectRatio: 0.6789,
+    aspectRatio: 0.6786,
     assetType: "official-sticker"
   },
   {
     id: "tuxedo-stars",
     name: "Tuxedo Stars",
     image: "assets/sticker-packs/mj-icons-pack/03-tuxedo-stars.png",
-    aspectRatio: 0.6111,
+    aspectRatio: 0.6031,
     assetType: "official-sticker"
   },
   {
     id: "thriller-ghosts",
     name: "Thriller Ghosts",
     image: "assets/sticker-packs/mj-icons-pack/04-thriller-ghosts.png",
-    aspectRatio: 0.6439,
+    aspectRatio: 0.6428,
     assetType: "official-sticker"
   },
   {
     id: "white-suit-sparkles",
     name: "White Suit Sparkles",
     image: "assets/sticker-packs/mj-icons-pack/05-white-suit-sparkles.png",
-    aspectRatio: 0.7399,
+    aspectRatio: 0.7346,
     assetType: "official-sticker"
   },
   {
     id: "gold-stage-ribbons",
     name: "Gold Stage Ribbons",
     image: "assets/sticker-packs/mj-icons-pack/06-gold-stage-ribbons.png",
-    aspectRatio: 0.6325,
+    aspectRatio: 0.6305,
     assetType: "official-sticker"
   },
   {
     id: "military-helicopters",
     name: "Military Helicopters",
     image: "assets/sticker-packs/mj-icons-pack/07-military-helicopters.png",
-    aspectRatio: 0.627,
+    aspectRatio: 0.6225,
     assetType: "official-sticker"
   },
   {
     id: "red-video-knife",
     name: "Red Video Knife",
     image: "assets/sticker-packs/mj-icons-pack/08-red-video-knife.png",
-    aspectRatio: 0.6857,
+    aspectRatio: 0.6781,
     assetType: "official-sticker"
   },
   {
     id: "blue-peace-bows",
     name: "Blue Peace Bows",
     image: "assets/sticker-packs/mj-icons-pack/09-blue-peace-bows.png",
-    aspectRatio: 0.5332,
+    aspectRatio: 0.5297,
     assetType: "official-sticker"
   }
 ];
