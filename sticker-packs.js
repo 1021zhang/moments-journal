@@ -1,5 +1,6 @@
 // Official sticker assets must be independently exported RGBA PNGs: at least 1024px
 // on the short edge, 8%–15% transparent safety padding, and never cropped from pack covers or preview sheets.
+// Official pack covers are separate complete PNGs at 2000px or larger and are never usable sticker assets.
 /** @typedef {{ id: string, name?: string, image: string, aspectRatio?: number, assetType?: string }} StickerItem */
 /** @typedef {{ id: string, title: string, subtitle: string, packageImage: string, previewImage?: string, category?: string, stickers: StickerItem[] }} StickerPack */
 
@@ -106,21 +107,22 @@ const worldCupStarPackStickers = createStickerItems(
 const urbanZooPackStickers = createStickerItems(
   "assets/sticker-packs/urban-zoo",
   [
-    ["gorilla", "Gorilla 大猩猩", 0.8777],
-    ["lion", "Lion 狮子", 1.0749],
-    ["penguin", "Penguin 企鹅", 0.5482],
-    ["cheetah", "Cheetah 猎豹", 1.1367],
-    ["panda", "Panda 熊猫", 0.5903],
-    ["milk-cow", "Milk Cow 奶牛", 1.0888],
-    ["zebra", "Zebra 斑马", 0.7224],
-    ["rabbit", "Rabbit 兔子", 0.5894],
-    ["cat", "Cat 猫", 0.7747],
-    ["puppy", "Puppy 小狗", 0.7233],
-    ["animals-label", "Animals 手写标签", 2.0472],
-    ["good-day", "Good Day", 1.0333],
-    ["doodle-heart", "Doodle Heart", 0.9254],
-    ["doodle-star", "Doodle Star", 0.8346]
-  ]
+    ["gorilla", "Gorilla 大猩猩", 1],
+    ["lion", "Lion 狮子", 1],
+    ["penguin", "Penguin 企鹅", 1],
+    ["cheetah", "Cheetah 猎豹", 1],
+    ["panda", "Panda 熊猫", 1],
+    ["milk-cow", "Milk Cow 奶牛", 1],
+    ["zebra", "Zebra 斑马", 1],
+    ["rabbit", "Rabbit 兔子", 1],
+    ["cat", "Cat 猫", 1],
+    ["puppy", "Puppy 小狗", 1],
+    ["animals", "Animals 手写标签", 2],
+    ["good-day", "Good Day", 1.0965],
+    ["heart", "Doodle Heart", 1],
+    ["star", "Doodle Star", 1]
+  ],
+  "20260711-hd"
 );
 
 const mjIconsPackStickers = [
@@ -218,8 +220,12 @@ const officialStickerPacks = [
     "urban-zoo",
     "Urban Zoo 城市动物园",
     "Black and white doodle animals",
-    "assets/sticker-packs/urban-zoo/package.png",
-    urbanZooPackStickers
+    "assets/sticker-packs/urban-zoo/cover.png",
+    urbanZooPackStickers,
+    {
+      previewImage: "assets/sticker-packs/urban-zoo/preview-sheet.png",
+      category: "official"
+    }
   ),
   createOfficialStickerPack(
     "mj-icons-pack",
