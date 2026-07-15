@@ -1648,6 +1648,22 @@ img.no-ios-callout,
   pointer-events: none;
 }
 
+.canvas-tape.is-tape-settling .tape-piece {
+  animation: tape-settle 120ms ease-out both;
+}
+
+@keyframes tape-settle {
+  from {
+    opacity: 0.85;
+    transform: scale(0.995);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .resize-handle,
 .rotate-handle,
 .delete-photo {
@@ -1772,6 +1788,13 @@ img.no-ios-callout,
   font-size: 10px;
   font-weight: 800;
   letter-spacing: -0.04em;
+}
+
+.floating-toolbox .tape-tool-button.is-active {
+  border-color: rgba(74, 127, 153, 0.24);
+  background: rgba(190, 220, 232, 0.72);
+  color: #28546a;
+  box-shadow: 0 8px 18px rgba(49, 105, 132, 0.16);
 }
 
 .floating-toolbox button:active {
@@ -2100,37 +2123,23 @@ img.no-ios-callout,
 }
 .tape-library-preview i:last-child { background-image: var(--tape-right-cap); }
 
-.tape-placement-hint {
-  position: fixed;
+.tape-first-use-guide {
+  position: absolute;
+  top: 50%;
   left: 50%;
-  bottom: max(18px, env(safe-area-inset-bottom));
-  z-index: 1300;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  max-width: calc(100vw - 32px);
-  padding: 9px 10px 9px 14px;
-  border: 1px solid rgba(38, 71, 91, 0.12);
-  border-radius: 999px;
-  background: rgba(248, 252, 253, 0.94);
-  box-shadow: 0 10px 26px rgba(27, 73, 101, 0.16);
-  color: #24485c;
-  transform: translateX(-50%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  z-index: 1100;
+  color: rgba(65, 65, 65, 0.48);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: tape-first-use-guide-fade 1.2s ease-out both;
 }
 
-.tape-placement-hint strong { font-size: 12px; }
-.tape-placement-hint span { color: rgba(36, 72, 92, 0.68); font-size: 11px; white-space: nowrap; }
-.tape-placement-hint button {
-  min-height: 28px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 999px;
-  background: rgba(89, 145, 175, 0.16);
-  color: #24485c;
-  font-size: 12px;
-  font-weight: 700;
+@keyframes tape-first-use-guide-fade {
+  0%, 65% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
 .sticker-sheet {
