@@ -1790,13 +1790,6 @@ img.no-ios-callout,
   letter-spacing: -0.04em;
 }
 
-.floating-toolbox .tape-tool-button.is-active {
-  border-color: rgba(74, 127, 153, 0.24);
-  background: rgba(190, 220, 232, 0.72);
-  color: #28546a;
-  box-shadow: 0 8px 18px rgba(49, 105, 132, 0.16);
-}
-
 .floating-toolbox button:active {
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 5px 12px rgba(0, 0, 0, 0.07);
@@ -2122,25 +2115,6 @@ img.no-ios-callout,
   background-size: auto 100%;
 }
 .tape-library-preview i:last-child { background-image: var(--tape-right-cap); }
-
-.tape-first-use-guide {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  z-index: 1100;
-  color: rgba(65, 65, 65, 0.48);
-  font-size: 13px;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  pointer-events: none;
-  transform: translate(-50%, -50%);
-  animation: tape-first-use-guide-fade 1.2s ease-out both;
-}
-
-@keyframes tape-first-use-guide-fade {
-  0%, 65% { opacity: 1; }
-  100% { opacity: 0; }
-}
 
 .sticker-sheet {
   position: fixed;

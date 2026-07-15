@@ -3,7 +3,6 @@ const localPhotosKey = "moments-journal.photos";
 const localElementsKey = "moments-journal.canvas-elements";
 const localCustomStickersKey = "moments-journal.custom-stickers";
 const officialPackViewModeKey = "moments-journal.official-pack-view-mode";
-const tapeGuideSeenKey = "moments:tape-guide-seen";
 const dbName = "moments-journal";
 const photoStoreName = "photos";
 const elementStoreName = "canvasElements";
@@ -75,7 +74,6 @@ const state = {
   selectedItemType: "",
   activePanel: "",
   activeTapeId: "",
-  tapeGuideVisible: false,
   stickerLibraryTab: "personal",
   officialPackViewMode: loadOfficialPackViewMode(),
   activeOfficialStickerPackId: "",
@@ -165,7 +163,6 @@ const tapePlacement = {
   beforeSnapshot: null,
   capturedElement: null
 };
-let tapeGuideTimer = 0;
 let isPageTransitioning = false;
 let canvasSafetyRepairFrame = 0;
 let textLayoutSyncFrame = 0;
@@ -1709,12 +1706,6 @@ function tapeSheet() {
   `;
 }
 
-function tapeGuideMarkup() {
-  return state.tapeGuideVisible
-    ? `<span class="tape-first-use-guide" role="status">按住并拖动即可铺设胶带</span>`
-    : "";
-}
-
 function contextMenuPosition(x, y, estimatedHeight = 280) {
   const viewportWidth = window.innerWidth || 390;
   const viewportHeight = window.innerHeight || 844;
@@ -1899,7 +1890,6 @@ function renderSingleDay() {
         <p class="canvas-empty-state ${isCanvasEmpty ? "is-visible" : ""}" aria-hidden="${isCanvasEmpty ? "false" : "true"}">添加照片开始记录今天</p>
         ${day.photos.map(freeCanvasPhoto).join("")}
         ${dayElements.map(canvasElement).join("")}
-        ${tapeGuideMarkup()}
         <div class="floating-toolbox" aria-label="画布工具">
           <button type="button" data-action="add-text" aria-label="添加文字" title="添加文字"><span class="toolbox-text-mark" aria-hidden="true">Aa</span></button>
           <button type="button" data-action="open-sticker-panel" aria-label="添加贴纸" title="添加贴纸">
@@ -1911,7 +1901,7 @@ function renderSingleDay() {
               <path d="M10.2 13.4c.7.8 2.9.8 3.6 0" />
             </svg>
           </button>
-          <button class="tape-tool-button ${tapePlacement.active ? "is-active" : ""}" type="button" data-action="open-tape-panel" aria-label="添加胶带" title="添加胶带" aria-pressed="${tapePlacement.active}"><span aria-hidden="true">Tape</span></button>
+          <button class="tape-tool-button" type="button" data-action="open-tape-panel" aria-label="添加胶带" title="添加胶带"><span aria-hidden="true">Tape</span></button>
           <button type="button" data-action="edit-note" aria-label="当天记录" title="当天记录">${noteIcon()}</button>
         </div>
         <div class="canvas-action-bar" aria-label="画布添加操作">
@@ -4493,17 +4483,10 @@ function clearTapeDrawingSession() {
   tapePlacement.capturedElement = null;
 }
 
-function hideTapeGuide() {
-  state.tapeGuideVisible = false;
-  if (tapeGuideTimer) window.clearTimeout(tapeGuideTimer);
-  tapeGuideTimer = 0;
-}
-
 function resetTapePlacement() {
   tapePlacement.active = false;
   tapePlacement.tapeId = "";
   clearTapeDrawingSession();
-  hideTapeGuide();
   state.activeTapeId = "";
 }
 
@@ -4513,23 +4496,6 @@ function cancelTapePlacement() {
     elementForItem(tapePlacement.elementId, "tape")?.remove();
   }
   resetTapePlacement();
-}
-
-function showTapeGuideOnce() {
-  try {
-    if (localStorage.getItem(tapeGuideSeenKey) === "true") return;
-    localStorage.setItem(tapeGuideSeenKey, "true");
-  } catch {
-    // Keep the guide available when storage is not available.
-  }
-
-  state.tapeGuideVisible = true;
-  if (tapeGuideTimer) window.clearTimeout(tapeGuideTimer);
-  tapeGuideTimer = window.setTimeout(() => {
-    tapeGuideTimer = 0;
-    state.tapeGuideVisible = false;
-    if (state.view === "single") render();
-  }, 1250);
 }
 
 function playTapeSettleFeedback(tapeId) {
@@ -4548,7 +4514,6 @@ function startTapePlacement(tapeId) {
   tapePlacement.active = true;
   tapePlacement.tapeId = tape.id;
   clearSelection();
-  showTapeGuideOnce();
   render();
 }
 
@@ -4609,7 +4574,7 @@ async function endTapeDrawing(event) {
     if (element) state.canvasElements = state.canvasElements.filter((item) => item.id !== element.id);
     elementForItem(tapePlacement.elementId, "tape")?.remove();
     clearSelection();
-    clearTapeDrawingSession();
+    resetTapePlacement();
     render();
     return;
   }
@@ -4620,7 +4585,7 @@ async function endTapeDrawing(event) {
   clampElementToSafeBounds(element.id, "tape");
   await saveCanvasElement(element);
   commitUndoSnapshot(beforeSnapshot);
-  clearTapeDrawingSession();
+  resetTapePlacement();
   selectItem("tape", element.id);
   playTapeSettleFeedback(element.id);
   render();
@@ -5495,13 +5460,8 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "open-tape-panel") {
-    if (tapePlacement.active) {
-      cancelTapePlacement();
-      render();
-      return;
-    }
     cancelTapePlacement();
-    state.activePanel = state.activePanel === "tape" ? "" : "tape";
+    state.activePanel = "tape";
     closeStickerMenus();
     render();
     return;
