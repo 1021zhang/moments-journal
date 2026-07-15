@@ -25,6 +25,16 @@ const undoLimit = 50;
 const minTextFontSize = 12;
 const maxTextFontSize = 48;
 const maxTextWidth = Math.round(canvasWidth * 0.8);
+const tapeHeight = 34;
+const minTapeLength = 14;
+const tapeCatalog = [{
+  id: "blue-bird",
+  name: "Blue Bird Washi Tape",
+  description: "蓝色小鸟花纹胶带",
+  leftCap: "assets/tapes/blue-bird/left-cap.svg",
+  repeatTexture: "assets/tapes/blue-bird/repeat.svg",
+  rightCap: "assets/tapes/blue-bird/right-cap.svg"
+}];
 const textDefaults = {
   fontSize: 20,
   color: "#111111",
@@ -63,6 +73,7 @@ const state = {
   selectedSurface: "",
   selectedItemType: "",
   activePanel: "",
+  activeTapeId: "",
   stickerLibraryTab: "personal",
   officialPackViewMode: loadOfficialPackViewMode(),
   activeOfficialStickerPackId: "",
@@ -142,6 +153,15 @@ const gesture = {
 };
 
 const activePointers = new Map();
+const tapePlacement = {
+  active: false,
+  tapeId: "",
+  pointerId: null,
+  elementId: "",
+  startPoint: null,
+  beforeSnapshot: null,
+  capturedElement: null
+};
 let isPageTransitioning = false;
 let canvasSafetyRepairFrame = 0;
 let textLayoutSyncFrame = 0;
@@ -576,6 +596,40 @@ function defaultStickerElement(dateKey, sticker) {
     assetType: sticker.assetType || "",
     aspectRatio: sticker.aspectRatio || (isImageSticker ? imageWidth / imageHeight : 1)
   };
+}
+
+function tapeById(tapeId) {
+  return tapeCatalog.find((tape) => tape.id === tapeId) || tapeCatalog[0];
+}
+
+function defaultTapeElement(dateKey, tapeId, startPoint) {
+  const tape = tapeById(tapeId);
+  return {
+    id: uid("tape"),
+    type: "tape",
+    tapeId: tape.id,
+    dateKey,
+    x: startPoint.x,
+    y: startPoint.y - tapeHeight / 2,
+    width: minTapeLength,
+    height: tapeHeight,
+    rotation: 0,
+    scale: 1,
+    opacity: 0.85,
+    zIndex: maxCanvasZIndex(dateKey) + 1
+  };
+}
+
+function updateTapeGeometry(element, startPoint, endPoint) {
+  const dx = endPoint.x - startPoint.x;
+  const dy = endPoint.y - startPoint.y;
+  element.width = Math.max(minTapeLength, Math.round(Math.hypot(dx, dy)));
+  // The element rotates around its center, so position that center halfway along
+  // the drag vector. This keeps the left cap anchored exactly at the press point.
+  element.x = Math.round(startPoint.x + dx / 2 - element.width / 2);
+  element.y = Math.round(startPoint.y + dy / 2 - element.height / 2);
+  element.rotation = Math.round(Math.atan2(dy, dx) * 1800 / Math.PI) / 10;
+  return element;
 }
 
 function defaultClipboardStickerElement(dateKey, image) {
@@ -1337,7 +1391,37 @@ function freeCanvasPhoto(photo) {
   `;
 }
 
+function canvasTapeElement(element) {
+  const tape = tapeById(element.tapeId);
+  const selected = selectedItem("tape", element.id) ? "is-selected" : "";
+  const style = [
+    `left:${element.x}px`,
+    `top:${element.y}px`,
+    `width:${element.width}px`,
+    `height:${element.height}px`,
+    `z-index:${element.zIndex}`,
+    `--rotation:${element.rotation}deg`,
+    `--scale:${element.scale || 1}`,
+    `--tape-opacity:${element.opacity ?? 0.85}`,
+    `--tape-left-cap:url('${escapeCssUrl(tape.leftCap)}')`,
+    `--tape-repeat:url('${escapeCssUrl(tape.repeatTexture)}')`,
+    `--tape-right-cap:url('${escapeCssUrl(tape.rightCap)}')`
+  ].join(";");
+
+  return `
+    <div class="canvas-item canvas-tape ${selected}" data-item-type="tape" data-item-id="${element.id}" data-tape-id="${escapeHtml(tape.id)}" style="${style}">
+      <span class="tape-piece tape-left-cap" aria-hidden="true"></span>
+      <span class="tape-piece tape-repeat-texture" aria-hidden="true"></span>
+      <span class="tape-piece tape-right-cap" aria-hidden="true"></span>
+      <button class="delete-photo" type="button" data-action="delete-element" aria-label="删除胶带" title="删除胶带">×</button>
+      <span class="rotate-handle" aria-hidden="true">↻</span>
+      <span class="resize-handle" aria-hidden="true"></span>
+    </div>
+  `;
+}
+
 function canvasElement(element) {
+  if (element.type === "tape") return canvasTapeElement(element);
   const selected = selectedItem(element.type, element.id) ? "is-selected" : "";
   const editing = element.type === "text" && state.textComposer.active && state.textComposer.editingId === element.id
     ? "is-editing"
@@ -1590,6 +1674,41 @@ function stickerSheet() {
   `;
 }
 
+function tapePreviewMarkup(tape) {
+  return `
+    <span class="tape-library-preview" aria-hidden="true"
+      style="--tape-left-cap:url('${escapeCssUrl(tape.leftCap)}');--tape-repeat:url('${escapeCssUrl(tape.repeatTexture)}');--tape-right-cap:url('${escapeCssUrl(tape.rightCap)}')">
+      <i></i><i></i><i></i>
+    </span>
+  `;
+}
+
+function tapeSheet() {
+  if (state.activePanel !== "tape") return "";
+  return `
+    <button class="tape-backdrop" type="button" data-action="close-tape-panel" aria-label="关闭胶带列表"></button>
+    <section class="tape-sheet" role="dialog" aria-modal="true" aria-label="胶带列表">
+      <header class="tape-sheet-header">
+        <div><strong>Tape</strong><span>选择一卷后，在画布上按住拖动铺设</span></div>
+        <button type="button" data-action="close-tape-panel" aria-label="关闭">×</button>
+      </header>
+      <div class="tape-library-list">
+        ${tapeCatalog.map((tape) => `
+          <button class="tape-library-card" type="button" data-action="select-tape" data-tape-id="${escapeHtml(tape.id)}" aria-label="选择 ${escapeHtml(tape.name)}">
+            ${tapePreviewMarkup(tape)}
+            <span><strong>${escapeHtml(tape.name)}</strong><small>${escapeHtml(tape.description)}</small></span>
+          </button>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function tapePlacementHint() {
+  if (!tapePlacement.active) return "";
+  return `<div class="tape-placement-hint" role="status"><strong>铺胶带模式</strong><span>在空白画布上按住并拖动</span><button type="button" data-action="cancel-tape-placement">取消</button></div>`;
+}
+
 function contextMenuPosition(x, y, estimatedHeight = 280) {
   const viewportWidth = window.innerWidth || 390;
   const viewportHeight = window.innerHeight || 844;
@@ -1746,7 +1865,7 @@ function renderSingleDay() {
   const dayElements = elementsForDate(day.dateKey);
   const isCanvasEmpty = day.photos.length === 0 && dayElements.length === 0;
   const canUndo = undoStackForDate(day.dateKey).length > 0;
-  const modalBackgroundAttrs = state.activePanel === "sticker" ? 'inert aria-hidden="true"' : "";
+  const modalBackgroundAttrs = ["sticker", "tape"].includes(state.activePanel) ? 'inert aria-hidden="true"' : "";
 
   return `
     <main class="phone-screen single-day-view" aria-label="单日编辑页面">
@@ -1785,6 +1904,7 @@ function renderSingleDay() {
               <path d="M10.2 13.4c.7.8 2.9.8 3.6 0" />
             </svg>
           </button>
+          <button class="tape-tool-button" type="button" data-action="open-tape-panel" aria-label="添加胶带" title="添加胶带"><span aria-hidden="true">Tape</span></button>
           <button type="button" data-action="edit-note" aria-label="当天记录" title="当天记录">${noteIcon()}</button>
         </div>
         <div class="canvas-action-bar" aria-label="画布添加操作">
@@ -1809,6 +1929,8 @@ function renderSingleDay() {
         </div>
       </div>
       ${stickerSheet()}
+      ${tapeSheet()}
+      ${tapePlacementHint()}
       ${textEditorPanel()}
       ${stickerContextMenu()}
       ${personalStickerContextMenu()}
@@ -1886,8 +2008,9 @@ function render() {
   }
 
   document.body.classList.toggle("settings-open", state.settingsSheetOpen);
-  document.body.classList.toggle("sticker-panel-open", state.activePanel === "sticker");
-  document.documentElement.classList.toggle("sticker-panel-open", state.activePanel === "sticker");
+  const libraryPanelOpen = state.activePanel === "sticker" || state.activePanel === "tape";
+  document.body.classList.toggle("sticker-panel-open", libraryPanelOpen);
+  document.documentElement.classList.toggle("sticker-panel-open", libraryPanelOpen);
   resetHorizontalScroll();
   initializeDaybookTimeline();
   scheduleRenderedTextLayoutSync();
@@ -1926,6 +2049,7 @@ function preparePageState(targetView, options = {}) {
   activePointers.clear();
   setDeleteZoneVisible(false);
   state.activePanel = "";
+  cancelTapePlacement();
   state.settingsSheetOpen = false;
   state.pendingInsertPoint = null;
   state.pendingPhotoSource = "";
@@ -3641,6 +3765,33 @@ function drawTextBackground(context, backgroundStyle, width, height) {
   context.restore();
 }
 
+async function drawTape(context, item, width, height) {
+  const tape = tapeById(item.tapeId);
+  const [leftCap, repeatTexture, rightCap] = await Promise.all([
+    loadImage(tape.leftCap),
+    loadImage(tape.repeatTexture),
+    loadImage(tape.rightCap)
+  ]);
+  const capWidth = Math.min(height * (28 / 48), width / 2);
+  const repeatWidth = Math.max(1, width - capWidth * 2);
+  const tileWidth = height * (64 / 48);
+  const textureCanvas = document.createElement("canvas");
+  textureCanvas.width = Math.max(1, Math.round(tileWidth));
+  textureCanvas.height = Math.max(1, Math.round(height));
+  textureCanvas.getContext("2d").drawImage(repeatTexture, 0, 0, textureCanvas.width, textureCanvas.height);
+
+  context.save();
+  context.globalAlpha = item.opacity ?? 0.85;
+  context.drawImage(leftCap, -width / 2, -height / 2, capWidth, height);
+  const pattern = context.createPattern(textureCanvas, "repeat");
+  if (pattern) {
+    context.fillStyle = pattern;
+    context.fillRect(-width / 2 + capWidth, -height / 2, repeatWidth, height);
+  }
+  context.drawImage(rightCap, width / 2 - capWidth, -height / 2, capWidth, height);
+  context.restore();
+}
+
 async function dayCanvasBlob(day) {
   const exportScale = 2;
   const headerHeight = 104;
@@ -3685,6 +3836,10 @@ async function dayCanvasBlob(day) {
         context.shadowOffsetY = 8;
         drawContainedImage(context, image, itemWidth, itemHeight);
         context.restore();
+      });
+    } else if (item.itemType === "tape") {
+      await drawTransformedItem(context, item, "tape", headerHeight, async (itemWidth, itemHeight) => {
+        await drawTape(context, item, itemWidth, itemHeight);
       });
     } else if (item.itemType === "text") {
       const fontSize = item.fontSize || textDefaults.fontSize;
@@ -3962,7 +4117,7 @@ function freeMoveBoundsForLayout(layout, itemType, dimensions = surfaceDimension
     };
   }
 
-  if (itemType === "sticker" || itemType === "emoji") {
+  if (itemType === "sticker" || itemType === "emoji" || itemType === "tape") {
     return {
       minX: -width * 0.5,
       maxX: dimensions.width - width * 0.5,
@@ -4321,6 +4476,108 @@ function endStickerSheetDrag(event) {
   } else {
     state.stickerSheetState = nextState;
   }
+  render();
+}
+
+function resetTapePlacement() {
+  tapePlacement.active = false;
+  tapePlacement.tapeId = "";
+  tapePlacement.pointerId = null;
+  tapePlacement.elementId = "";
+  tapePlacement.startPoint = null;
+  tapePlacement.beforeSnapshot = null;
+  tapePlacement.capturedElement = null;
+  state.activeTapeId = "";
+}
+
+function cancelTapePlacement() {
+  if (tapePlacement.elementId) {
+    state.canvasElements = state.canvasElements.filter((element) => element.id !== tapePlacement.elementId);
+    elementForItem(tapePlacement.elementId, "tape")?.remove();
+  }
+  resetTapePlacement();
+}
+
+function startTapePlacement(tapeId) {
+  const tape = tapeById(tapeId);
+  cancelTapePlacement();
+  state.activePanel = "";
+  state.activeTapeId = tape.id;
+  tapePlacement.active = true;
+  tapePlacement.tapeId = tape.id;
+  clearSelection();
+  render();
+}
+
+function startTapeDrawing(event) {
+  if (!tapePlacement.active || tapePlacement.pointerId !== null) return false;
+  const day = getDay();
+  const canvas = event.target.closest(".free-canvas");
+  if (!day || !canvas) return false;
+
+  event.preventDefault();
+  event.stopPropagation();
+  const startPoint = canvasPointFromClient(event.clientX, event.clientY);
+  const element = defaultTapeElement(day.dateKey, tapePlacement.tapeId, startPoint);
+  const beforeSnapshot = snapshotForDate(day.dateKey);
+  clearSelection();
+  state.canvasElements.push(element);
+  selectItem("tape", element.id);
+  canvas.insertAdjacentHTML("beforeend", canvasTapeElement(element));
+
+  const elementNode = elementForItem(element.id, "tape");
+  elementNode?.classList.add("is-drawing");
+  canvas.setPointerCapture?.(event.pointerId);
+  tapePlacement.pointerId = event.pointerId;
+  tapePlacement.elementId = element.id;
+  tapePlacement.startPoint = startPoint;
+  tapePlacement.beforeSnapshot = beforeSnapshot;
+  tapePlacement.capturedElement = canvas;
+  return true;
+}
+
+function moveTapeDrawing(event) {
+  if (tapePlacement.pointerId === null || event.pointerId !== tapePlacement.pointerId) return;
+  const element = getCanvasElement(tapePlacement.elementId);
+  if (!element || !tapePlacement.startPoint) return;
+
+  event.preventDefault();
+  updateTapeGeometry(element, tapePlacement.startPoint, canvasPointFromClient(event.clientX, event.clientY));
+  applyInteractiveStyle(elementForItem(element.id, "tape"), element, "tape");
+}
+
+async function endTapeDrawing(event) {
+  if (tapePlacement.pointerId === null || event.pointerId !== tapePlacement.pointerId) return;
+  const element = getCanvasElement(tapePlacement.elementId);
+  const beforeSnapshot = tapePlacement.beforeSnapshot;
+  const canvas = tapePlacement.capturedElement;
+  const isCancelled = event.type === "pointercancel";
+  const shouldKeep = element && !isCancelled && element.width >= minTapeLength + 2;
+
+  if (canvas?.hasPointerCapture?.(event.pointerId)) {
+    try {
+      canvas.releasePointerCapture(event.pointerId);
+    } catch {
+      // The browser may have released capture before pointerup.
+    }
+  }
+
+  if (!shouldKeep) {
+    if (element) state.canvasElements = state.canvasElements.filter((item) => item.id !== element.id);
+    elementForItem(tapePlacement.elementId, "tape")?.remove();
+    clearSelection();
+    resetTapePlacement();
+    render();
+    return;
+  }
+
+  elementForItem(element.id, "tape")?.classList.remove("is-drawing");
+  await saveCanvasElement(element);
+  clampElementToSafeBounds(element.id, "tape");
+  await saveCanvasElement(element);
+  commitUndoSnapshot(beforeSnapshot);
+  resetTapePlacement();
+  selectItem("tape", element.id);
   render();
 }
 
@@ -4893,9 +5150,10 @@ document.addEventListener("pointerdown", (event) => {
   if (isPageTransitioning) return;
   if (stopDaybookNavPointerEvent(event)) return;
 
-  if (state.activePanel === "sticker") {
-    const sheetTarget = event.target.closest(".sticker-sheet");
-    const backdropTarget = event.target.closest(".sticker-backdrop");
+  if (state.activePanel === "sticker" || state.activePanel === "tape") {
+    const isTapePanel = state.activePanel === "tape";
+    const sheetTarget = event.target.closest(isTapePanel ? ".tape-sheet" : ".sticker-sheet");
+    const backdropTarget = event.target.closest(isTapePanel ? ".tape-backdrop" : ".sticker-backdrop");
 
     if (backdropTarget) {
       event.stopPropagation();
@@ -4913,6 +5171,17 @@ document.addEventListener("pointerdown", (event) => {
       startStickerSheetDrag(event);
     }
     return;
+  }
+
+  if (tapePlacement.active) {
+    if (event.target.classList.contains("free-canvas")) {
+      startTapeDrawing(event);
+      return;
+    }
+    if (event.target.closest(".canvas-item")) {
+      event.preventDefault();
+      return;
+    }
   }
 
   if (startDayPress(event)) return;
@@ -4934,7 +5203,7 @@ document.addEventListener("pointerdown", (event) => {
     const itemId = owner?.dataset.itemId;
     const itemType = owner?.dataset.itemType;
     if (itemType === "photo" && itemId) deleteSelectedPhoto(itemId);
-    if ((itemType === "text" || itemType === "emoji" || itemType === "sticker") && itemId) deleteSelectedElement(itemId);
+    if ((itemType === "text" || itemType === "emoji" || itemType === "sticker" || itemType === "tape") && itemId) deleteSelectedElement(itemId);
     return;
   }
 
@@ -4997,6 +5266,9 @@ document.addEventListener("pointerdown", (event) => {
 window.addEventListener("pointermove", moveElementDrag);
 window.addEventListener("pointerup", endElementDrag);
 window.addEventListener("pointercancel", endElementDrag);
+window.addEventListener("pointermove", moveTapeDrawing, { passive: false });
+window.addEventListener("pointerup", endTapeDrawing);
+window.addEventListener("pointercancel", endTapeDrawing);
 window.addEventListener("scroll", scheduleDaybookTimelineSync, { passive: true });
 window.addEventListener("pointermove", moveStickerSheetDrag);
 window.addEventListener("pointerup", endStickerSheetDrag);
@@ -5020,8 +5292,8 @@ document.addEventListener("gesturechange", preventViewportGesture, { passive: fa
 document.addEventListener("gestureend", preventViewportGesture, { passive: false });
 document.addEventListener("touchstart", preventStickerTouchStart, { passive: false });
 document.addEventListener("touchmove", (event) => {
-  if (state.activePanel !== "sticker") return;
-  if (!event.target.closest(".sticker-backdrop")) return;
+  if (state.activePanel !== "sticker" && state.activePanel !== "tape") return;
+  if (!event.target.closest(".sticker-backdrop, .tape-backdrop")) return;
   event.preventDefault();
   event.stopPropagation();
 }, { passive: false });
@@ -5036,8 +5308,8 @@ document.addEventListener("click", async (event) => {
   if (isPageTransitioning) return;
 
   if (
-    state.activePanel === "sticker"
-    && !event.target.closest(".sticker-sheet, .sticker-backdrop")
+    (state.activePanel === "sticker" || state.activePanel === "tape")
+    && !event.target.closest(".sticker-sheet, .sticker-backdrop, .tape-sheet, .tape-backdrop")
   ) {
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -5157,6 +5429,7 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "open-sticker-panel") {
+    cancelTapePlacement();
     if (state.activePanel === "sticker") {
       state.activePanel = "";
     } else {
@@ -5171,6 +5444,28 @@ document.addEventListener("click", async (event) => {
       preloadOfficialStickerPackImages();
     }
     closeStickerMenus();
+    render();
+    return;
+  }
+  if (action === "open-tape-panel") {
+    cancelTapePlacement();
+    state.activePanel = state.activePanel === "tape" ? "" : "tape";
+    closeStickerMenus();
+    render();
+    return;
+  }
+  if (action === "close-tape-panel") {
+    state.activePanel = "";
+    render();
+    return;
+  }
+  if (action === "select-tape") {
+    startTapePlacement(actionTarget.dataset.tapeId);
+    return;
+  }
+  if (action === "cancel-tape-placement") {
+    cancelTapePlacement();
+    clearSelection();
     render();
     return;
   }
@@ -5351,6 +5646,7 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "close-panel") {
     state.activePanel = "";
+    cancelTapePlacement();
     state.customStickerManageMode = false;
     closeStickerMenus();
     stickerSheetDrag.ignoreNextToggle = false;
