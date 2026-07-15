@@ -27,14 +27,6 @@ const maxTextFontSize = 48;
 const maxTextWidth = Math.round(canvasWidth * 0.8);
 const tapeHeight = 34;
 const minTapeLength = 14;
-const tapeCatalog = [{
-  id: "blue-bird",
-  name: "Blue Bird Washi Tape",
-  description: "蓝色小鸟花纹胶带",
-  leftCap: "assets/tapes/blue-bird/left-cap.svg",
-  repeatTexture: "assets/tapes/blue-bird/repeat.svg",
-  rightCap: "assets/tapes/blue-bird/right-cap.svg"
-}];
 const textDefaults = {
   fontSize: 20,
   color: "#111111",
@@ -74,6 +66,7 @@ const state = {
   selectedItemType: "",
   activePanel: "",
   activeTapeId: "",
+  materialsTab: "sticker",
   stickerLibraryTab: "personal",
   officialPackViewMode: loadOfficialPackViewMode(),
   activeOfficialStickerPackId: "",
@@ -600,7 +593,8 @@ function defaultStickerElement(dateKey, sticker) {
 }
 
 function tapeById(tapeId) {
-  return tapeCatalog.find((tape) => tape.id === tapeId) || tapeCatalog[0];
+  const tapes = officialAssets.filter((asset) => asset.type === "tape");
+  return tapes.find((tape) => tape.id === tapeId) || tapes[0];
 }
 
 function defaultTapeElement(dateKey, tapeId, startPoint) {
@@ -826,7 +820,8 @@ async function ensureLayoutsForCanvasElements() {
       && String(imageSource).startsWith("assets/sticker-packs/")
     ) {
       const imagePath = String(imageSource).split(/[?#]/)[0];
-      const officialSticker = officialStickerPacks
+      const officialSticker = officialAssets
+        .filter((asset) => asset.type === "sticker")
         .flatMap((pack) => pack.stickers)
         .find((sticker) => sticker.image.split(/[?#]/)[0] === imagePath);
       if (element.assetType !== "official-sticker") {
@@ -1489,18 +1484,19 @@ function canvasElement(element) {
 }
 
 function officialStickerPackById(packId) {
-  return officialStickerPacks.find((pack) => pack.id === packId) || null;
+  return officialAssets.find((asset) => asset.type === "sticker" && asset.id === packId) || null;
 }
 
 function shouldRefreshOfficialStickerPackHome() {
   return state.view === "single"
-    && state.activePanel === "sticker"
+    && state.activePanel === "materials"
+    && state.materialsTab === "sticker"
     && state.stickerLibraryTab === "official"
     && !state.activeOfficialStickerPackId;
 }
 
 function preloadOfficialStickerPackImages() {
-  officialStickerPacks.forEach((pack) => {
+  officialAssets.filter((asset) => asset.type === "sticker").forEach((pack) => {
     const status = state.officialPackImageStatus[pack.id];
     if (status === "loading" || status === "loaded" || !pack.packageImage) return;
 
@@ -1594,7 +1590,7 @@ function officialStickerPackHome() {
         <button type="button" data-action="toggle-official-pack-view-mode" aria-label="切换到${viewMode === "grid" ? "列表" : "网格"}模式" title="切换显示模式">⊞</button>
       </div>
       <div class="official-pack-shelf" aria-label="官方贴纸包">
-        ${officialStickerPacks.map((pack) => {
+        ${officialAssets.filter((asset) => asset.type === "sticker").map((pack) => {
           const imageStatus = state.officialPackImageStatus[pack.id] || "idle";
           const content = imageStatus === "loaded" ? `
               <span class="official-pack-package-visual">
@@ -1649,55 +1645,61 @@ function officialStickerPackDetail(pack) {
   `;
 }
 
-function stickerSheet() {
-  if (state.activePanel !== "sticker") return "";
+function materialsSheet() {
+  if (state.activePanel !== "materials") return "";
   const sheetState = ["preview", "collapsed", "expanded"].includes(state.stickerSheetState)
     ? state.stickerSheetState
     : "collapsed";
   const libraryTab = state.stickerLibraryTab === "official" ? "official" : "personal";
+  const materialsTab = state.materialsTab === "tape" ? "tape" : "sticker";
   const activePack = officialStickerPackById(state.activeOfficialStickerPackId);
 
   return `
-    <button class="sticker-backdrop" type="button" data-action="close-panel" aria-label="关闭贴纸"></button>
-    <section class="sticker-sheet ${sheetState}" role="dialog" aria-modal="true" aria-label="贴纸库" data-sticker-sheet>
+    <button class="sticker-backdrop" type="button" data-action="close-panel" aria-label="关闭素材库"></button>
+    <section class="sticker-sheet materials-sheet ${sheetState}" role="dialog" aria-modal="true" aria-label="素材库" data-sticker-sheet>
       <header class="sticker-sheet-header">
-        <button class="sheet-grabber" type="button" data-action="toggle-sticker-sheet" data-sticker-sheet-handle aria-label="展开或收起贴纸"></button>
+        <button class="sheet-grabber" type="button" data-action="toggle-sticker-sheet" data-sticker-sheet-handle aria-label="展开或收起素材库"></button>
       </header>
       <div class="sticker-sheet-content">
-        <div class="sticker-library-tabs" role="tablist" aria-label="贴纸分类">
-          <button class="${libraryTab === "personal" ? "is-active" : ""}" type="button" data-action="set-sticker-library-tab" data-tab="personal" role="tab" aria-selected="${libraryTab === "personal"}">我的贴纸</button>
-          <button class="${libraryTab === "official" ? "is-active" : ""}" type="button" data-action="set-sticker-library-tab" data-tab="official" role="tab" aria-selected="${libraryTab === "official"}">官方贴纸包</button>
+        <div class="materials-tabs" role="tablist" aria-label="素材类型">
+          <button class="${materialsTab === "sticker" ? "is-active" : ""}" type="button" data-action="set-materials-tab" data-tab="sticker" role="tab" aria-selected="${materialsTab === "sticker"}">Sticker</button>
+          <button class="${materialsTab === "tape" ? "is-active" : ""}" type="button" data-action="set-materials-tab" data-tab="tape" role="tab" aria-selected="${materialsTab === "tape"}">Tape</button>
         </div>
-        ${libraryTab === "personal"
-          ? personalStickerLibrary()
-          : activePack ? officialStickerPackDetail(activePack) : officialStickerPackHome()}
+        ${materialsTab === "sticker" ? `
+          <div class="sticker-library-tabs" role="tablist" aria-label="贴纸分类">
+            <button class="${libraryTab === "personal" ? "is-active" : ""}" type="button" data-action="set-sticker-library-tab" data-tab="personal" role="tab" aria-selected="${libraryTab === "personal"}">我的贴纸</button>
+            <button class="${libraryTab === "official" ? "is-active" : ""}" type="button" data-action="set-sticker-library-tab" data-tab="official" role="tab" aria-selected="${libraryTab === "official"}">官方贴纸包</button>
+          </div>
+          ${libraryTab === "personal"
+            ? personalStickerLibrary()
+            : activePack ? officialStickerPackDetail(activePack) : officialStickerPackHome()}
+        ` : tapeMaterialsLibrary()}
       </div>
     </section>
   `;
 }
 
-function tapePreviewMarkup(tape) {
+function tapeRollMarkup(tape) {
   return `
-    <span class="tape-library-preview" aria-hidden="true"
+    <span class="tape-roll" aria-hidden="true"
       style="--tape-left-cap:url('${escapeCssUrl(tape.leftCap)}');--tape-repeat:url('${escapeCssUrl(tape.repeatTexture)}');--tape-right-cap:url('${escapeCssUrl(tape.rightCap)}')">
-      <i></i><i></i><i></i>
+      <i class="tape-roll-tail"></i>
+      <i class="tape-roll-body"></i>
+      <i class="tape-roll-core"></i>
+      <i class="tape-roll-shine"></i>
     </span>
   `;
 }
 
-function tapeSheet() {
-  if (state.activePanel !== "tape") return "";
+function tapeMaterialsLibrary() {
+  const tapes = officialAssets.filter((asset) => asset.type === "tape");
   return `
-    <button class="tape-backdrop" type="button" data-action="close-tape-panel" aria-label="关闭胶带列表"></button>
-    <section class="tape-sheet" role="dialog" aria-modal="true" aria-label="胶带列表">
-      <header class="tape-sheet-header">
-        <div><strong>Tape</strong><span>选择一卷后，在画布上按住拖动铺设</span></div>
-        <button type="button" data-action="close-tape-panel" aria-label="关闭">×</button>
-      </header>
-      <div class="tape-library-list">
-        ${tapeCatalog.map((tape) => `
-          <button class="tape-library-card" type="button" data-action="select-tape" data-tape-id="${escapeHtml(tape.id)}" aria-label="选择 ${escapeHtml(tape.name)}">
-            ${tapePreviewMarkup(tape)}
+    <section class="tape-materials-library" aria-label="胶带卷浏览">
+      <header><strong>Tape</strong><span>选择一卷胶带开始铺设</span></header>
+      <div class="tape-roll-shelf">
+        ${tapes.map((tape) => `
+          <button class="tape-roll-card" type="button" data-action="select-tape-material" data-tape-id="${escapeHtml(tape.id)}" aria-label="选择 ${escapeHtml(tape.name)}">
+            ${tapeRollMarkup(tape)}
             <span><strong>${escapeHtml(tape.name)}</strong><small>${escapeHtml(tape.description)}</small></span>
           </button>
         `).join("")}
@@ -1862,7 +1864,7 @@ function renderSingleDay() {
   const dayElements = elementsForDate(day.dateKey);
   const isCanvasEmpty = day.photos.length === 0 && dayElements.length === 0;
   const canUndo = undoStackForDate(day.dateKey).length > 0;
-  const modalBackgroundAttrs = ["sticker", "tape"].includes(state.activePanel) ? 'inert aria-hidden="true"' : "";
+  const modalBackgroundAttrs = state.activePanel === "materials" ? 'inert aria-hidden="true"' : "";
 
   return `
     <main class="phone-screen single-day-view" aria-label="单日编辑页面">
@@ -1892,7 +1894,7 @@ function renderSingleDay() {
         ${dayElements.map(canvasElement).join("")}
         <div class="floating-toolbox" aria-label="画布工具">
           <button type="button" data-action="add-text" aria-label="添加文字" title="添加文字"><span class="toolbox-text-mark" aria-hidden="true">Aa</span></button>
-          <button type="button" data-action="open-sticker-panel" aria-label="添加贴纸" title="添加贴纸">
+          <button type="button" data-action="open-materials-panel" aria-label="打开素材库" title="Materials">
             <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
               <path d="M7.2 5.5h8.2c1.7 0 3.1 1.4 3.1 3.1v5.1c0 2.7-2.1 4.8-4.8 4.8H7.2v-13Z" />
               <path d="M13.7 18.5c0-2.7 2.1-4.8 4.8-4.8" />
@@ -1901,7 +1903,6 @@ function renderSingleDay() {
               <path d="M10.2 13.4c.7.8 2.9.8 3.6 0" />
             </svg>
           </button>
-          <button class="tape-tool-button" type="button" data-action="open-tape-panel" aria-label="添加胶带" title="添加胶带"><span aria-hidden="true">Tape</span></button>
           <button type="button" data-action="edit-note" aria-label="当天记录" title="当天记录">${noteIcon()}</button>
         </div>
         <div class="canvas-action-bar" aria-label="画布添加操作">
@@ -1925,8 +1926,7 @@ function renderSingleDay() {
           </span>
         </div>
       </div>
-      ${stickerSheet()}
-      ${tapeSheet()}
+      ${materialsSheet()}
       ${textEditorPanel()}
       ${stickerContextMenu()}
       ${personalStickerContextMenu()}
@@ -2004,9 +2004,9 @@ function render() {
   }
 
   document.body.classList.toggle("settings-open", state.settingsSheetOpen);
-  const libraryPanelOpen = state.activePanel === "sticker" || state.activePanel === "tape";
-  document.body.classList.toggle("sticker-panel-open", libraryPanelOpen);
-  document.documentElement.classList.toggle("sticker-panel-open", libraryPanelOpen);
+  const libraryPanelOpen = state.activePanel === "materials";
+  document.body.classList.toggle("materials-panel-open", libraryPanelOpen);
+  document.documentElement.classList.toggle("materials-panel-open", libraryPanelOpen);
   resetHorizontalScroll();
   initializeDaybookTimeline();
   scheduleRenderedTextLayoutSync();
@@ -5160,10 +5160,9 @@ document.addEventListener("pointerdown", (event) => {
   if (isPageTransitioning) return;
   if (stopDaybookNavPointerEvent(event)) return;
 
-  if (state.activePanel === "sticker" || state.activePanel === "tape") {
-    const isTapePanel = state.activePanel === "tape";
-    const sheetTarget = event.target.closest(isTapePanel ? ".tape-sheet" : ".sticker-sheet");
-    const backdropTarget = event.target.closest(isTapePanel ? ".tape-backdrop" : ".sticker-backdrop");
+  if (state.activePanel === "materials") {
+    const sheetTarget = event.target.closest(".materials-sheet");
+    const backdropTarget = event.target.closest(".sticker-backdrop");
 
     if (backdropTarget) {
       event.stopPropagation();
@@ -5302,8 +5301,8 @@ document.addEventListener("gesturechange", preventViewportGesture, { passive: fa
 document.addEventListener("gestureend", preventViewportGesture, { passive: false });
 document.addEventListener("touchstart", preventStickerTouchStart, { passive: false });
 document.addEventListener("touchmove", (event) => {
-  if (state.activePanel !== "sticker" && state.activePanel !== "tape") return;
-  if (!event.target.closest(".sticker-backdrop, .tape-backdrop")) return;
+  if (state.activePanel !== "materials") return;
+  if (!event.target.closest(".sticker-backdrop")) return;
   event.preventDefault();
   event.stopPropagation();
 }, { passive: false });
@@ -5318,8 +5317,8 @@ document.addEventListener("click", async (event) => {
   if (isPageTransitioning) return;
 
   if (
-    (state.activePanel === "sticker" || state.activePanel === "tape")
-    && !event.target.closest(".sticker-sheet, .sticker-backdrop, .tape-sheet, .tape-backdrop")
+    state.activePanel === "materials"
+    && !event.target.closest(".materials-sheet, .sticker-backdrop")
   ) {
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -5440,39 +5439,36 @@ document.addEventListener("click", async (event) => {
     completeTextComposer();
     return;
   }
-  if (action === "open-sticker-panel") {
+  if (action === "open-materials-panel") {
     cancelTapePlacement();
-    if (state.activePanel === "sticker") {
-      state.activePanel = "";
-    } else {
-      state.activePanel = "sticker";
-      state.stickerLibraryTab = "personal";
-      state.activeOfficialStickerPackId = "";
-      state.stickerSheetState = "collapsed";
-      stickerSheetDrag.ignoreNextToggle = false;
-      clearCanvasStickerPress();
-      activePointers.clear();
-      setDeleteZoneVisible(false);
+    state.activePanel = "materials";
+    state.materialsTab = "sticker";
+    state.stickerLibraryTab = "personal";
+    state.activeOfficialStickerPackId = "";
+    state.stickerSheetState = "collapsed";
+    stickerSheetDrag.ignoreNextToggle = false;
+    clearCanvasStickerPress();
+    activePointers.clear();
+    setDeleteZoneVisible(false);
+    preloadOfficialStickerPackImages();
+    closeStickerMenus();
+    render();
+    return;
+  }
+  if (action === "set-materials-tab") {
+    state.materialsTab = actionTarget.dataset.tab === "tape" ? "tape" : "sticker";
+    state.activeOfficialStickerPackId = "";
+    if (state.materialsTab === "sticker" && state.stickerLibraryTab === "official") {
       preloadOfficialStickerPackImages();
     }
-    closeStickerMenus();
     render();
     return;
   }
-  if (action === "open-tape-panel") {
-    cancelTapePlacement();
-    state.activePanel = "tape";
-    closeStickerMenus();
-    render();
-    return;
-  }
-  if (action === "close-tape-panel") {
-    state.activePanel = "";
-    render();
-    return;
-  }
-  if (action === "select-tape") {
-    startTapePlacement(actionTarget.dataset.tapeId);
+  if (action === "select-tape-material") {
+    if (actionTarget.dataset.selectingTape === "true") return;
+    actionTarget.dataset.selectingTape = "true";
+    actionTarget.classList.add("is-selecting");
+    window.setTimeout(() => startTapePlacement(actionTarget.dataset.tapeId), 100);
     return;
   }
   if (action === "set-sticker-library-tab") {

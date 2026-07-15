@@ -3,6 +3,7 @@
 // Official pack covers are separate complete PNGs at 2000px or larger and are never usable sticker assets.
 /** @typedef {{ id: string, name?: string, image: string, aspectRatio?: number, assetType?: string }} StickerItem */
 /** @typedef {{ id: string, title: string, subtitle: string, packageImage: string, previewImage?: string, category?: string, stickers: StickerItem[] }} StickerPack */
+/** @typedef {{ id: string, type: "tape", name: string, description: string, leftCap: string, repeatTexture: string, rightCap: string }} TapeAsset */
 
 function createOfficialStickerPack(id, title, subtitle, packageImage, stickers, options = {}) {
   return {
@@ -193,28 +194,31 @@ const mjIconsPackStickers = [
 
 // Official sticker pack cover spec:
 // 1200x900, 4:3, transparent background, safe area 80px, object-fit contain.
-/** @type {StickerPack[]} */
-const officialStickerPacks = [
+/** @type {(StickerPack & { type: "sticker" })[]} */
+const officialStickerAssets = [
   createOfficialStickerPack(
     "official-cat-y2k-pack",
     "Cat Y2K Pack",
     "Cute Y2K cat stickers",
     "assets/sticker-packs/cat-y2k-pack/package.png",
-    catY2KPackStickers
+    catY2KPackStickers,
+    { type: "sticker" }
   ),
   createOfficialStickerPack(
     "official-positive-talk-pack",
     "Positive Talk Pack",
     "Uplifting quote stickers",
     "assets/sticker-packs/positive-talk-pack/package.png",
-    positiveTalkPackStickers
+    positiveTalkPackStickers,
+    { type: "sticker" }
   ),
   createOfficialStickerPack(
     "official-world-cup-star-pack",
     "World Cup Star Pack",
     "Football star card stickers",
     "assets/sticker-packs/world-cup-star-pack/package.png",
-    worldCupStarPackStickers
+    worldCupStarPackStickers,
+    { type: "sticker" }
   ),
   createOfficialStickerPack(
     "urban-zoo",
@@ -224,7 +228,8 @@ const officialStickerPacks = [
     urbanZooPackStickers,
     {
       previewImage: "assets/sticker-packs/urban-zoo/preview-sheet.png",
-      category: "official"
+      category: "official",
+      type: "sticker"
     }
   ),
   createOfficialStickerPack(
@@ -235,7 +240,24 @@ const officialStickerPacks = [
     mjIconsPackStickers,
     {
       previewImage: "assets/sticker-packs/mj-icons-pack/preview-sheet.png",
-      category: "official"
+      category: "official",
+      type: "sticker"
     }
   )
 ];
+
+/** @type {TapeAsset[]} */
+const officialTapeAssets = [
+  {
+    id: "blue-bird",
+    type: "tape",
+    name: "Blue Bird Washi Tape",
+    description: "蓝色小鸟花纹胶带",
+    leftCap: "assets/tapes/blue-bird/left-cap.svg",
+    repeatTexture: "assets/tapes/blue-bird/repeat.svg",
+    rightCap: "assets/tapes/blue-bird/right-cap.svg"
+  }
+];
+
+/** @type {(StickerPack & { type: "sticker" } | TapeAsset)[]} */
+const officialAssets = [...officialStickerAssets, ...officialTapeAssets];
