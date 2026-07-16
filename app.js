@@ -610,7 +610,7 @@ function defaultTapeElement(dateKey, tapeId, startPoint) {
     height: tapeHeight,
     rotation: 0,
     scale: 1,
-    opacity: 0.85,
+    opacity: tape.opacity ?? 0.85,
     zIndex: maxCanvasZIndex(dateKey) + 1
   };
 }
@@ -1401,7 +1401,7 @@ function canvasTapeElement(element) {
     `--scale:${element.scale || 1}`,
     `--tape-opacity:${element.opacity ?? 0.85}`,
     `--tape-left-cap:url('${escapeCssUrl(tape.leftCap)}')`,
-    `--tape-repeat:url('${escapeCssUrl(tape.repeatTexture)}')`,
+    `--tape-repeat:url('${escapeCssUrl(tape.texture || tape.repeatTexture)}')`,
     `--tape-right-cap:url('${escapeCssUrl(tape.rightCap)}')`
   ].join(";");
 
@@ -1682,11 +1682,8 @@ function materialsSheet() {
 function tapeRollMarkup(tape) {
   return `
     <span class="tape-roll" aria-hidden="true"
-      style="--tape-left-cap:url('${escapeCssUrl(tape.leftCap)}');--tape-repeat:url('${escapeCssUrl(tape.repeatTexture)}');--tape-right-cap:url('${escapeCssUrl(tape.rightCap)}')">
-      <i class="tape-roll-tail"></i>
-      <i class="tape-roll-body"></i>
-      <i class="tape-roll-core"></i>
-      <i class="tape-roll-shine"></i>
+      style="--tape-left-cap:url('${escapeCssUrl(tape.leftCap)}');--tape-repeat:url('${escapeCssUrl(tape.texture || tape.repeatTexture)}');--tape-right-cap:url('${escapeCssUrl(tape.rightCap)}')">
+      <img src="${escapeHtml(tape.rollPreview)}" alt="" draggable="false" />
     </span>
   `;
 }
@@ -1700,7 +1697,7 @@ function tapeMaterialsLibrary() {
         ${tapes.map((tape) => `
           <button class="tape-roll-card" type="button" data-action="select-tape-material" data-tape-id="${escapeHtml(tape.id)}" aria-label="选择 ${escapeHtml(tape.name)}">
             ${tapeRollMarkup(tape)}
-            <span><strong>${escapeHtml(tape.name)}</strong><small>${escapeHtml(tape.description)}</small></span>
+            <span><strong>${escapeHtml(tape.name)}</strong><small>${escapeHtml(tape.subtitle)}</small></span>
           </button>
         `).join("")}
       </div>
@@ -3765,7 +3762,7 @@ async function drawTape(context, item, width, height) {
   const tape = tapeById(item.tapeId);
   const [leftCap, repeatTexture, rightCap] = await Promise.all([
     loadImage(tape.leftCap),
-    loadImage(tape.repeatTexture),
+    loadImage(tape.texture || tape.repeatTexture),
     loadImage(tape.rightCap)
   ]);
   const capWidth = Math.min(height * (28 / 48), width / 2);

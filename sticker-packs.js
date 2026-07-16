@@ -3,7 +3,7 @@
 // Official pack covers are separate complete PNGs at 2000px or larger and are never usable sticker assets.
 /** @typedef {{ id: string, name?: string, image: string, aspectRatio?: number, assetType?: string }} StickerItem */
 /** @typedef {{ id: string, title: string, subtitle: string, packageImage: string, previewImage?: string, category?: string, stickers: StickerItem[] }} StickerPack */
-/** @typedef {{ id: string, type: "tape", name: string, description: string, leftCap: string, repeatTexture: string, rightCap: string }} TapeAsset */
+/** @typedef {{ id: string, type: "tape", name: string, subtitle: string, rollPreview: string, texture: string, leftCap: string, repeatTexture: string, rightCap: string, opacity: number }} TapeAsset */
 
 function createOfficialStickerPack(id, title, subtitle, packageImage, stickers, options = {}) {
   return {
@@ -252,10 +252,13 @@ const officialTapeAssets = [
     id: "blue-bird",
     type: "tape",
     name: "Blue Bird Washi Tape",
-    description: "蓝色小鸟花纹胶带",
+    subtitle: "蓝色小鸟花纹胶带",
+    rollPreview: "assets/tapes/blue-bird/roll-preview.svg",
+    texture: "assets/tapes/blue-bird/repeat.svg",
     leftCap: "assets/tapes/blue-bird/left-cap.svg",
     repeatTexture: "assets/tapes/blue-bird/repeat.svg",
-    rightCap: "assets/tapes/blue-bird/right-cap.svg"
+    rightCap: "assets/tapes/blue-bird/right-cap.svg",
+    opacity: 0.85
   }
 ];
 
