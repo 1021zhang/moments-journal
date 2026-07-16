@@ -1679,12 +1679,14 @@ function materialsSheet() {
   `;
 }
 
-function tapeRollMarkup(tape) {
+function materialTapeCard(tape) {
   return `
-    <span class="tape-roll" aria-hidden="true"
-      style="--tape-left-cap:url('${escapeCssUrl(tape.leftCap)}');--tape-repeat:url('${escapeCssUrl(tape.texture || tape.repeatTexture)}');--tape-right-cap:url('${escapeCssUrl(tape.rightCap)}')">
-      <img src="${escapeHtml(tape.rollPreview)}" alt="" draggable="false" />
-    </span>
+    <button class="tape-card" type="button" data-action="select-tape-material" data-tape-id="${escapeHtml(tape.id)}" aria-label="选择 ${escapeHtml(tape.name)}">
+      <span class="tape-card-preview" aria-hidden="true" style="--tape-repeat:url('${escapeCssUrl(tape.texture || tape.repeatTexture)}')">
+        <img src="${escapeHtml(tape.rollPreview)}" alt="" draggable="false" />
+      </span>
+      <span class="tape-card-copy"><strong>${escapeHtml(tape.name)}</strong><small>${escapeHtml(tape.subtitle)}</small></span>
+    </button>
   `;
 }
 
@@ -1694,12 +1696,7 @@ function tapeMaterialsLibrary() {
     <section class="tape-materials-library" aria-label="胶带卷浏览">
       <header><strong>Tape</strong><span>选择一卷胶带开始铺设</span></header>
       <div class="tape-roll-shelf">
-        ${tapes.map((tape) => `
-          <button class="tape-roll-card" type="button" data-action="select-tape-material" data-tape-id="${escapeHtml(tape.id)}" aria-label="选择 ${escapeHtml(tape.name)}">
-            ${tapeRollMarkup(tape)}
-            <span><strong>${escapeHtml(tape.name)}</strong><small>${escapeHtml(tape.subtitle)}</small></span>
-          </button>
-        `).join("")}
+        ${tapes.map(materialTapeCard).join("")}
       </div>
     </section>
   `;

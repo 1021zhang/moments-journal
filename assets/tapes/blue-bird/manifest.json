@@ -1,0 +1,11 @@
+{
+  "id": "blue-bird",
+  "type": "tape",
+  "name": "Blue Bird Washi Tape",
+  "subtitle": "蓝色小鸟花纹胶带",
+  "rollPreview": "roll-preview.png",
+  "texture": "texture.svg",
+  "leftCap": "left-cap.svg",
+  "rightCap": "right-cap.svg",
+  "opacity": 0.85
+}
