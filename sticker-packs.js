@@ -253,7 +253,7 @@ const officialTapeAssets = [
     type: "tape",
     name: "Blue Bird Washi Tape",
     subtitle: "蓝色小鸟花纹胶带",
-    rollPreview: "assets/tapes/blue-bird/roll-preview.svg",
+    rollPreview: "assets/tapes/blue-bird/roll-preview-product.png",
     texture: "assets/tapes/blue-bird/repeat.svg",
     leftCap: "assets/tapes/blue-bird/left-cap.svg",
     repeatTexture: "assets/tapes/blue-bird/repeat.svg",

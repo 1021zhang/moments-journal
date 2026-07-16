@@ -2121,6 +2121,35 @@ img.no-ios-callout,
   content: "";
 }
 
+/* The Tape tab follows a bright product-shelf presentation while the Sticker
+   experience keeps its existing dark glass treatment. */
+.materials-sheet:has(.tape-materials-library) {
+  border-color: rgba(255, 255, 255, 0.76);
+  background: rgba(244, 248, 250, 0.9);
+  color: #2a2b2f;
+  box-shadow: 0 -18px 46px rgba(69, 88, 96, 0.13);
+}
+
+.materials-sheet:has(.tape-materials-library) .sheet-grabber::before {
+  background: rgba(69, 76, 81, 0.22);
+}
+
+.materials-sheet:has(.tape-materials-library) .materials-tabs {
+  border-bottom-color: rgba(77, 107, 119, 0.13);
+}
+
+.materials-sheet:has(.tape-materials-library) .materials-tabs button {
+  color: rgba(45, 51, 55, 0.48);
+}
+
+.materials-sheet:has(.tape-materials-library) .materials-tabs button.is-active {
+  color: #292b2f;
+}
+
+.materials-sheet:has(.tape-materials-library) .materials-tabs button.is-active::after {
+  background: #72afe7;
+}
+
 .tape-materials-library {
   padding: 2px 2px 24px;
 }
@@ -2137,7 +2166,7 @@ img.no-ios-callout,
 }
 
 .tape-materials-library > header span {
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(48, 57, 62, 0.58);
   font-size: 12px;
 }
 
@@ -2148,22 +2177,25 @@ img.no-ios-callout,
 
 .tape-roll-card {
   display: grid;
-  grid-template-columns: minmax(156px, 0.95fr) minmax(0, 1fr);
+  grid-template-columns: minmax(184px, 1.45fr) minmax(0, 0.75fr);
   align-items: center;
-  gap: 14px;
-  min-height: 158px;
-  padding: 14px 16px 14px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 20px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.06));
-  color: #ffffff;
+  gap: 8px;
+  min-height: 190px;
+  padding: 10px 16px 10px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.93), rgba(255, 255, 255, 0.68));
+  box-shadow: 0 10px 24px rgba(70, 91, 101, 0.055);
+  color: #2c2e32;
   text-align: left;
-  transition: background 120ms ease-out;
+  transition: background 120ms ease-out, border-color 120ms ease-out, box-shadow 120ms ease-out;
 }
 
 .tape-roll-card.is-selecting,
 .tape-roll-card:active {
-  background: linear-gradient(145deg, rgba(211, 235, 244, 0.28), rgba(255, 255, 255, 0.1));
+  border-color: rgba(105, 173, 233, 0.82);
+  background: linear-gradient(135deg, rgba(247, 252, 255, 0.98), rgba(230, 244, 251, 0.82));
+  box-shadow: 0 12px 28px rgba(78, 136, 176, 0.12);
 }
 
 .tape-roll-card > span:last-child {
@@ -2174,20 +2206,22 @@ img.no-ios-callout,
 
 .tape-roll-card strong {
   font-size: 14px;
-  line-height: 1.22;
+  line-height: 1.26;
+  font-weight: 760;
 }
 
 .tape-roll-card small {
-  color: rgba(255, 255, 255, 0.58);
+  color: rgba(47, 55, 61, 0.5);
   font-size: 11px;
 }
 
 .tape-roll {
   position: relative;
   display: block;
-  width: 156px;
-  height: 126px;
-  transform-origin: 48% 54%;
+  width: 210px;
+  height: 168px;
+  margin-left: -12px;
+  transform-origin: 43% 56%;
   transition: transform 120ms cubic-bezier(0.2, 0.8, 0.25, 1);
 }
 
@@ -2196,38 +2230,39 @@ img.no-ios-callout,
   width: 100%;
   height: 100%;
   object-fit: contain;
-  filter: drop-shadow(0 9px 10px rgba(0, 0, 0, 0.16));
+  filter: drop-shadow(0 10px 11px rgba(74, 91, 97, 0.19));
   pointer-events: none;
 }
 
 .tape-roll::after {
   position: absolute;
-  right: -3px;
-  bottom: 19px;
-  width: 28px;
-  height: 20px;
-  border-radius: 2px 4px 4px 2px;
+  right: -6px;
+  bottom: 31px;
+  width: 52px;
+  height: 26px;
+  border-radius: 2px 1px 1px 2px;
   background-color: rgba(238, 247, 246, 0.7);
   background-image: var(--tape-repeat);
   background-position: left center;
   background-repeat: repeat-x;
   background-size: auto 100%;
-  box-shadow: 0 5px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 5px 8px rgba(62, 79, 87, 0.12);
+  clip-path: polygon(0 3%, 91% 0, 97% 12%, 94% 27%, 100% 42%, 95% 57%, 99% 75%, 91% 100%, 0 96%);
   content: "";
   opacity: 0;
-  transform: rotate(-7deg) scaleX(0.5);
+  transform: rotate(-5deg) scaleX(0.55);
   transform-origin: left center;
   transition: width 120ms ease-out, opacity 100ms ease-out, transform 120ms ease-out;
 }
 
 .tape-roll-card.is-selecting .tape-roll {
-  transform: rotate(8deg) scale(1.055);
+  transform: rotate(8deg) scale(1.06);
 }
 
 .tape-roll-card.is-selecting .tape-roll::after {
-  width: 48px;
+  width: 108px;
   opacity: 0.82;
-  transform: rotate(-10deg) scaleX(1);
+  transform: rotate(-8deg) scaleX(1);
 }
 
 .official-pack-browser-toolbar {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "moments-journal-v70";
+const CACHE_NAME = "moments-journal-v71";
 const APP_SHELL = [
   "./",
   "index.html",
@@ -11,7 +11,7 @@ const APP_SHELL = [
   "assets/tapes/blue-bird/left-cap.svg",
   "assets/tapes/blue-bird/repeat.svg",
   "assets/tapes/blue-bird/right-cap.svg",
-  "assets/tapes/blue-bird/roll-preview.svg",
+  "assets/tapes/blue-bird/roll-preview-product.png",
   "assets/sticker-packs/cat-y2k-pack/package.png",
   "assets/sticker-packs/positive-talk-pack/package.png",
   "assets/sticker-packs/world-cup-star-pack/package.png",
