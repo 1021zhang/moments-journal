@@ -71,6 +71,8 @@ const state = {
   officialPackViewMode: loadOfficialPackViewMode(),
   activeOfficialStickerPackId: "",
   stickerSheetState: "collapsed",
+  materialsPanelOpening: false,
+  materialsPanelClosing: false,
   settingsSheetOpen: false,
   isExportingBackup: false,
   isExportingDay: false,
@@ -161,6 +163,7 @@ let canvasSafetyRepairFrame = 0;
 let textLayoutSyncFrame = 0;
 let canvasEmptyStateFrame = 0;
 let daybookTimelineSyncFrame = 0;
+let materialsPanelCloseTimer = 0;
 const dayPress = {
   element: null,
   dayId: "",
@@ -1655,25 +1658,31 @@ function materialsSheet() {
   const activePack = officialStickerPackById(state.activeOfficialStickerPackId);
 
   return `
-    <button class="sticker-backdrop" type="button" data-action="close-panel" aria-label="关闭素材库"></button>
-    <section class="sticker-sheet materials-sheet ${sheetState}" role="dialog" aria-modal="true" aria-label="素材库" data-sticker-sheet>
+    <button class="sticker-backdrop ${state.materialsPanelClosing ? "is-closing" : ""}" type="button" data-action="close-panel" aria-label="关闭素材库"></button>
+    <section class="sticker-sheet materials-sheet ${sheetState} ${state.materialsPanelOpening ? "is-opening" : ""} ${state.materialsPanelClosing ? "is-closing" : ""}" role="dialog" aria-modal="true" aria-label="素材库" data-sticker-sheet>
       <header class="sticker-sheet-header">
         <button class="sheet-grabber" type="button" data-action="toggle-sticker-sheet" data-sticker-sheet-handle aria-label="展开或收起素材库"></button>
       </header>
       <div class="sticker-sheet-content">
-        <div class="materials-tabs" role="tablist" aria-label="素材类型">
-          <button class="${materialsTab === "sticker" ? "is-active" : ""}" type="button" data-action="set-materials-tab" data-tab="sticker" role="tab" aria-selected="${materialsTab === "sticker"}">Sticker</button>
-          <button class="${materialsTab === "tape" ? "is-active" : ""}" type="button" data-action="set-materials-tab" data-tab="tape" role="tab" aria-selected="${materialsTab === "tape"}">Tape</button>
-        </div>
-        ${materialsTab === "sticker" ? `
-          <div class="sticker-library-tabs" role="tablist" aria-label="贴纸分类">
-            <button class="${libraryTab === "personal" ? "is-active" : ""}" type="button" data-action="set-sticker-library-tab" data-tab="personal" role="tab" aria-selected="${libraryTab === "personal"}">我的贴纸</button>
-            <button class="${libraryTab === "official" ? "is-active" : ""}" type="button" data-action="set-sticker-library-tab" data-tab="official" role="tab" aria-selected="${libraryTab === "official"}">官方贴纸包</button>
+        <div class="materials-sheet-fixed">
+          <div class="materials-tabs" role="tablist" aria-label="素材类型">
+            <button class="${materialsTab === "sticker" ? "is-active" : ""}" type="button" data-action="set-materials-tab" data-tab="sticker" role="tab" aria-selected="${materialsTab === "sticker"}">Sticker</button>
+            <button class="${materialsTab === "tape" ? "is-active" : ""}" type="button" data-action="set-materials-tab" data-tab="tape" role="tab" aria-selected="${materialsTab === "tape"}">Tape</button>
           </div>
+          ${materialsTab === "sticker" ? `
+            <div class="sticker-library-tabs" role="tablist" aria-label="贴纸分类">
+              <button class="${libraryTab === "personal" ? "is-active" : ""}" type="button" data-action="set-sticker-library-tab" data-tab="personal" role="tab" aria-selected="${libraryTab === "personal"}">我的贴纸</button>
+              <button class="${libraryTab === "official" ? "is-active" : ""}" type="button" data-action="set-sticker-library-tab" data-tab="official" role="tab" aria-selected="${libraryTab === "official"}">官方贴纸包</button>
+            </div>
+          ` : ""}
+        </div>
+        <div class="materials-sheet-scroll">
+          ${materialsTab === "sticker" ? `
           ${libraryTab === "personal"
             ? personalStickerLibrary()
             : activePack ? officialStickerPackDetail(activePack) : officialStickerPackHome()}
-        ` : tapeMaterialsLibrary()}
+          ` : tapeMaterialsLibrary()}
+        </div>
       </div>
     </section>
   `;
@@ -4389,7 +4398,7 @@ function stickerSheetHeights() {
   return {
     preview: viewportHeight * 0.35,
     collapsed: viewportHeight * 0.55,
-    expanded: viewportHeight * 0.9
+    expanded: Math.max(viewportHeight * 0.9, viewportHeight - 84)
   };
 }
 
@@ -4429,15 +4438,11 @@ function moveStickerSheetDrag(event) {
   const sheet = stickerSheetElement();
   if (!sheet) return;
 
-  const heights = stickerSheetHeights();
-  const dy = event.clientY - stickerSheetDrag.startY;
-  const rawHeight = stickerSheetDrag.startHeight - dy;
-  const targetHeight = clamp(rawHeight, heights.preview, heights.expanded);
-  const offset = clamp(heights.preview - rawHeight, 0, heights.preview);
+  const dy = Math.max(0, event.clientY - stickerSheetDrag.startY);
+  const offset = clamp(dy, 0, Math.min(240, stickerSheetDrag.startHeight * 0.42));
 
-  stickerSheetDrag.currentHeight = targetHeight;
+  stickerSheetDrag.currentHeight = stickerSheetDrag.startHeight;
   stickerSheetDrag.currentOffset = offset;
-  sheet.style.height = `${targetHeight}px`;
   sheet.style.setProperty("--sheet-drag-y", `${offset}px`);
 }
 
@@ -4445,14 +4450,11 @@ function endStickerSheetDrag(event) {
   if (!stickerSheetDrag.active || event.pointerId !== stickerSheetDrag.pointerId) return;
 
   const sheet = stickerSheetElement();
-  const heights = stickerSheetHeights();
   const totalDy = event.clientY - stickerSheetDrag.startY;
-  const shouldClose = stickerSheetDrag.currentOffset > Math.min(96, heights.preview * 0.32);
-  const nextState = stickerSheetStateFromHeight(stickerSheetDrag.currentHeight, heights);
+  const shouldClose = totalDy > 84 || stickerSheetDrag.currentOffset > 84;
 
   sheet?.classList.remove("is-dragging");
   if (sheet) {
-    sheet.style.height = "";
     sheet.style.removeProperty("--sheet-drag-y");
   }
 
@@ -4462,11 +4464,27 @@ function endStickerSheetDrag(event) {
   stickerSheetDrag.ignoreNextToggle = Math.abs(totalDy) > 6;
 
   if (shouldClose) {
-    state.activePanel = "";
+    closeMaterialsPanel();
+    return;
   } else {
-    state.stickerSheetState = nextState;
+    state.stickerSheetState = "expanded";
   }
   render();
+}
+
+function closeMaterialsPanel() {
+  if (state.activePanel !== "materials" || state.materialsPanelClosing) return;
+  state.materialsPanelOpening = false;
+  state.materialsPanelClosing = true;
+  window.clearTimeout(materialsPanelCloseTimer);
+  render();
+  materialsPanelCloseTimer = window.setTimeout(() => {
+    if (state.activePanel !== "materials" || !state.materialsPanelClosing) return;
+    state.activePanel = "";
+    state.materialsPanelClosing = false;
+    state.stickerSheetState = "collapsed";
+    render();
+  }, 240);
 }
 
 function clearTapeDrawingSession() {
@@ -5435,11 +5453,14 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "open-materials-panel") {
     cancelTapePlacement();
+    window.clearTimeout(materialsPanelCloseTimer);
     state.activePanel = "materials";
     state.materialsTab = "sticker";
     state.stickerLibraryTab = "personal";
     state.activeOfficialStickerPackId = "";
-    state.stickerSheetState = "collapsed";
+    state.stickerSheetState = "expanded";
+    state.materialsPanelClosing = false;
+    state.materialsPanelOpening = true;
     stickerSheetDrag.ignoreNextToggle = false;
     clearCanvasStickerPress();
     activePointers.clear();
@@ -5447,6 +5468,10 @@ document.addEventListener("click", async (event) => {
     preloadOfficialStickerPackImages();
     closeStickerMenus();
     render();
+    window.setTimeout(() => {
+      state.materialsPanelOpening = false;
+      stickerSheetElement()?.classList.remove("is-opening");
+    }, 260);
     return;
   }
   if (action === "set-materials-tab") {
@@ -5495,7 +5520,11 @@ document.addEventListener("click", async (event) => {
       stickerSheetDrag.ignoreNextToggle = false;
       return;
     }
-    state.stickerSheetState = state.stickerSheetState === "expanded" ? "collapsed" : "expanded";
+    if (state.activePanel === "materials") {
+      closeMaterialsPanel();
+      return;
+    }
+    state.stickerSheetState = "expanded";
     render();
     return;
   }
@@ -5641,6 +5670,10 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "close-panel") {
+    if (state.activePanel === "materials") {
+      closeMaterialsPanel();
+      return;
+    }
     state.activePanel = "";
     cancelTapePlacement();
     state.customStickerManageMode = false;
