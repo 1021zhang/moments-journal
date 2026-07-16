@@ -267,6 +267,39 @@ const officialTapeAssets = [
     id: "blue-bird",
     name: "Blue Bird Washi Tape",
     subtitle: "蓝色小鸟花纹胶带"
+  }),
+  createOfficialTapeAsset({
+    id: "color-chevron",
+    name: "Color Chevron Tape",
+    subtitle: "彩色箭头胶带"
+  }),
+  createOfficialTapeAsset({
+    id: "grid-paper",
+    name: "Grid Paper Tape",
+    subtitle: "网格纸胶带"
+  }),
+  createOfficialTapeAsset({
+    id: "beige-paper",
+    name: "Beige Paper Tape",
+    subtitle: "牛皮纸胶带",
+    opacity: 0.91
+  }),
+  createOfficialTapeAsset({
+    id: "flower",
+    name: "Flower Tape",
+    subtitle: "小花胶带"
+  }),
+  createOfficialTapeAsset({
+    id: "newspaper",
+    name: "Newspaper Tape",
+    subtitle: "复古报纸胶带",
+    opacity: 0.88
+  }),
+  createOfficialTapeAsset({
+    id: "clear-pet",
+    name: "Clear PET Tape",
+    subtitle: "透明 PET 胶带",
+    opacity: 0.58
   })
 ];
 
