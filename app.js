@@ -78,7 +78,7 @@ const state = {
   isExportingDay: false,
   isReadingClipboard: false,
   customStickerManageMode: false,
-  stickerContextMenu: { open: false, itemId: "", x: 0, y: 0 },
+  stickerContextMenu: { open: false, itemId: "", itemType: "", x: 0, y: 0 },
   personalStickerMenu: { open: false, stickerId: "", x: 0, y: 0 },
   stickerNameDialog: {
     open: false,
@@ -140,6 +140,7 @@ const gesture = {
   capturedPointers: [],
   overDeleteZone: false,
   dragging: false,
+  raised: false,
   alignmentTargets: [],
   wasSelected: false,
   centerX: 0,
@@ -340,6 +341,14 @@ function getCanvasElement(elementId) {
   return state.canvasElements.find((element) => element.id === elementId);
 }
 
+function isLockableCanvasElement(element) {
+  return Boolean(element && ["sticker", "emoji", "tape", "text"].includes(element.type));
+}
+
+function isCanvasElementLocked(itemId, itemType) {
+  return itemType !== "photo" && Boolean(getCanvasElement(itemId)?.locked);
+}
+
 function maxCanvasZIndex(dateKey) {
   const photoMax = state.userPhotos
     .filter((photo) => photo.dateKey === dateKey)
@@ -526,6 +535,7 @@ function defaultTextElement(dateKey, content = "") {
     height: size.height,
     rotation: 0,
     scale: 1,
+    locked: false,
     zIndex: maxCanvasZIndex(dateKey) + 1,
     fontSize,
     fontStyle: textDefaults.fontStyle,
@@ -587,6 +597,7 @@ function defaultStickerElement(dateKey, sticker) {
     height: isTextSticker ? 58 : isImageSticker ? imageHeight : emojiSize,
     rotation: 0,
     scale: 1,
+    locked: false,
     zIndex: maxCanvasZIndex(dateKey) + 1,
     fontSize: isTextSticker ? 22 : 56,
     color: sticker.color || "#222222",
@@ -613,6 +624,7 @@ function defaultTapeElement(dateKey, tapeId, startPoint) {
     height: tapeHeight,
     rotation: 0,
     scale: 1,
+    locked: false,
     opacity: tape.opacity ?? 0.85,
     zIndex: maxCanvasZIndex(dateKey) + 1
   };
@@ -657,6 +669,7 @@ function defaultClipboardStickerElement(dateKey, image) {
     height,
     rotation: 0,
     scale: 1,
+    locked: false,
     zIndex: maxCanvasZIndex(dateKey) + 1,
     fontSize: 48,
     color: "#222222",
@@ -854,6 +867,11 @@ async function ensureLayoutsForCanvasElements() {
 
     if (typeof element.scale !== "number") {
       element.scale = 1;
+      changed = true;
+    }
+
+    if (typeof element.locked !== "boolean") {
+      element.locked = false;
       changed = true;
     }
 
@@ -1211,14 +1229,14 @@ function toastMarkup() {
   return `<div class="toast-message" role="status">${escapeHtml(state.toast)}</div>`;
 }
 
-function showToast(message) {
+function showToast(message, duration = 2200) {
   state.toast = message;
   if (state.toastTimer) window.clearTimeout(state.toastTimer);
   state.toastTimer = window.setTimeout(() => {
     state.toast = "";
     state.toastTimer = null;
     render();
-  }, 2200);
+  }, duration);
   render();
 }
 
@@ -1392,8 +1410,9 @@ function freeCanvasPhoto(photo) {
 
 function canvasTapeElement(element) {
   const tape = tapeById(element.tapeId);
-  const selected = selectedItem("tape", element.id) ? "is-selected" : "";
+  const selected = selectedItem("tape", element.id) && !element.locked ? "is-selected" : "";
   const settling = settlingTapeIds.has(element.id) ? "is-tape-settling" : "";
+  const locked = element.locked ? "is-locked" : "";
   const style = [
     `left:${element.x}px`,
     `top:${element.y}px`,
@@ -1409,7 +1428,7 @@ function canvasTapeElement(element) {
   ].join(";");
 
   return `
-    <div class="canvas-item canvas-tape ${selected} ${settling}" data-item-type="tape" data-item-id="${element.id}" data-tape-id="${escapeHtml(tape.id)}" style="${style}">
+    <div class="canvas-item canvas-tape ${selected} ${settling} ${locked}" data-item-type="tape" data-item-id="${element.id}" data-tape-id="${escapeHtml(tape.id)}" data-locked="${element.locked ? "true" : "false"}" style="${style}">
       <span class="tape-piece tape-left-cap" aria-hidden="true"></span>
       <span class="tape-piece tape-repeat-texture" aria-hidden="true"></span>
       <span class="tape-piece tape-right-cap" aria-hidden="true"></span>
@@ -1422,8 +1441,9 @@ function canvasTapeElement(element) {
 
 function canvasElement(element) {
   if (element.type === "tape") return canvasTapeElement(element);
-  const selected = selectedItem(element.type, element.id) ? "is-selected" : "";
-  const editing = element.type === "text" && state.textComposer.active && state.textComposer.editingId === element.id
+  const selected = selectedItem(element.type, element.id) && !element.locked ? "is-selected" : "";
+  const locked = element.locked ? "is-locked" : "";
+  const editing = !element.locked && element.type === "text" && state.textComposer.active && state.textComposer.editingId === element.id
     ? "is-editing"
     : "";
   const baseStyle = [
@@ -1460,7 +1480,7 @@ function canvasElement(element) {
       `--line-height:${fontConfig.lineHeight}`
     );
 
-    return `<div class="canvas-item canvas-text-element text-item-wrapper ${selected} ${editing} ${placeholderClass}" data-item-type="text" data-item-id="${element.id}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}"><span class="canvas-text-content text-item-content">${escapeHtml(displayContent || "")}</span></div>`;
+    return `<div class="canvas-item canvas-text-element text-item-wrapper ${selected} ${editing} ${placeholderClass} ${locked}" data-item-type="text" data-item-id="${element.id}" data-locked="${element.locked ? "true" : "false"}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}"><span class="canvas-text-content text-item-content">${escapeHtml(displayContent || "")}</span></div>`;
   }
 
   const stickerType = element.type === "emoji" ? "emoji" : element.stickerType;
@@ -1475,7 +1495,7 @@ function canvasElement(element) {
   );
 
   return `
-    <div class="canvas-item canvas-sticker no-ios-callout ${stickerClass} ${selected}" data-item-type="${element.type}" data-item-id="${element.id}" style="${baseStyle.join(";")}">
+    <div class="canvas-item canvas-sticker no-ios-callout ${stickerClass} ${selected} ${locked}" data-item-type="${element.type}" data-item-id="${element.id}" data-locked="${element.locked ? "true" : "false"}" style="${baseStyle.join(";")}">
       ${stickerType === "image"
         ? `<img class="no-ios-callout" src="${escapeHtml(element.imageDataUrl || element.src || "")}" alt="" draggable="false" />`
         : `<span class="no-ios-callout">${escapeHtml(element.content)}</span>`}
@@ -1721,15 +1741,29 @@ function contextMenuPosition(x, y, estimatedHeight = 280) {
 }
 
 function stickerContextMenu() {
-  if (!state.stickerContextMenu.open) return "";
-  const position = contextMenuPosition(state.stickerContextMenu.x, state.stickerContextMenu.y);
+  const item = getCanvasElement(state.stickerContextMenu.itemId);
+  if (!state.stickerContextMenu.open || !isLockableCanvasElement(item)) return "";
+  const position = contextMenuPosition(
+    state.stickerContextMenu.x,
+    state.stickerContextMenu.y,
+    item.locked ? 86 : item.type === "sticker" || item.type === "emoji" ? 246 : 132
+  );
+  const isSticker = item.type === "sticker" || item.type === "emoji";
+  const lockAction = item.locked ? "解锁" : "锁定";
   return `
     <button class="context-menu-backdrop" type="button" data-action="close-sticker-menus" aria-label="关闭菜单"></button>
-    <div class="sticker-context-menu no-ios-callout" style="left:${position.left}px;top:${position.top}px" role="menu" aria-label="贴纸操作">
-      <button class="no-ios-callout" type="button" data-action="copy-context-sticker" role="menuitem">复制</button>
-      <button class="no-ios-callout" type="button" data-action="front-context-sticker" role="menuitem">置顶</button>
-      <div class="context-menu-separator" aria-hidden="true"></div>
-      <button class="is-library-action no-ios-callout" type="button" data-action="save-context-sticker" role="menuitem">添加到贴纸库</button>
+    <div class="sticker-context-menu no-ios-callout" style="left:${position.left}px;top:${position.top}px" role="menu" aria-label="元素操作">
+      ${item.locked ? `
+        <button class="no-ios-callout" type="button" data-action="toggle-context-element-lock" role="menuitem">${lockAction}</button>
+      ` : `
+        ${isSticker ? `<button class="no-ios-callout" type="button" data-action="copy-context-sticker" role="menuitem">复制</button>` : ""}
+        <button class="no-ios-callout" type="button" data-action="front-context-sticker" role="menuitem">置顶</button>
+        <button class="no-ios-callout" type="button" data-action="toggle-context-element-lock" role="menuitem">${lockAction}</button>
+        ${isSticker ? `
+          <div class="context-menu-separator" aria-hidden="true"></div>
+          <button class="is-library-action no-ios-callout" type="button" data-action="save-context-sticker" role="menuitem">添加到贴纸库</button>
+        ` : ""}
+      `}
     </div>
   `;
 }
@@ -3194,6 +3228,7 @@ async function deleteSelectedPhoto(photoId) {
 }
 
 async function deleteSelectedElement(elementId) {
+  if (getCanvasElement(elementId)?.locked) return;
   const undoBefore = currentUndoSnapshot();
   await deleteCanvasElement(elementId);
   clearSelection();
@@ -3325,7 +3360,7 @@ async function completeTextComposer() {
 }
 
 function closeStickerMenus() {
-  state.stickerContextMenu = { open: false, itemId: "", x: 0, y: 0 };
+  state.stickerContextMenu = { open: false, itemId: "", itemType: "", x: 0, y: 0 };
   state.personalStickerMenu = { open: false, stickerId: "", x: 0, y: 0 };
   customStickerPress.ignoreNextClick = false;
 }
@@ -3403,13 +3438,14 @@ async function renameLibrarySticker(stickerId, name) {
 
 async function duplicateCanvasSticker(itemId) {
   const element = getCanvasElement(itemId);
-  if (!element) return;
+  if (!element || element.locked) return;
   const undoBefore = currentUndoSnapshot();
   const copy = deepClone(element);
   copy.id = uid("sticker");
   copy.x = (element.x || 0) + 18;
   copy.y = (element.y || 0) + 18;
   copy.zIndex = maxCanvasZIndex(element.dateKey) + 1;
+  copy.locked = false;
   await saveCanvasElement(copy);
   closeStickerMenus();
   selectItem(copy.type, copy.id);
@@ -3419,7 +3455,7 @@ async function duplicateCanvasSticker(itemId) {
 
 async function bringCanvasStickerToFront(itemId) {
   const element = getCanvasElement(itemId);
-  if (!element) return;
+  if (!element || element.locked) return;
   const undoBefore = currentUndoSnapshot();
   element.zIndex = maxCanvasZIndex(element.dateKey) + 1;
   await saveCanvasElement(element);
@@ -3427,6 +3463,19 @@ async function bringCanvasStickerToFront(itemId) {
   selectItem(element.type, element.id);
   commitUndoSnapshot(undoBefore);
   render();
+}
+
+async function setCanvasElementLocked(itemId, locked) {
+  const element = getCanvasElement(itemId);
+  if (!isLockableCanvasElement(element) || Boolean(element.locked) === locked) return;
+
+  const undoBefore = currentUndoSnapshot();
+  element.locked = locked;
+  await saveCanvasElement(element);
+  if (selectedItem(element.type, element.id)) clearSelection();
+  closeStickerMenus();
+  commitUndoSnapshot(undoBefore);
+  showToast(locked ? "已锁定" : "已解锁", 650);
 }
 
 async function addStickerElement(sticker) {
@@ -3931,7 +3980,7 @@ async function exportCurrentDayImage() {
 
 async function editTextElement(elementId) {
   const element = getCanvasElement(elementId);
-  if (!element || element.type !== "text") return;
+  if (!element || element.type !== "text" || element.locked) return;
 
   openTextComposer(element.id);
 }
@@ -4350,7 +4399,7 @@ async function repairUnsafeCanvasItems(options = {}) {
     }
   });
   elementsForDate(day.dateKey).forEach((element) => {
-    if (clampElementToSafeBounds(element.id, element.type, options)) repairs.push(saveCanvasElement(element));
+    if (!element.locked && clampElementToSafeBounds(element.id, element.type, options)) repairs.push(saveCanvasElement(element));
   });
 
   if (repairs.length) await Promise.all(repairs);
@@ -4659,6 +4708,8 @@ function updateDragDeleteFeedback(event) {
 async function deleteInteractiveItem(itemId, itemType, beforeSnapshot = currentUndoSnapshot()) {
   debugInteraction("delete element", { elementId: itemId, itemType });
 
+  if (isCanvasElementLocked(itemId, itemType)) return;
+
   if (itemType === "photo") {
     await deleteUserPhoto(itemId);
 
@@ -4699,6 +4750,7 @@ function capturePointerForGesture(element, pointerId) {
 }
 
 function startPinchGesture(event, itemId, itemType) {
+  if (isCanvasElementLocked(itemId, itemType)) return false;
   const layout = getInteractiveLayout(itemId, itemType);
   const pointers = activePointersForItem(itemId, itemType);
   if (!layout || pointers.length < 2) return false;
@@ -4730,6 +4782,7 @@ function startPinchGesture(event, itemId, itemType) {
   gesture.startPinchCenterY = center.y;
   gesture.overDeleteZone = false;
   gesture.dragging = false;
+  gesture.raised = true;
   gesture.alignmentTargets = [];
   gesture.beforeSnapshot = gesture.beforeSnapshot || currentUndoSnapshot();
 
@@ -4746,6 +4799,7 @@ function startPinchGesture(event, itemId, itemType) {
 }
 
 function startItemGesture(event, mode, itemId, itemType = "photo") {
+  if (isCanvasElementLocked(itemId, itemType)) return;
   const layout = getInteractiveLayout(itemId, itemType);
   if (!layout) return;
   if (itemType === "text") syncTextLayoutSize(layout);
@@ -4776,6 +4830,7 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
   gesture.pointerId = event.pointerId;
   gesture.overDeleteZone = false;
   gesture.dragging = false;
+  gesture.raised = mode !== "drag";
   gesture.alignmentTargets = mode === "drag" ? alignmentTargetsForItem(itemId) : [];
   gesture.beforeSnapshot = currentUndoSnapshot();
 
@@ -4787,9 +4842,11 @@ function startItemGesture(event, mode, itemId, itemType = "photo") {
     gesture.startAngle = Math.atan2(event.clientY - gesture.centerY, event.clientX - gesture.centerX);
   }
 
-  const day = getDay();
-  const maxZ = maxCanvasZIndex(day?.dateKey || layout.dateKey);
-  if ((layout.zIndex || 0) < maxZ) layout.zIndex = maxZ + 1;
+  if (gesture.raised) {
+    const day = getDay();
+    const maxZ = maxCanvasZIndex(day?.dateKey || layout.dateKey);
+    if ((layout.zIndex || 0) < maxZ) layout.zIndex = maxZ + 1;
+  }
   const element = elementForItem(itemId, itemType);
   document.querySelectorAll(".canvas-item.is-selected").forEach((photoElement) => {
     photoElement.classList.remove("is-selected");
@@ -4850,6 +4907,12 @@ function updateGesture(event) {
     layout.x = clamp(gesture.startX + dx, freeBounds.minX, freeBounds.maxX);
     layout.y = clamp(gesture.startY + dy, freeBounds.minY, freeBounds.maxY);
     const didMove = Math.hypot(dx, dy) > 5;
+    if (didMove && !gesture.raised) {
+      const day = getDay();
+      const maxZ = maxCanvasZIndex(day?.dateKey || layout.dateKey);
+      if ((layout.zIndex || 0) < maxZ) layout.zIndex = maxZ + 1;
+      gesture.raised = true;
+    }
     const canAlign = didMove && deleteZoneState(event.clientY) === "hidden";
     if (canAlign) {
       applySmartAlignment(layout, freeBounds);
@@ -4891,7 +4954,7 @@ function moveElementDrag(event) {
   updateGesture(event);
 }
 
-async function endGesture(event) {
+async function endGesture(event, options = {}) {
   const pointerId = event?.pointerId;
   const pointer = activePointers.get(pointerId);
 
@@ -4910,7 +4973,7 @@ async function endGesture(event) {
   const element = elementForItem(itemId, itemType);
   const capturedPointers = gesture.capturedPointers.slice();
 
-  const textTapAction = itemId && itemType === "text" && mode === "drag" && !didDrag && !shouldDelete
+  const textTapAction = !options.suppressTextTap && itemId && itemType === "text" && mode === "drag" && !didDrag && !shouldDelete
     ? "edit"
     : "";
 
@@ -4950,6 +5013,7 @@ async function endGesture(event) {
   gesture.capturedPointers = [];
   gesture.overDeleteZone = false;
   gesture.dragging = false;
+  gesture.raised = false;
   gesture.alignmentTargets = [];
   gesture.wasSelected = false;
   gesture.surface = "";
@@ -5049,41 +5113,76 @@ function clearCanvasStickerPress() {
   canvasStickerPress.itemType = "";
 }
 
-function startCanvasStickerPress(event) {
-  if (event.target.closest(".resize-handle, .rotate-handle, .delete-photo")) return;
-  const item = event.target.closest('.canvas-item[data-item-type="sticker"], .canvas-item[data-item-type="emoji"]');
-  if (!item) return;
+function lockedCanvasElementAtPoint(clientX, clientY) {
+  return Array.from(document.querySelectorAll('.canvas-item[data-locked="true"]'))
+    .map((node) => {
+      const rect = node.getBoundingClientRect();
+      return {
+        node,
+        rect,
+        zIndex: Number.parseInt(node.style.zIndex || "0", 10) || 0
+      };
+    })
+    .filter(({ node, rect }) => {
+      const item = getCanvasElement(node.dataset.itemId || "");
+      return isLockableCanvasElement(item)
+        && clientX >= rect.left
+        && clientX <= rect.right
+        && clientY >= rect.top
+        && clientY <= rect.bottom;
+    })
+    .sort((a, b) => b.zIndex - a.zIndex)[0]?.node || null;
+}
 
-  event.preventDefault();
-  event.stopPropagation();
+function startCanvasStickerPress(event) {
+  if (event.target.closest(".resize-handle, .rotate-handle, .delete-photo")) return false;
+  const directItem = event.target.closest(".canvas-item");
+  const item = directItem || lockedCanvasElementAtPoint(event.clientX, event.clientY);
+  const itemId = item?.dataset.itemId || "";
+  const itemType = item?.dataset.itemType || "";
+  const canvasElement = getCanvasElement(itemId);
+  if (!isLockableCanvasElement(canvasElement)) return false;
+
+  const lockedPassThrough = Boolean(canvasElement.locked && !directItem);
+  if (lockedPassThrough) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
   clearCanvasStickerPress();
   canvasStickerPress.pointerId = event.pointerId;
-  canvasStickerPress.itemId = item.dataset.itemId || "";
-  canvasStickerPress.itemType = item.dataset.itemType || "sticker";
+  canvasStickerPress.itemId = itemId;
+  canvasStickerPress.itemType = itemType;
   canvasStickerPress.startX = event.clientX;
   canvasStickerPress.startY = event.clientY;
   canvasStickerPress.timer = window.setTimeout(async () => {
-    const itemId = canvasStickerPress.itemId;
-    const itemType = canvasStickerPress.itemType;
+    const pressedItemId = canvasStickerPress.itemId;
+    const pressedItemType = canvasStickerPress.itemType;
     const pointerId = canvasStickerPress.pointerId;
     canvasStickerPress.timer = null;
-    if (!itemId || gesture.dragging || gesture.itemId !== itemId) return;
+    const pressedElement = getCanvasElement(pressedItemId);
+    if (!isLockableCanvasElement(pressedElement)) return;
+    if (!pressedElement.locked && (gesture.dragging || gesture.itemId !== pressedItemId)) return;
 
-    await endGesture({ pointerId });
+    if (!pressedElement.locked) await endGesture({ pointerId }, { suppressTextTap: true });
     setDeleteZoneVisible(false);
     gesture.dragging = false;
     gesture.overDeleteZone = false;
     document.querySelectorAll(".canvas-item.is-dragging, .canvas-item.is-over-delete")
       .forEach((element) => element.classList.remove("is-dragging", "is-over-delete"));
-    selectItem(itemType, itemId);
+    if (pressedElement.locked) clearSelection();
+    else selectItem(pressedItemType, pressedItemId);
     state.stickerContextMenu = {
       open: true,
-      itemId,
+      itemId: pressedItemId,
+      itemType: pressedItemType,
       x: event.clientX,
       y: event.clientY
     };
     render();
   }, 450);
+
+  return lockedPassThrough;
 }
 
 function moveCanvasStickerPress(event) {
@@ -5207,7 +5306,7 @@ document.addEventListener("pointerdown", (event) => {
 
   if (startDayPress(event)) return;
   startCustomStickerPress(event);
-  startCanvasStickerPress(event);
+  if (startCanvasStickerPress(event)) return;
 
   if (startTextSizeSlider(event)) return;
 
@@ -5553,6 +5652,12 @@ document.addEventListener("click", async (event) => {
   if (action === "front-context-sticker") {
     const itemId = state.stickerContextMenu.itemId;
     if (itemId) await bringCanvasStickerToFront(itemId);
+    return;
+  }
+  if (action === "toggle-context-element-lock") {
+    const itemId = state.stickerContextMenu.itemId;
+    const element = getCanvasElement(itemId);
+    if (element) await setCanvasElementLocked(itemId, !element.locked);
     return;
   }
   if (action === "save-context-sticker") {

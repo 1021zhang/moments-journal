@@ -1387,6 +1387,12 @@ img.no-ios-callout,
   --lift-scale: 1.01;
 }
 
+/* Locked items stay visually unchanged while allowing lower editable items to receive touches. */
+.canvas-item.is-locked,
+.canvas-item.is-locked * {
+  pointer-events: none;
+}
+
 .canvas-item.is-gesturing {
   --lift-scale: 1.015;
   transition: none;
