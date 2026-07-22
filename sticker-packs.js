@@ -137,7 +137,6 @@ const appleStylePackStickers = createStickerItems(
     ["ludo-logo", "LUDO"],
     ["speech-bubble-face", "Speech Bubble Face"],
     ["speech-bubble-outline", "Speech Bubble Outline"],
-    ["piano-keys", "Piano Keys"],
     ["glasses", "Glasses"],
     ["crying-face", "Crying Face"],
     ["sunglasses-face", "Sunglasses Face"],
