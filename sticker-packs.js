@@ -134,7 +134,16 @@ const appleStylePackStickers = createStickerItems(
     ["yellow-game", "Yellow Game"],
     ["green-heart", "Green Heart"],
     ["green-cat", "Green Cat"],
-    ["ludo-logo", "LUDO"]
+    ["ludo-logo", "LUDO"],
+    ["speech-bubble-face", "Speech Bubble Face"],
+    ["speech-bubble-outline", "Speech Bubble Outline"],
+    ["piano-keys", "Piano Keys"],
+    ["glasses", "Glasses"],
+    ["crying-face", "Crying Face"],
+    ["sunglasses-face", "Sunglasses Face"],
+    ["music-notes", "Music Notes"],
+    ["coffee-cup", "Coffee Cup"],
+    ["safety-pin", "Safety Pin"]
   ],
   "20260722"
 );
