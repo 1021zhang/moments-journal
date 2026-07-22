@@ -126,6 +126,19 @@ const urbanZooPackStickers = createStickerItems(
   "20260711-hd"
 );
 
+const appleStylePackStickers = createStickerItems(
+  "assets/sticker-packs/apple-style",
+  [
+    ["blue-apple", "Blue Apple"],
+    ["yellow-portrait", "Yellow Portrait"],
+    ["yellow-game", "Yellow Game"],
+    ["green-heart", "Green Heart"],
+    ["green-cat", "Green Cat"],
+    ["ludo-logo", "LUDO"]
+  ],
+  "20260722"
+);
+
 const mjIconsPackStickers = [
   {
     id: "purple-hat-mouse",
@@ -240,6 +253,17 @@ const officialStickerAssets = [
     mjIconsPackStickers,
     {
       previewImage: "assets/sticker-packs/mj-icons-pack/preview-sheet.png",
+      category: "official",
+      type: "sticker"
+    }
+  ),
+  createOfficialStickerPack(
+    "apple-style",
+    "Apple Style",
+    "Modern collector stickers",
+    "assets/sticker-packs/apple-style/cover.png",
+    appleStylePackStickers,
+    {
       category: "official",
       type: "sticker"
     }
