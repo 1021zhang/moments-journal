@@ -1,4 +1,4 @@
-const CACHE_NAME = "moments-journal-v74";
+const CACHE_NAME = "moments-journal-v75";
 const APP_SHELL = [
   "./",
   "index.html",
