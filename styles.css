@@ -2607,6 +2607,23 @@ img.no-ios-callout,
   pointer-events: none;
 }
 
+/* Apple Style artwork includes intentional transparent safety padding, so its preview box needs a little more room. */
+.official-pack-sticker-grid:has(> .official-pack-sticker[data-pack-id="apple-style"]) {
+  column-gap: 8px;
+  row-gap: 10px;
+}
+
+.official-pack-sticker[data-pack-id="apple-style"] {
+  padding: 7px;
+}
+
+.official-pack-sticker[data-pack-id="apple-style"] img {
+  width: 108%;
+  height: 108%;
+  max-width: 108%;
+  max-height: 108%;
+}
+
 .sticker-search {
   position: relative;
   display: block;
