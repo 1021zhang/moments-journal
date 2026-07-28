@@ -31,6 +31,7 @@ const textDefaults = {
   fontSize: 20,
   color: "#111111",
   fontWeight: 700,
+  lineHeight: 1.2,
   backgroundStyle: "none",
   fontStyle: "system",
   outlineStyle: "none"
@@ -47,6 +48,14 @@ const textBackgroundOptions = [
   { label: "白底", value: "white" },
   { label: "半透明", value: "glass" }
 ];
+const textFontOptions = [
+  { value: "system", label: "系统" },
+  { value: "wenkai", label: "文楷" },
+  { value: "handwritten", label: "手写" },
+  { value: "headline", label: "标题" }
+];
+const textWeightOptions = [400, 500, 700, 900];
+const textLineHeightOptions = [1.15, 1.35, 1.55];
 const mockPhotos = [
   { id: "mock-cafe", type: "mock", caption: "cafe", src: "https://picsum.photos/seed/moments-cafe/320/320" },
   { id: "mock-walk", type: "mock", caption: "walk", src: "https://picsum.photos/seed/moments-walk/320/320" },
@@ -98,6 +107,8 @@ const state = {
     fontSize: textDefaults.fontSize,
     color: textDefaults.color,
     fontWeight: textDefaults.fontWeight,
+    lineHeight: textDefaults.lineHeight,
+    textAlign: "center",
     backgroundStyle: textDefaults.backgroundStyle,
     fontStyle: textDefaults.fontStyle,
     outlineStyle: textDefaults.outlineStyle,
@@ -112,7 +123,8 @@ const state = {
   materialPreviewPageSize: {},
   db: null,
   storageMode: "indexedDB",
-  undoHistory: {}
+  undoHistory: {},
+  redoHistory: {}
 };
 
 const gesture = {
@@ -370,6 +382,12 @@ function undoStackForDate(dateKey) {
   return state.undoHistory[dateKey];
 }
 
+function redoStackForDate(dateKey) {
+  if (!dateKey) return [];
+  if (!state.redoHistory[dateKey]) state.redoHistory[dateKey] = [];
+  return state.redoHistory[dateKey];
+}
+
 function snapshotForDate(dateKey) {
   return {
     dateKey,
@@ -391,6 +409,7 @@ function commitUndoSnapshot(beforeSnapshot) {
   const stack = undoStackForDate(beforeSnapshot.dateKey);
   stack.push(beforeSnapshot);
   if (stack.length > undoLimit) stack.splice(0, stack.length - undoLimit);
+  state.redoHistory[beforeSnapshot.dateKey] = [];
 }
 
 function currentUndoSnapshot() {
@@ -404,8 +423,7 @@ function normalizedTextBackgroundStyle(style) {
 }
 
 function normalizedTextFontStyle(style) {
-  void style;
-  return textDefaults.fontStyle;
+  return textFontOptions.some((option) => option.value === style) ? style : textDefaults.fontStyle;
 }
 
 function normalizedTextOutlineStyle(style) {
@@ -449,9 +467,11 @@ function textFontConfig(style) {
 function applyTextFontConfig(element) {
   const config = textFontConfig(element.fontStyle);
   element.fontFamily = config.fontFamily;
-  element.fontWeight = config.fontWeight;
+  element.fontWeight = textWeightOptions.includes(Number(element.fontWeight))
+    ? Number(element.fontWeight)
+    : config.fontWeight;
   element.letterSpacing = config.letterSpacing;
-  element.lineHeight = config.lineHeight;
+  element.lineHeight = clamp(Number(element.lineHeight) || config.lineHeight, 1, 2);
   return element;
 }
 
@@ -506,14 +526,16 @@ function measureTextLayout(
   content,
   fontSize = textDefaults.fontSize,
   backgroundStyle = textDefaults.backgroundStyle,
-  fontStyle = textDefaults.fontStyle
+  fontStyle = textDefaults.fontStyle,
+  lineHeightOverride = null
 ) {
   const padding = textBackgroundPadding(backgroundStyle);
   const maxContentWidth = maxTextWidth - padding.x * 2;
   const wrappedText = wrappedTextLines(content, fontSize, maxContentWidth);
   const lines = wrappedText.lines;
   const longestLine = lines.reduce((longest, line) => Math.max(longest, Array.from(line || " ").length), 1);
-  const { lineHeight } = textFontConfig(fontStyle);
+  const { lineHeight: defaultLineHeight } = textFontConfig(fontStyle);
+  const lineHeight = clamp(Number(lineHeightOverride) || defaultLineHeight, 1, 2);
   const naturalWidth = Math.max(44, Math.ceil(longestLine * fontSize * 0.62)) + padding.x * 2;
   const width = Math.min(maxTextWidth, naturalWidth);
   const height = Math.ceil(lines.length * fontSize * lineHeight) + padding.y * 2 + 2;
@@ -529,7 +551,7 @@ function measureTextLayout(
 function defaultTextElement(dateKey, content = "") {
   const fontSize = textDefaults.fontSize;
   const backgroundStyle = textDefaults.backgroundStyle;
-  const size = measureTextLayout(content, fontSize, backgroundStyle, textDefaults.fontStyle);
+  const size = measureTextLayout(content, fontSize, backgroundStyle, textDefaults.fontStyle, textDefaults.lineHeight);
   return applyTextFontConfig({
     id: uid("text"),
     type: "text",
@@ -547,6 +569,7 @@ function defaultTextElement(dateKey, content = "") {
     fontStyle: textDefaults.fontStyle,
     outlineStyle: textDefaults.outlineStyle,
     fontWeight: textDefaults.fontWeight,
+    lineHeight: textDefaults.lineHeight,
     color: textDefaults.color,
     backgroundStyle,
     textAlign: size.isLong ? "left" : "center",
@@ -904,6 +927,10 @@ async function ensureLayoutsForCanvasElements() {
         element.fontWeight = textDefaults.fontWeight;
         changed = true;
       }
+      if (!element.lineHeight) {
+        element.lineHeight = textDefaults.lineHeight;
+        changed = true;
+      }
       if (!element.backgroundStyle) {
         element.backgroundStyle = textDefaults.backgroundStyle;
         changed = true;
@@ -931,7 +958,7 @@ async function ensureLayoutsForCanvasElements() {
       element.fontStyle = fontStyle;
       element.outlineStyle = outlineStyle;
       applyTextFontConfig(element);
-      const size = measureTextLayout(element.content, element.fontSize, element.backgroundStyle, element.fontStyle);
+      const size = measureTextLayout(element.content, element.fontSize, element.backgroundStyle, element.fontStyle, element.lineHeight);
       const previousWidth = Number(element.width) || size.width;
       const previousCenterX = typeof element.x === "number"
         ? element.x + previousWidth / 2
@@ -1478,12 +1505,12 @@ function canvasElement(element) {
       `--max-text-width:${maxTextWidth}px`,
       `--font-size:${element.fontSize}px`,
       `--font-family:${escapeHtml(fontConfig.fontFamily)}`,
-      `--font-weight:${escapeHtml(fontConfig.fontWeight)}`,
+      `--font-weight:${escapeHtml(element.fontWeight || fontConfig.fontWeight)}`,
       `--font-style:${escapeHtml(fontConfig.cssFontStyle)}`,
       `--font-color:${escapeHtml(element.color)}`,
       `--text-align:${escapeHtml(element.textAlign)}`,
       `--letter-spacing:${escapeHtml(fontConfig.letterSpacing)}`,
-      `--line-height:${fontConfig.lineHeight}`
+      `--line-height:${element.lineHeight || fontConfig.lineHeight}`
     );
 
     return `<div class="canvas-item canvas-text-element text-item-wrapper ${selected} ${editing} ${placeholderClass} ${locked}" data-item-type="text" data-item-id="${element.id}" data-locked="${element.locked ? "true" : "false"}" data-background-style="${backgroundStyle}" data-outline-style="${outlineStyle}" style="${baseStyle.join(";")}"><span class="canvas-text-content text-item-content">${escapeHtml(displayContent || "")}</span></div>`;
@@ -1878,6 +1905,10 @@ function textEditorPanel() {
   const backgroundStyle = normalizedTextBackgroundStyle(
     state.textComposer.editingId === element.id ? state.textComposer.backgroundStyle : element.backgroundStyle
   );
+  const fontStyle = state.textComposer.editingId === element.id ? state.textComposer.fontStyle : element.fontStyle;
+  const fontWeight = state.textComposer.editingId === element.id ? state.textComposer.fontWeight : element.fontWeight;
+  const textAlign = state.textComposer.editingId === element.id ? state.textComposer.textAlign : element.textAlign;
+  const lineHeight = state.textComposer.editingId === element.id ? state.textComposer.lineHeight : element.lineHeight;
 
   return `
     <section class="text-editor-panel" aria-label="文字编辑面板">
@@ -1909,6 +1940,30 @@ function textEditorPanel() {
                 <i style="--swatch-color:${option.value}"></i>
               </button>
             `).join("")}
+          </div>
+        </div>
+        <div class="text-editor-row">
+          <span>字体</span>
+          <div class="text-background-control">
+            ${textFontOptions.map((option) => `<button class="${fontStyle === option.value ? "is-active" : ""}" type="button" data-action="text-font" data-font-style="${option.value}">${option.label}</button>`).join("")}
+          </div>
+        </div>
+        <div class="text-editor-row">
+          <span>字重</span>
+          <div class="text-background-control">
+            ${textWeightOptions.map((weight) => `<button class="${Number(fontWeight) === weight ? "is-active" : ""}" type="button" data-action="text-weight" data-font-weight="${weight}">${weight}</button>`).join("")}
+          </div>
+        </div>
+        <div class="text-editor-row">
+          <span>对齐</span>
+          <div class="text-background-control">
+            ${[["left", "左"], ["center", "中"], ["right", "右"]].map(([value, label]) => `<button class="${textAlign === value ? "is-active" : ""}" type="button" data-action="text-align" data-text-align="${value}">${label}</button>`).join("")}
+          </div>
+        </div>
+        <div class="text-editor-row">
+          <span>行距</span>
+          <div class="text-background-control">
+            ${textLineHeightOptions.map((value) => `<button class="${Number(lineHeight) === value ? "is-active" : ""}" type="button" data-action="text-line-height" data-line-height="${value}">${value}</button>`).join("")}
           </div>
         </div>
         <div class="text-editor-row">
@@ -2707,12 +2762,26 @@ async function undoLastChange() {
   const snapshot = stack.pop();
   if (!snapshot) return;
 
+  redoStackForDate(day.dateKey).push(snapshotForDate(day.dateKey));
   await restoreDaySnapshot(snapshot);
   clearSelection();
   if (!getDay()) {
     state.view = "daybook";
     state.activeDayId = "";
   }
+  render();
+}
+
+async function redoLastChange() {
+  const day = getDay();
+  if (!day) return;
+  const stack = redoStackForDate(day.dateKey);
+  const snapshot = stack.pop();
+  if (!snapshot) return;
+
+  undoStackForDate(day.dateKey).push(snapshotForDate(day.dateKey));
+  await restoreDaySnapshot(snapshot);
+  clearSelection();
   render();
 }
 
@@ -3332,6 +3401,8 @@ function textComposerDefaults() {
     fontSize: textDefaults.fontSize,
     color: textDefaults.color,
     fontWeight: textDefaults.fontWeight,
+    lineHeight: textDefaults.lineHeight,
+    textAlign: "center",
     backgroundStyle: textDefaults.backgroundStyle,
     fontStyle: textDefaults.fontStyle,
     outlineStyle: textDefaults.outlineStyle,
@@ -3348,6 +3419,7 @@ function ensureTextElementStyle(element) {
   if (typeof element.fontSize !== "number") element.fontSize = textDefaults.fontSize;
   if (!element.color) element.color = textDefaults.color;
   if (!element.fontWeight) element.fontWeight = textDefaults.fontWeight;
+  if (!element.lineHeight) element.lineHeight = textDefaults.lineHeight;
   element.fontStyle = normalizedTextFontStyle(element.fontStyle);
   element.outlineStyle = normalizedTextOutlineStyle(element.outlineStyle);
   element.backgroundStyle = normalizedTextBackgroundStyle(element.backgroundStyle);
@@ -3371,6 +3443,8 @@ function beginTextEditorSession(element, options = {}) {
     fontSize: element.fontSize,
     color: element.color,
     fontWeight: element.fontWeight,
+    lineHeight: element.lineHeight,
+    textAlign: element.textAlign,
     backgroundStyle: element.backgroundStyle,
     fontStyle: element.fontStyle,
     outlineStyle: element.outlineStyle,
@@ -3812,7 +3886,8 @@ async function drawTransformedItem(context, item, itemType, offsetY, draw) {
     item.content,
     item.fontSize || textDefaults.fontSize,
     item.backgroundStyle || textDefaults.backgroundStyle,
-    item.fontStyle || textDefaults.fontStyle
+    item.fontStyle || textDefaults.fontStyle,
+    item.lineHeight || textDefaults.lineHeight
   );
   const width = item.width || textLayout.width;
   const height = item.height || textLayout.height;
@@ -3963,7 +4038,7 @@ async function dayCanvasBlob(day) {
         const padding = textBackgroundPadding(backgroundStyle);
         drawTextBackground(context, backgroundStyle, itemWidth, itemHeight);
         context.fillStyle = item.color || textDefaults.color;
-        context.font = `${fontConfig.cssFontStyle} ${fontConfig.fontWeight} ${fontSize}px ${fontConfig.fontFamily}`;
+        context.font = `${fontConfig.cssFontStyle} ${item.fontWeight || fontConfig.fontWeight} ${fontSize}px ${fontConfig.fontFamily}`;
         drawTextLines(
           context,
           item.content,
@@ -3971,7 +4046,7 @@ async function dayCanvasBlob(day) {
           fontSize,
           item.textAlign || "center",
           outlineStyle,
-          fontConfig.lineHeight
+          item.lineHeight || fontConfig.lineHeight
         );
       });
     } else if (item.stickerType === "image" && item.imageDataUrl) {
@@ -4085,12 +4160,12 @@ function applyTextElementDom(element) {
   node.style.setProperty("--max-text-width", `${maxTextWidth}px`);
   node.style.setProperty("--font-size", `${element.fontSize}px`);
   node.style.setProperty("--font-family", fontConfig.fontFamily);
-  node.style.setProperty("--font-weight", fontConfig.fontWeight);
+  node.style.setProperty("--font-weight", element.fontWeight || fontConfig.fontWeight);
   node.style.setProperty("--font-style", fontConfig.cssFontStyle);
   node.style.setProperty("--font-color", element.color);
   node.style.setProperty("--text-align", element.textAlign);
   node.style.setProperty("--letter-spacing", fontConfig.letterSpacing);
-  node.style.setProperty("--line-height", fontConfig.lineHeight);
+  node.style.setProperty("--line-height", element.lineHeight || fontConfig.lineHeight);
 }
 
 async function applyTextComposerPatch(patch, options = {}) {
@@ -4107,6 +4182,14 @@ async function applyTextComposerPatch(patch, options = {}) {
   element.fontSize = clamp(Number(state.textComposer.fontSize) || textDefaults.fontSize, minTextFontSize, maxTextFontSize);
   state.textComposer.fontSize = element.fontSize;
   element.color = state.textComposer.color || textDefaults.color;
+  element.fontWeight = textWeightOptions.includes(Number(state.textComposer.fontWeight))
+    ? Number(state.textComposer.fontWeight)
+    : textDefaults.fontWeight;
+  element.lineHeight = clamp(Number(state.textComposer.lineHeight) || textDefaults.lineHeight, 1, 2);
+  element.textAlign = ["left", "center", "right"].includes(state.textComposer.textAlign)
+    ? state.textComposer.textAlign
+    : "center";
+  element.textAlignMode = "manual";
   element.fontStyle = normalizedTextFontStyle(state.textComposer.fontStyle);
   element.outlineStyle = normalizedTextOutlineStyle(state.textComposer.outlineStyle);
   element.backgroundStyle = normalizedTextBackgroundStyle(state.textComposer.backgroundStyle);
@@ -4144,7 +4227,8 @@ function syncTextLayoutSize(element) {
     element.content,
     element.fontSize || textDefaults.fontSize,
     element.backgroundStyle,
-    element.fontStyle
+    element.fontStyle,
+    element.lineHeight
   );
   element.width = size.width;
   element.height = size.height;
@@ -4276,11 +4360,11 @@ function applyInteractiveStyle(element, layout, itemType) {
   if (itemType === "text") {
     const fontConfig = textFontConfig(layout.fontStyle);
     element.style.setProperty("--font-family", fontConfig.fontFamily);
-    element.style.setProperty("--font-weight", fontConfig.fontWeight);
+    element.style.setProperty("--font-weight", layout.fontWeight || fontConfig.fontWeight);
     element.style.setProperty("--font-style", fontConfig.cssFontStyle);
     element.style.setProperty("--font-color", layout.color || textDefaults.color);
     element.style.setProperty("--letter-spacing", fontConfig.letterSpacing);
-    element.style.setProperty("--line-height", fontConfig.lineHeight);
+    element.style.setProperty("--line-height", layout.lineHeight || fontConfig.lineHeight);
     element.dataset.backgroundStyle = normalizedTextBackgroundStyle(layout.backgroundStyle);
     element.dataset.outlineStyle = normalizedTextOutlineStyle(layout.outlineStyle);
   }
@@ -5832,13 +5916,21 @@ document.addEventListener("click", async (event) => {
     await applyTextComposerPatch({ backgroundStyle }, { renderControls: true });
     return;
   }
+  if (action === "text-font") {
+    await applyTextComposerPatch({ fontStyle: actionTarget.dataset.fontStyle }, { renderControls: true });
+    return;
+  }
+  if (action === "text-weight") {
+    await applyTextComposerPatch({ fontWeight: Number(actionTarget.dataset.fontWeight) }, { renderControls: true });
+    return;
+  }
   if (action === "text-align") {
-    const alignments = ["left", "center", "right"];
-    updateSelectedTextElement((element) => {
-      const index = alignments.indexOf(element.textAlign);
-      element.textAlign = alignments[(index + 1) % alignments.length];
-      element.textAlignMode = "manual";
-    });
+    const textAlign = actionTarget.dataset.textAlign || "center";
+    await applyTextComposerPatch({ textAlign }, { renderControls: true });
+    return;
+  }
+  if (action === "text-line-height") {
+    await applyTextComposerPatch({ lineHeight: Number(actionTarget.dataset.lineHeight) }, { renderControls: true });
     return;
   }
   if (action === "text-size-down") {
@@ -5888,6 +5980,41 @@ document.addEventListener("input", (event) => {
   const composer = event.target.closest("[data-text-composer]");
   if (!composer) return;
   applyTextComposerPatch({ value: composer.value });
+});
+
+document.addEventListener("keydown", (event) => {
+  const editingField = event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement || event.target?.isContentEditable;
+  if (event.key === "Escape" && state.textComposer.active) {
+    event.preventDefault();
+    void completeTextComposer();
+    return;
+  }
+  if (editingField) return;
+
+  const modifier = event.metaKey || event.ctrlKey;
+  if (modifier && event.key.toLowerCase() === "z") {
+    event.preventDefault();
+    if (event.shiftKey) void redoLastChange();
+    else void undoLastChange();
+    return;
+  }
+  if (modifier && event.key.toLowerCase() === "y") {
+    event.preventDefault();
+    void redoLastChange();
+    return;
+  }
+  if ((event.key === "Backspace" || event.key === "Delete") && state.selectedPhotoId && state.selectedItemType !== "photo") {
+    event.preventDefault();
+    void deleteSelectedElement(state.selectedPhotoId);
+  }
+});
+
+document.addEventListener("dblclick", (event) => {
+  const textNode = event.target.closest(".canvas-text-element");
+  const itemId = textNode?.dataset.itemId;
+  if (!itemId) return;
+  event.preventDefault();
+  void editTextElement(itemId);
 });
 
 document.querySelector("#photoInput").addEventListener("change", handlePhotoSelection);
