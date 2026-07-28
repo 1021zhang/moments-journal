@@ -108,7 +108,8 @@ const state = {
   userPhotos: [],
   canvasElements: [],
   customStickers: [],
-  officialPackImageStatus: {},
+  materialPreviewStatus: {},
+  materialPreviewPageSize: {},
   db: null,
   storageMode: "indexedDB",
   undoHistory: {}
@@ -204,7 +205,12 @@ const textClickGuard = {
   itemId: "",
   expiresAt: 0
 };
-const officialPackImagePreloaders = new Map();
+const materialPreviewCache = new Map();
+const materialPreviewLoads = new Map();
+const materialPreviewCacheLimit = 4;
+const materialPreviewSize = 192;
+const materialPreviewInitialCount = 12;
+const materialPreviewBatchSize = 12;
 function loadNotes() {
   try {
     return JSON.parse(localStorage.getItem(noteStorageKey) || "{}");
@@ -1518,32 +1524,97 @@ function shouldRefreshOfficialStickerPackHome() {
     && !state.activeOfficialStickerPackId;
 }
 
-function preloadOfficialStickerPackImages() {
-  officialAssets.filter((asset) => asset.type === "sticker").forEach((pack) => {
-    const status = state.officialPackImageStatus[pack.id];
-    if (status === "loading" || status === "loaded" || !pack.packageImage) return;
+function materialPreviewKey(kind, id) {
+  return `${kind}:${id}`;
+}
 
-    state.officialPackImageStatus[pack.id] = "loading";
-    const image = new Image();
-    officialPackImagePreloaders.set(pack.id, image);
+function releaseMaterialPreviewCache(cacheKey) {
+  const entry = materialPreviewCache.get(cacheKey);
+  entry?.previews.forEach((preview) => URL.revokeObjectURL(preview));
+  materialPreviewCache.delete(cacheKey);
+}
 
-    image.onload = async () => {
+function touchMaterialPreviewCache(cacheKey) {
+  const entry = materialPreviewCache.get(cacheKey);
+  if (!entry) return null;
+  entry.lastUsed = performance.now();
+  return entry;
+}
+
+function ensureMaterialPreviewCache(cacheKey) {
+  let entry = touchMaterialPreviewCache(cacheKey);
+  if (entry) return entry;
+  while (materialPreviewCache.size >= materialPreviewCacheLimit) {
+    const oldest = [...materialPreviewCache.entries()].sort((a, b) => a[1].lastUsed - b[1].lastUsed)[0];
+    if (!oldest) break;
+    releaseMaterialPreviewCache(oldest[0]);
+  }
+  entry = { previews: [], lastUsed: performance.now() };
+  materialPreviewCache.set(cacheKey, entry);
+  return entry;
+}
+
+async function createMaterialPreview(source) {
+  const response = await fetch(source);
+  if (!response.ok) throw new Error(`Unable to load ${source}`);
+  const blob = await response.blob();
+  if ("createImageBitmap" in window) {
+    const bitmap = await createImageBitmap(blob, {
+      resizeWidth: materialPreviewSize,
+      resizeQuality: "medium"
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0);
+    bitmap.close();
+    const previewBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.82));
+    return URL.createObjectURL(previewBlob || blob);
+  }
+  // Older browsers retain their normal image path, while modern browsers never
+  // put the full-resolution decoded bitmap into the material grid.
+  return source;
+}
+
+function materialPreviewSources(kind, asset) {
+  return kind === "tape" ? [asset.rollPreview] : asset.stickers.map((sticker) => sticker.image);
+}
+
+function requestMaterialPreviews(kind, asset, count) {
+  const cacheKey = materialPreviewKey(kind, asset.id);
+  const entry = ensureMaterialPreviewCache(cacheKey);
+  const sources = materialPreviewSources(kind, asset);
+  const target = Math.min(count, sources.length);
+  if (entry.previews.length >= target || materialPreviewLoads.has(cacheKey)) return;
+
+  const startedAt = performance.now();
+  state.materialPreviewStatus[cacheKey] = "loading";
+  const load = (async () => {
+    for (let index = entry.previews.length; index < target; index += 1) {
       try {
-        await image.decode?.();
+        entry.previews[index] = await createMaterialPreview(sources[index]);
       } catch {
-        // onload already confirms the image is usable when decode is unavailable.
+        entry.previews[index] = sources[index];
       }
-      state.officialPackImageStatus[pack.id] = "loaded";
-      officialPackImagePreloaders.delete(pack.id);
-      if (shouldRefreshOfficialStickerPackHome()) render();
-    };
-    image.onerror = () => {
-      state.officialPackImageStatus[pack.id] = "failed";
-      officialPackImagePreloaders.delete(pack.id);
-      if (shouldRefreshOfficialStickerPackHome()) render();
-    };
-    image.src = pack.packageImage;
+      // Reveal a few finished previews at a time instead of blocking on a whole pack.
+      if ((index + 1) % 4 === 0 && state.activePanel === "materials") render();
+    }
+    state.materialPreviewStatus[cacheKey] = "loaded";
+    console.info("[materials-performance]", {
+      asset: cacheKey,
+      previewCount: target,
+      cacheHit: false,
+      durationMs: Math.round(performance.now() - startedAt)
+    });
+  })().finally(() => {
+    materialPreviewLoads.delete(cacheKey);
+    if (state.activePanel === "materials") render();
   });
+  materialPreviewLoads.set(cacheKey, load);
+}
+
+function materialPreviewEntry(kind, asset) {
+  return touchMaterialPreviewCache(materialPreviewKey(kind, asset.id));
 }
 
 function isStickerImageAsset(image) {
@@ -1614,24 +1685,11 @@ function officialStickerPackHome() {
       </div>
       <div class="official-pack-shelf" aria-label="官方贴纸包">
         ${officialAssets.filter((asset) => asset.type === "sticker").map((pack) => {
-          const imageStatus = state.officialPackImageStatus[pack.id] || "idle";
-          const content = imageStatus === "loaded" ? `
-              <span class="official-pack-package-visual">
-                <img src="${escapeHtml(pack.packageImage)}" alt="${escapeHtml(pack.title)} 贴纸包" draggable="false" />
-              </span>
-            ` : imageStatus === "failed" ? `
-              <span class="official-pack-package-fallback">
-                <small>Loading failed</small>
-              </span>
-            ` : `
-              <span class="official-pack-package-skeleton" aria-label="${escapeHtml(pack.title)} 加载中">
-                <i></i>
-                <i></i>
-              </span>
-            `;
           return `
-            <button class="official-pack-package is-${imageStatus}" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}" aria-label="打开 ${escapeHtml(pack.title)}">
-              ${content}
+            <button class="official-pack-package" type="button" data-action="open-official-sticker-pack" data-pack-id="${escapeHtml(pack.id)}" aria-label="打开 ${escapeHtml(pack.title)}">
+              <span class="official-pack-package-visual">
+                <img src="${escapeHtml(pack.packageImage)}" alt="${escapeHtml(pack.title)} 贴纸包" loading="lazy" decoding="async" draggable="false" />
+              </span>
             </button>
           `;
         }).join("")}
@@ -1642,6 +1700,10 @@ function officialStickerPackHome() {
 
 function officialStickerPackDetail(pack) {
   if (!pack) return officialStickerPackHome();
+  const cacheKey = materialPreviewKey("sticker", pack.id);
+  const displayCount = state.materialPreviewPageSize[cacheKey] || materialPreviewInitialCount;
+  const previews = materialPreviewEntry("sticker", pack)?.previews || [];
+  const visibleStickers = pack.stickers.slice(0, displayCount);
   return `
     <section class="official-pack-detail" aria-label="${escapeHtml(pack.title)}">
       <header class="official-pack-detail-header">
@@ -1651,19 +1713,22 @@ function officialStickerPackDetail(pack) {
         </div>
       </header>
       <div class="official-pack-sticker-grid">
-        ${pack.stickers.map((sticker) => `
+        ${visibleStickers.map((sticker, index) => `
           <button
-            class="official-pack-sticker"
+            class="official-pack-sticker ${previews[index] ? "is-ready" : "is-loading"}"
             type="button"
             data-action="add-official-sticker"
             data-pack-id="${escapeHtml(pack.id)}"
             data-sticker-id="${escapeHtml(sticker.id)}"
             aria-label="添加 ${escapeHtml(sticker.name || sticker.id || "官方")} 贴纸"
           >
-            ${officialStickerMarkup(sticker)}
+            ${previews[index]
+              ? `<img src="${escapeHtml(previews[index])}" alt="" draggable="false" />`
+              : `<span class="material-preview-skeleton" aria-label="加载预览"></span>`}
           </button>
         `).join("")}
       </div>
+      ${displayCount < pack.stickers.length ? `<button class="material-preview-more" type="button" data-action="load-more-official-stickers" data-pack-id="${escapeHtml(pack.id)}">加载更多</button>` : ""}
     </section>
   `;
 }
@@ -1712,7 +1777,7 @@ function materialTapeCard(tape) {
   return `
     <button class="tape-card" type="button" data-action="select-tape-material" data-tape-id="${escapeHtml(tape.id)}" aria-label="选择 ${escapeHtml(tape.name)}">
       <span class="tape-card-preview" aria-hidden="true" style="--tape-repeat:url('${escapeCssUrl(tape.texture || tape.repeatTexture)}')">
-        <img src="${escapeHtml(tape.rollPreview)}" alt="" draggable="false" />
+        <img src="${escapeHtml(tape.rollPreview)}" alt="" loading="lazy" decoding="async" draggable="false" />
       </span>
       <span class="tape-card-copy"><strong>${escapeHtml(tape.name)}</strong><small>${escapeHtml(tape.subtitle)}</small></span>
     </button>
@@ -5564,7 +5629,6 @@ document.addEventListener("click", async (event) => {
     clearCanvasStickerPress();
     activePointers.clear();
     setDeleteZoneVisible(false);
-    preloadOfficialStickerPackImages();
     closeStickerMenus();
     render();
     window.setTimeout(() => {
@@ -5576,9 +5640,6 @@ document.addEventListener("click", async (event) => {
   if (action === "set-materials-tab") {
     state.materialsTab = actionTarget.dataset.tab === "tape" ? "tape" : "sticker";
     state.activeOfficialStickerPackId = "";
-    if (state.materialsTab === "sticker" && state.stickerLibraryTab === "official") {
-      preloadOfficialStickerPackImages();
-    }
     render();
     return;
   }
@@ -5592,7 +5653,6 @@ document.addEventListener("click", async (event) => {
   if (action === "set-sticker-library-tab") {
     state.stickerLibraryTab = actionTarget.dataset.tab === "official" ? "official" : "personal";
     state.activeOfficialStickerPackId = "";
-    if (state.stickerLibraryTab === "official") preloadOfficialStickerPackImages();
     closeStickerMenus();
     render();
     return;
@@ -5605,7 +5665,28 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "open-official-sticker-pack") {
     const pack = officialStickerPackById(actionTarget.dataset.packId);
-    if (pack) state.activeOfficialStickerPackId = pack.id;
+    if (pack) {
+      state.activeOfficialStickerPackId = pack.id;
+      const cacheKey = materialPreviewKey("sticker", pack.id);
+      const wasCached = Boolean(materialPreviewEntry("sticker", pack));
+      state.materialPreviewPageSize[cacheKey] ||= materialPreviewInitialCount;
+      requestMaterialPreviews("sticker", pack, state.materialPreviewPageSize[cacheKey]);
+      if (wasCached) {
+        console.info("[materials-performance]", { asset: cacheKey, cacheHit: true, action: "open", durationMs: 0 });
+      }
+    }
+    render();
+    return;
+  }
+  if (action === "load-more-official-stickers") {
+    const pack = officialStickerPackById(actionTarget.dataset.packId);
+    if (!pack) return;
+    const cacheKey = materialPreviewKey("sticker", pack.id);
+    state.materialPreviewPageSize[cacheKey] = Math.min(
+      pack.stickers.length,
+      (state.materialPreviewPageSize[cacheKey] || materialPreviewInitialCount) + materialPreviewBatchSize
+    );
+    requestMaterialPreviews("sticker", pack, state.materialPreviewPageSize[cacheKey]);
     render();
     return;
   }

@@ -2613,6 +2613,38 @@ img.no-ios-callout,
   pointer-events: none;
 }
 
+.official-pack-sticker.is-loading {
+  overflow: hidden;
+}
+
+.material-preview-skeleton {
+  display: block;
+  width: 72%;
+  height: 72%;
+  border-radius: 14px;
+  background: linear-gradient(105deg, rgba(255, 255, 255, 0.12) 25%, rgba(255, 255, 255, 0.28) 45%, rgba(255, 255, 255, 0.12) 65%);
+  background-size: 220% 100%;
+  animation: material-preview-shimmer 1.2s ease-in-out infinite;
+}
+
+.material-preview-more {
+  display: block;
+  width: 100%;
+  min-height: 42px;
+  margin: 18px 0 6px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+@keyframes material-preview-shimmer {
+  to { background-position: -120% 0; }
+}
+
 /* Apple Style artwork includes intentional transparent safety padding, so its preview grid gives each icon more room. */
 .official-pack-sticker-grid:has(> .official-pack-sticker[data-pack-id="apple-style"]) {
   grid-template-columns: repeat(3, minmax(0, 1fr));
