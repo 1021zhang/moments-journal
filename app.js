@@ -36,13 +36,6 @@ const textDefaults = {
   fontStyle: "system",
   outlineStyle: "none"
 };
-const textColorOptions = [
-  { label: "黑", value: "#111111" },
-  { label: "白", value: "#ffffff" },
-  { label: "灰", value: "#8a8a8a" },
-  { label: "红", value: "#e8504f" },
-  { label: "蓝", value: "#3478f6" }
-];
 const textBackgroundOptions = [
   { label: "无", value: "none" },
   { label: "白底", value: "white" },
@@ -55,7 +48,6 @@ const textFontOptions = [
   { value: "headline", label: "标题" }
 ];
 const textWeightOptions = [400, 500, 700, 900];
-const textLineHeightOptions = [1.15, 1.35, 1.55];
 const mockPhotos = [
   { id: "mock-cafe", type: "mock", caption: "cafe", src: "https://picsum.photos/seed/moments-cafe/320/320" },
   { id: "mock-walk", type: "mock", caption: "walk", src: "https://picsum.photos/seed/moments-walk/320/320" },
@@ -1902,13 +1894,7 @@ function textEditorPanel() {
 
   const value = state.textComposer.editingId === element.id ? state.textComposer.value : element.content;
   const color = state.textComposer.editingId === element.id ? state.textComposer.color : element.color || textDefaults.color;
-  const backgroundStyle = normalizedTextBackgroundStyle(
-    state.textComposer.editingId === element.id ? state.textComposer.backgroundStyle : element.backgroundStyle
-  );
   const fontStyle = state.textComposer.editingId === element.id ? state.textComposer.fontStyle : element.fontStyle;
-  const fontWeight = state.textComposer.editingId === element.id ? state.textComposer.fontWeight : element.fontWeight;
-  const textAlign = state.textComposer.editingId === element.id ? state.textComposer.textAlign : element.textAlign;
-  const lineHeight = state.textComposer.editingId === element.id ? state.textComposer.lineHeight : element.lineHeight;
 
   return `
     <section class="text-editor-panel" aria-label="文字编辑面板">
@@ -1926,53 +1912,17 @@ function textEditorPanel() {
       >${escapeHtml(value)}</textarea>
       <div class="text-editor-controls">
         <div class="text-editor-row">
-          <span>颜色</span>
-          <div class="text-color-control">
-            ${textColorOptions.map((option) => `
-              <button
-                class="${color === option.value ? "is-active" : ""}"
-                type="button"
-                data-action="text-color"
-                data-color="${option.value}"
-                aria-label="${option.label}"
-                title="${option.label}"
-              >
-                <i style="--swatch-color:${option.value}"></i>
-              </button>
-            `).join("")}
-          </div>
-        </div>
-        <div class="text-editor-row">
           <span>字体</span>
           <div class="text-background-control">
             ${textFontOptions.map((option) => `<button class="${fontStyle === option.value ? "is-active" : ""}" type="button" data-action="text-font" data-font-style="${option.value}">${option.label}</button>`).join("")}
           </div>
         </div>
         <div class="text-editor-row">
-          <span>字重</span>
-          <div class="text-background-control">
-            ${textWeightOptions.map((weight) => `<button class="${Number(fontWeight) === weight ? "is-active" : ""}" type="button" data-action="text-weight" data-font-weight="${weight}">${weight}</button>`).join("")}
-          </div>
-        </div>
-        <div class="text-editor-row">
-          <span>对齐</span>
-          <div class="text-background-control">
-            ${[["left", "左"], ["center", "中"], ["right", "右"]].map(([value, label]) => `<button class="${textAlign === value ? "is-active" : ""}" type="button" data-action="text-align" data-text-align="${value}">${label}</button>`).join("")}
-          </div>
-        </div>
-        <div class="text-editor-row">
-          <span>行距</span>
-          <div class="text-background-control">
-            ${textLineHeightOptions.map((value) => `<button class="${Number(lineHeight) === value ? "is-active" : ""}" type="button" data-action="text-line-height" data-line-height="${value}">${value}</button>`).join("")}
-          </div>
-        </div>
-        <div class="text-editor-row">
-          <span>背景</span>
-          <div class="text-background-control">
-            ${textBackgroundOptions.map((option) => `
-              <button class="${backgroundStyle === option.value ? "is-active" : ""}" type="button" data-action="text-background" data-background-style="${option.value}">${option.label}</button>
-            `).join("")}
-          </div>
+          <span>颜色</span>
+          <label class="text-color-picker" style="--text-picker-color:${escapeHtml(color)}" aria-label="选择文字颜色">
+            <input type="color" data-text-color-picker value="${escapeHtml(color)}" aria-label="选择文字颜色" />
+            <i aria-hidden="true"></i>
+          </label>
         </div>
       </div>
     </section>
@@ -5904,47 +5854,8 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "delete-photo" || action === "delete-element") return;
-  if (action === "text-color") {
-    const color = actionTarget.dataset.color;
-    if (color) {
-      await applyTextComposerPatch({ color }, { renderControls: true });
-    }
-    return;
-  }
-  if (action === "text-background") {
-    const backgroundStyle = normalizedTextBackgroundStyle(actionTarget.dataset.backgroundStyle);
-    await applyTextComposerPatch({ backgroundStyle }, { renderControls: true });
-    return;
-  }
   if (action === "text-font") {
     await applyTextComposerPatch({ fontStyle: actionTarget.dataset.fontStyle }, { renderControls: true });
-    return;
-  }
-  if (action === "text-weight") {
-    await applyTextComposerPatch({ fontWeight: Number(actionTarget.dataset.fontWeight) }, { renderControls: true });
-    return;
-  }
-  if (action === "text-align") {
-    const textAlign = actionTarget.dataset.textAlign || "center";
-    await applyTextComposerPatch({ textAlign }, { renderControls: true });
-    return;
-  }
-  if (action === "text-line-height") {
-    await applyTextComposerPatch({ lineHeight: Number(actionTarget.dataset.lineHeight) }, { renderControls: true });
-    return;
-  }
-  if (action === "text-size-down") {
-    updateSelectedTextElement((element) => {
-      element.fontSize = clamp((element.fontSize || 24) - 2, 12, 96);
-      element.height = Math.max(34, element.fontSize * 1.6);
-    });
-    return;
-  }
-  if (action === "text-size-up") {
-    updateSelectedTextElement((element) => {
-      element.fontSize = clamp((element.fontSize || 24) + 2, 12, 96);
-      element.height = Math.max(34, element.fontSize * 1.6);
-    });
     return;
   }
   if (action === "close-panel") {
@@ -5977,9 +5888,14 @@ document.addEventListener("click", async (event) => {
 });
 
 document.addEventListener("input", (event) => {
+  const colorPicker = event.target.closest("[data-text-color-picker]");
+  if (colorPicker) {
+    void applyTextComposerPatch({ color: colorPicker.value });
+    return;
+  }
   const composer = event.target.closest("[data-text-composer]");
   if (!composer) return;
-  applyTextComposerPatch({ value: composer.value });
+  void applyTextComposerPatch({ value: composer.value });
 });
 
 document.addEventListener("keydown", (event) => {
