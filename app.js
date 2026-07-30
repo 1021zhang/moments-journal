@@ -45,6 +45,7 @@ const textFontOptions = [
   { value: "system", label: "系统" },
   { value: "wenkai", label: "文楷" },
   { value: "handwritten", label: "手写" },
+  { value: "momo", label: "Momo" },
   { value: "headline", label: "标题" }
 ];
 const textWeightOptions = [400, 500, 700, 900];
@@ -439,6 +440,13 @@ function textFontConfig(style) {
       letterSpacing: "0.04em",
       lineHeight: 1.18
     },
+    momo: {
+      fontFamily: '"Momo Hand", "LXGW WenKai", "PingFang SC", sans-serif',
+      cssFontStyle: "normal",
+      fontWeight: 400,
+      letterSpacing: "0.03em",
+      lineHeight: 1.2
+    },
     wenkai: {
       fontFamily: "\"LXGW WenKai\", \"KaiTi\", \"STKaiti\", \"Songti SC\", serif",
       cssFontStyle: "normal",
@@ -454,6 +462,11 @@ function textFontConfig(style) {
       lineHeight: 1.08
     }
   }[normalizedTextFontStyle(style)];
+}
+
+function textFontWeight(element) {
+  const config = textFontConfig(element?.fontStyle);
+  return element?.fontStyle === "momo" ? config.fontWeight : (element?.fontWeight || config.fontWeight);
 }
 
 function applyTextFontConfig(element) {
@@ -1497,7 +1510,7 @@ function canvasElement(element) {
       `--max-text-width:${maxTextWidth}px`,
       `--font-size:${element.fontSize}px`,
       `--font-family:${escapeHtml(fontConfig.fontFamily)}`,
-      `--font-weight:${escapeHtml(element.fontWeight || fontConfig.fontWeight)}`,
+      `--font-weight:${escapeHtml(textFontWeight(element))}`,
       `--font-style:${escapeHtml(fontConfig.cssFontStyle)}`,
       `--font-color:${escapeHtml(element.color)}`,
       `--text-align:${escapeHtml(element.textAlign)}`,
@@ -3931,6 +3944,15 @@ async function drawTape(context, item, width, height) {
 }
 
 async function dayCanvasBlob(day) {
+  const usesMomoHand = elementsForDate(day.dateKey)
+    .some((element) => element.type === "text" && element.fontStyle === "momo");
+  if (usesMomoHand && document.fonts?.load) {
+    try {
+      await document.fonts.load('400 20px "Momo Hand"');
+    } catch {
+      // The Chinese fallback remains usable if the local font fails to load.
+    }
+  }
   const exportScale = 2;
   const headerHeight = 104;
   const width = canvasWidth;
@@ -3988,7 +4010,7 @@ async function dayCanvasBlob(day) {
         const padding = textBackgroundPadding(backgroundStyle);
         drawTextBackground(context, backgroundStyle, itemWidth, itemHeight);
         context.fillStyle = item.color || textDefaults.color;
-        context.font = `${fontConfig.cssFontStyle} ${item.fontWeight || fontConfig.fontWeight} ${fontSize}px ${fontConfig.fontFamily}`;
+        context.font = `${fontConfig.cssFontStyle} ${textFontWeight(item)} ${fontSize}px ${fontConfig.fontFamily}`;
         drawTextLines(
           context,
           item.content,
@@ -4110,7 +4132,7 @@ function applyTextElementDom(element) {
   node.style.setProperty("--max-text-width", `${maxTextWidth}px`);
   node.style.setProperty("--font-size", `${element.fontSize}px`);
   node.style.setProperty("--font-family", fontConfig.fontFamily);
-  node.style.setProperty("--font-weight", element.fontWeight || fontConfig.fontWeight);
+  node.style.setProperty("--font-weight", textFontWeight(element));
   node.style.setProperty("--font-style", fontConfig.cssFontStyle);
   node.style.setProperty("--font-color", element.color);
   node.style.setProperty("--text-align", element.textAlign);
@@ -4310,7 +4332,7 @@ function applyInteractiveStyle(element, layout, itemType) {
   if (itemType === "text") {
     const fontConfig = textFontConfig(layout.fontStyle);
     element.style.setProperty("--font-family", fontConfig.fontFamily);
-    element.style.setProperty("--font-weight", layout.fontWeight || fontConfig.fontWeight);
+    element.style.setProperty("--font-weight", textFontWeight(layout));
     element.style.setProperty("--font-style", fontConfig.cssFontStyle);
     element.style.setProperty("--font-color", layout.color || textDefaults.color);
     element.style.setProperty("--letter-spacing", fontConfig.letterSpacing);

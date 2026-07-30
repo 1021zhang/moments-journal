@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Momo Hand — lowercase prototype</title>
+    <style>
+      @font-face {
+        font-family: "Momo Hand";
+        src: url("../assets/fonts/MomoHand-Regular.ttf") format("truetype");
+        font-display: block;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        background: #f6f1e9;
+        color: #40403d;
+      }
+      main { width: min(900px, calc(100% - 64px)); }
+      .alphabet {
+        margin: 0;
+        font-family: "Momo Hand", sans-serif;
+        font-size: clamp(56px, 9vw, 112px);
+        line-height: 1.6;
+        letter-spacing: 0.06em;
+        word-spacing: 0.1em;
+      }
+      .note {
+        margin: 30px 0 0;
+        color: #85827b;
+        font: 14px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+        letter-spacing: 0.04em;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="alphabet">a b c d e f g h i<br />j k l m n o p q r<br />s t u v w x y z</p>
+      <p class="note">Momo Hand · lowercase prototype · v0.1</p>
+    </main>
+  </body>
+</html>
