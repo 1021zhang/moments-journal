@@ -3222,8 +3222,7 @@ img.no-ios-callout,
   font-weight: 600;
 }
 
-.text-segmented-control,
-.text-background-control {
+.text-font-control {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
@@ -3233,8 +3232,7 @@ img.no-ios-callout,
   background: rgba(118, 118, 128, 0.12);
 }
 
-.text-segmented-control button,
-.text-background-control button {
+.text-font-control button {
   min-width: 0;
   min-height: 30px;
   padding: 0 7px;
@@ -3248,8 +3246,7 @@ img.no-ios-callout,
   white-space: nowrap;
 }
 
-.text-segmented-control button.is-active,
-.text-background-control button.is-active {
+.text-font-control button.is-active {
   background: #ffffff;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }

@@ -1913,7 +1913,7 @@ function textEditorPanel() {
       <div class="text-editor-controls">
         <div class="text-editor-row">
           <span>字体</span>
-          <div class="text-background-control">
+          <div class="text-font-control">
             ${textFontOptions.map((option) => `<button class="${fontStyle === option.value ? "is-active" : ""}" type="button" data-action="text-font" data-font-style="${option.value}">${option.label}</button>`).join("")}
           </div>
         </div>
