@@ -45,7 +45,6 @@ const textFontOptions = [
   { value: "system", label: "系统" },
   { value: "wenkai", label: "文楷" },
   { value: "handwritten", label: "手写" },
-  { value: "momo", label: "Momo" },
   { value: "headline", label: "标题" }
 ];
 const textWeightOptions = [400, 500, 700, 900];
@@ -416,6 +415,9 @@ function normalizedTextBackgroundStyle(style) {
 }
 
 function normalizedTextFontStyle(style) {
+  if (["momo", "momo-hand", "momo_hand", "momohand"].includes(String(style || "").toLowerCase())) {
+    return "handwritten";
+  }
   return textFontOptions.some((option) => option.value === style) ? style : textDefaults.fontStyle;
 }
 
@@ -440,13 +442,6 @@ function textFontConfig(style) {
       letterSpacing: "0.04em",
       lineHeight: 1.18
     },
-    momo: {
-      fontFamily: '"Momo Hand", "LXGW WenKai", "PingFang SC", sans-serif',
-      cssFontStyle: "normal",
-      fontWeight: 400,
-      letterSpacing: "0.03em",
-      lineHeight: 1.2
-    },
     wenkai: {
       fontFamily: "\"LXGW WenKai\", \"KaiTi\", \"STKaiti\", \"Songti SC\", serif",
       cssFontStyle: "normal",
@@ -466,7 +461,7 @@ function textFontConfig(style) {
 
 function textFontWeight(element) {
   const config = textFontConfig(element?.fontStyle);
-  return element?.fontStyle === "momo" ? config.fontWeight : (element?.fontWeight || config.fontWeight);
+  return element?.fontWeight || config.fontWeight;
 }
 
 function applyTextFontConfig(element) {
@@ -3944,15 +3939,6 @@ async function drawTape(context, item, width, height) {
 }
 
 async function dayCanvasBlob(day) {
-  const usesMomoHand = elementsForDate(day.dateKey)
-    .some((element) => element.type === "text" && element.fontStyle === "momo");
-  if (usesMomoHand && document.fonts?.load) {
-    try {
-      await document.fonts.load('400 20px "Momo Hand"');
-    } catch {
-      // The Chinese fallback remains usable if the local font fails to load.
-    }
-  }
   const exportScale = 2;
   const headerHeight = 104;
   const width = canvasWidth;

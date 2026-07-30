@@ -1,4 +1,4 @@
-const CACHE_NAME = "moments-journal-v79";
+const CACHE_NAME = "moments-journal-v80";
 const APP_SHELL = [
   "./",
   "index.html",
@@ -7,8 +7,7 @@ const APP_SHELL = [
   "styles.css",
   "manifest.webmanifest",
   "icons/icon-192.png",
-  "icons/icon-512.png",
-  "assets/fonts/MomoHand-Regular.ttf"
+  "icons/icon-512.png"
 ];
 
 function appShellPath(pathname) {
