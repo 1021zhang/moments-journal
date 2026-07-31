@@ -43,8 +43,6 @@ const textBackgroundOptions = [
 ];
 const textFontOptions = [
   { value: "system", label: "系统" },
-  { value: "wenkai", label: "文楷" },
-  { value: "handwritten", label: "手写" },
   { value: "headline", label: "标题" },
   { value: "shanghai-modeng", label: "摩登" },
   { value: "bradley-hand", label: "Bradley" }
@@ -420,9 +418,6 @@ function normalizedTextBackgroundStyle(style) {
 }
 
 function normalizedTextFontStyle(style) {
-  if (["momo", "momo-hand", "momo_hand", "momohand"].includes(String(style || "").toLowerCase())) {
-    return "handwritten";
-  }
   return textFontOptions.some((option) => option.value === style) ? style : textDefaults.fontStyle;
 }
 
@@ -440,20 +435,6 @@ function textFontConfig(style) {
       letterSpacing: "0",
       lineHeight: 1.15
     },
-    handwritten: {
-      fontFamily: "\"Patrick Hand\", \"Architects Daughter\", \"LXGW WenKai\", \"KaiTi\", \"STKaiti\", \"PingFang SC\", sans-serif",
-      cssFontStyle: "normal",
-      fontWeight: 500,
-      letterSpacing: "0.04em",
-      lineHeight: 1.18
-    },
-    wenkai: {
-      fontFamily: "\"LXGW WenKai\", \"KaiTi\", \"STKaiti\", \"Songti SC\", serif",
-      cssFontStyle: "normal",
-      fontWeight: 500,
-      letterSpacing: "0.02em",
-      lineHeight: 1.25
-    },
     headline: {
       fontFamily: "\"Avenir Next\", \"Arial Rounded MT Bold\", \"PingFang SC\", sans-serif",
       cssFontStyle: "normal",
@@ -469,7 +450,7 @@ function textFontConfig(style) {
       lineHeight: 1.2
     },
     "bradley-hand": {
-      fontFamily: "\"Bradley Hand\", \"LXGW WenKai\", \"KaiTi\", \"PingFang SC\", sans-serif",
+      fontFamily: "\"Bradley Hand\", \"KaiTi\", \"STKaiti\", \"PingFang SC\", sans-serif",
       cssFontStyle: "normal",
       fontWeight: 700,
       letterSpacing: "0.025em",
