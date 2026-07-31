@@ -2651,20 +2651,6 @@ img.no-ios-callout,
   animation: material-preview-shimmer 1.2s ease-in-out infinite;
 }
 
-.material-preview-more {
-  display: block;
-  width: 100%;
-  min-height: 42px;
-  margin: 18px 0 6px;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 650;
-}
-
 @keyframes material-preview-shimmer {
   to { background-position: -120% 0; }
 }
