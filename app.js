@@ -45,7 +45,9 @@ const textFontOptions = [
   { value: "system", label: "系统" },
   { value: "wenkai", label: "文楷" },
   { value: "handwritten", label: "手写" },
-  { value: "headline", label: "标题" }
+  { value: "headline", label: "标题" },
+  { value: "shanghai-modeng", label: "摩登" },
+  { value: "bradley-hand", label: "Bradley" }
 ];
 const textWeightOptions = [400, 500, 700, 900];
 const mockPhotos = [
@@ -458,6 +460,20 @@ function textFontConfig(style) {
       fontWeight: 900,
       letterSpacing: "-0.01em",
       lineHeight: 1.08
+    },
+    "shanghai-modeng": {
+      fontFamily: "\"Shanghai Modeng\", \"PingFang SC\", \"SF Pro Display\", sans-serif",
+      cssFontStyle: "normal",
+      fontWeight: 400,
+      letterSpacing: "0.02em",
+      lineHeight: 1.2
+    },
+    "bradley-hand": {
+      fontFamily: "\"Bradley Hand\", \"LXGW WenKai\", \"KaiTi\", \"PingFang SC\", sans-serif",
+      cssFontStyle: "normal",
+      fontWeight: 700,
+      letterSpacing: "0.025em",
+      lineHeight: 1.22
     }
   }[normalizedTextFontStyle(style)];
 }
