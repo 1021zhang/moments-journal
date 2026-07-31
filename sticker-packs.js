@@ -213,6 +213,19 @@ const mjIconsPackStickers = [
   }
 ];
 
+const doodlePeoplePackStickers = createStickerItems(
+  "assets/sticker-packs/doodle-people-pack-01-02/stickers",
+  Array.from({ length: 84 }, (_, index) => {
+    const id = String(index + 1).padStart(3, "0");
+    return [id, `Doodle People ${id}`];
+  })
+);
+
+const doodlePeoplePackSheets = [
+  { id: "sheet-01", title: "Sheet 01", stickerIds: doodlePeoplePackStickers.slice(0, 42).map((sticker) => sticker.id) },
+  { id: "sheet-02", title: "Sheet 02", stickerIds: doodlePeoplePackStickers.slice(42).map((sticker) => sticker.id) }
+];
+
 // Official sticker pack cover spec:
 // 1200x900, 4:3, transparent background, safe area 80px, object-fit contain.
 /** @type {(StickerPack & { type: "sticker" })[]} */
@@ -273,6 +286,19 @@ const officialStickerAssets = [
     appleStylePackStickers,
     {
       category: "official",
+      type: "sticker"
+    }
+  ),
+  createOfficialStickerPack(
+    "doodle-people-pack-01-02",
+    "Doodle People Pack 01+02",
+    "2 sheet sticker set · 84 stickers",
+    "assets/sticker-packs/doodle-people-pack-01-02/cover.png",
+    doodlePeoplePackStickers,
+    {
+      previewImage: "assets/sticker-packs/doodle-people-pack-01-02/preview-sheet.png",
+      category: "Official",
+      sheets: doodlePeoplePackSheets,
       type: "sticker"
     }
   )

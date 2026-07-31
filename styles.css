@@ -2578,6 +2578,30 @@ img.no-ios-callout,
   font-size: 10px;
 }
 
+.official-pack-sheet-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: -2px 0 14px;
+}
+
+.official-pack-sheet-tabs button {
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.7);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.official-pack-sheet-tabs button.is-active {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
 .official-pack-sticker-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

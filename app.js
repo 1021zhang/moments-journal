@@ -71,6 +71,7 @@ const state = {
   stickerLibraryTab: "personal",
   officialPackViewMode: loadOfficialPackViewMode(),
   activeOfficialStickerPackId: "",
+  activeOfficialStickerSheetId: "",
   stickerSheetState: "collapsed",
   materialsPanelOpening: false,
   materialsPanelClosing: false,
@@ -1543,6 +1544,23 @@ function officialStickerPackById(packId) {
   return officialAssets.find((asset) => asset.type === "sticker" && asset.id === packId) || null;
 }
 
+function officialStickerSheet(pack) {
+  const sheets = Array.isArray(pack?.sheets) ? pack.sheets : [];
+  if (!sheets.length) return { sheets: [], activeSheet: null, stickers: pack?.stickers || [] };
+  const activeSheet = sheets.find((sheet) => sheet.id === state.activeOfficialStickerSheetId) || sheets[0];
+  const stickersById = new Map(pack.stickers.map((sticker) => [sticker.id, sticker]));
+  return {
+    sheets,
+    activeSheet,
+    stickers: activeSheet.stickerIds.map((id) => stickersById.get(id)).filter(Boolean)
+  };
+}
+
+function officialStickerPreviewAsset(pack) {
+  const { activeSheet, stickers } = officialStickerSheet(pack);
+  return activeSheet ? { ...pack, id: `${pack.id}:${activeSheet.id}`, stickers } : pack;
+}
+
 function shouldRefreshOfficialStickerPackHome() {
   return state.view === "single"
     && state.activePanel === "materials"
@@ -1727,10 +1745,12 @@ function officialStickerPackHome() {
 
 function officialStickerPackDetail(pack) {
   if (!pack) return officialStickerPackHome();
-  const cacheKey = materialPreviewKey("sticker", pack.id);
+  const { sheets, activeSheet, stickers } = officialStickerSheet(pack);
+  const previewAsset = officialStickerPreviewAsset(pack);
+  const cacheKey = materialPreviewKey("sticker", previewAsset.id);
   const displayCount = state.materialPreviewPageSize[cacheKey] || materialPreviewInitialCount;
-  const previews = materialPreviewEntry("sticker", pack)?.previews || [];
-  const visibleStickers = pack.stickers.slice(0, displayCount);
+  const previews = materialPreviewEntry("sticker", previewAsset)?.previews || [];
+  const visibleStickers = stickers.slice(0, displayCount);
   return `
     <section class="official-pack-detail" aria-label="${escapeHtml(pack.title)}">
       <header class="official-pack-detail-header">
@@ -1739,6 +1759,11 @@ function officialStickerPackDetail(pack) {
           <strong>${escapeHtml(pack.title)}</strong>
         </div>
       </header>
+      ${sheets.length > 1 ? `
+        <div class="official-pack-sheet-tabs" role="tablist" aria-label="贴纸 Sheet">
+          ${sheets.map((sheet) => `<button class="${sheet.id === activeSheet?.id ? "is-active" : ""}" type="button" data-action="set-official-sticker-sheet" data-pack-id="${escapeHtml(pack.id)}" data-sheet-id="${escapeHtml(sheet.id)}" role="tab" aria-selected="${sheet.id === activeSheet?.id}">${escapeHtml(sheet.title)}</button>`).join("")}
+        </div>
+      ` : ""}
       <div class="official-pack-sticker-grid">
         ${visibleStickers.map((sticker, index) => `
           <button
@@ -1755,7 +1780,7 @@ function officialStickerPackDetail(pack) {
           </button>
         `).join("")}
       </div>
-      ${displayCount < pack.stickers.length ? `<button class="material-preview-more" type="button" data-action="load-more-official-stickers" data-pack-id="${escapeHtml(pack.id)}">加载更多</button>` : ""}
+      ${displayCount < stickers.length ? `<button class="material-preview-more" type="button" data-action="load-more-official-stickers" data-pack-id="${escapeHtml(pack.id)}">加载更多</button>` : ""}
     </section>
   `;
 }
@@ -5664,6 +5689,7 @@ document.addEventListener("click", async (event) => {
     state.materialsTab = "sticker";
     state.stickerLibraryTab = "personal";
     state.activeOfficialStickerPackId = "";
+    state.activeOfficialStickerSheetId = "";
     state.stickerSheetState = "expanded";
     state.materialsPanelClosing = false;
     state.materialsPanelOpening = true;
@@ -5682,6 +5708,7 @@ document.addEventListener("click", async (event) => {
   if (action === "set-materials-tab") {
     state.materialsTab = actionTarget.dataset.tab === "tape" ? "tape" : "sticker";
     state.activeOfficialStickerPackId = "";
+    state.activeOfficialStickerSheetId = "";
     render();
     return;
   }
@@ -5695,6 +5722,7 @@ document.addEventListener("click", async (event) => {
   if (action === "set-sticker-library-tab") {
     state.stickerLibraryTab = actionTarget.dataset.tab === "official" ? "official" : "personal";
     state.activeOfficialStickerPackId = "";
+    state.activeOfficialStickerSheetId = "";
     closeStickerMenus();
     render();
     return;
@@ -5709,10 +5737,14 @@ document.addEventListener("click", async (event) => {
     const pack = officialStickerPackById(actionTarget.dataset.packId);
     if (pack) {
       state.activeOfficialStickerPackId = pack.id;
-      const cacheKey = materialPreviewKey("sticker", pack.id);
-      const wasCached = Boolean(materialPreviewEntry("sticker", pack));
-      state.materialPreviewPageSize[cacheKey] ||= materialPreviewInitialCount;
-      requestMaterialPreviews("sticker", pack, state.materialPreviewPageSize[cacheKey]);
+      state.activeOfficialStickerSheetId = Array.isArray(pack.sheets) && pack.sheets.length ? pack.sheets[0].id : "";
+      const previewAsset = officialStickerPreviewAsset(pack);
+      const cacheKey = materialPreviewKey("sticker", previewAsset.id);
+      const wasCached = Boolean(materialPreviewEntry("sticker", previewAsset));
+      state.materialPreviewPageSize[cacheKey] ||= Array.isArray(pack.sheets) && pack.sheets.length
+        ? previewAsset.stickers.length
+        : materialPreviewInitialCount;
+      requestMaterialPreviews("sticker", previewAsset, state.materialPreviewPageSize[cacheKey]);
       if (wasCached) {
         console.info("[materials-performance]", { asset: cacheKey, cacheHit: true, action: "open", durationMs: 0 });
       }
@@ -5723,17 +5755,33 @@ document.addEventListener("click", async (event) => {
   if (action === "load-more-official-stickers") {
     const pack = officialStickerPackById(actionTarget.dataset.packId);
     if (!pack) return;
-    const cacheKey = materialPreviewKey("sticker", pack.id);
+    const previewAsset = officialStickerPreviewAsset(pack);
+    const cacheKey = materialPreviewKey("sticker", previewAsset.id);
     state.materialPreviewPageSize[cacheKey] = Math.min(
-      pack.stickers.length,
+      previewAsset.stickers.length,
       (state.materialPreviewPageSize[cacheKey] || materialPreviewInitialCount) + materialPreviewBatchSize
     );
-    requestMaterialPreviews("sticker", pack, state.materialPreviewPageSize[cacheKey]);
+    requestMaterialPreviews("sticker", previewAsset, state.materialPreviewPageSize[cacheKey]);
+    render();
+    return;
+  }
+  if (action === "set-official-sticker-sheet") {
+    const pack = officialStickerPackById(actionTarget.dataset.packId);
+    const sheet = pack?.sheets?.find((item) => item.id === actionTarget.dataset.sheetId);
+    if (!pack || !sheet) return;
+    state.activeOfficialStickerSheetId = sheet.id;
+    const previewAsset = officialStickerPreviewAsset(pack);
+    const cacheKey = materialPreviewKey("sticker", previewAsset.id);
+    state.materialPreviewPageSize[cacheKey] ||= Array.isArray(pack.sheets) && pack.sheets.length
+      ? previewAsset.stickers.length
+      : materialPreviewInitialCount;
+    requestMaterialPreviews("sticker", previewAsset, state.materialPreviewPageSize[cacheKey]);
     render();
     return;
   }
   if (action === "close-official-sticker-pack") {
     state.activeOfficialStickerPackId = "";
+    state.activeOfficialStickerSheetId = "";
     render();
     return;
   }
