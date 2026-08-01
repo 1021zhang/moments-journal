@@ -3,6 +3,7 @@ const localPhotosKey = "moments-journal.photos";
 const localElementsKey = "moments-journal.canvas-elements";
 const localCustomStickersKey = "moments-journal.custom-stickers";
 const officialPackViewModeKey = "moments-journal.official-pack-view-mode";
+const recentStickerPackKey = "moments-journal.recent-sticker-pack";
 const dbName = "moments-journal";
 const photoStoreName = "photos";
 const elementStoreName = "canvasElements";
@@ -44,7 +45,6 @@ const textBackgroundOptions = [
 const textFontOptions = [
   { value: "system", label: "系统" },
   { value: "headline", label: "标题" },
-  { value: "shanghai-modeng", label: "摩登" },
   { value: "bradley-hand", label: "Bradley" }
 ];
 const textWeightOptions = [400, 500, 700, 900];
@@ -69,6 +69,8 @@ const state = {
   activeTapeId: "",
   materialsTab: "sticker",
   stickerLibraryTab: "personal",
+  materialsSession: createMaterialsSession(),
+  recentStickerPack: loadRecentStickerPack(),
   officialPackViewMode: loadOfficialPackViewMode(),
   activeOfficialStickerPackId: "",
   activeOfficialStickerSheetId: "",
@@ -171,6 +173,7 @@ let textLayoutSyncFrame = 0;
 let canvasEmptyStateFrame = 0;
 let daybookTimelineSyncFrame = 0;
 let materialsPanelCloseTimer = 0;
+let materialsSessionTimer = 0;
 const dayPress = {
   element: null,
   dayId: "",
@@ -218,6 +221,35 @@ const materialPreviewSize = 192;
 const materialPreviewInitialCount = 24;
 const materialPreviewBatchSize = 12;
 const materialPreviewLoadThreshold = 180;
+const materialsSessionTimeoutMs = 120000;
+
+function createMaterialsSession() {
+  return {
+    active: false,
+    materialsTab: "sticker",
+    stickerLibraryTab: "official",
+    officialStickerPackId: "",
+    officialStickerSheetId: "",
+    scrollTop: 0,
+    pendingScrollTop: 0,
+    usedOfficialStickerPackId: ""
+  };
+}
+
+function loadRecentStickerPack() {
+  try {
+    const recent = JSON.parse(localStorage.getItem(recentStickerPackKey) || "null");
+    if (!recent || typeof recent.packId !== "string" || !recent.packId) return null;
+    return {
+      packId: recent.packId,
+      sheetId: typeof recent.sheetId === "string" ? recent.sheetId : "",
+      scrollTop: Number.isFinite(recent.scrollTop) ? Math.max(0, recent.scrollTop) : 0
+    };
+  } catch {
+    return null;
+  }
+}
+
 function loadNotes() {
   try {
     return JSON.parse(localStorage.getItem(noteStorageKey) || "{}");
@@ -441,13 +473,6 @@ function textFontConfig(style) {
       fontWeight: 900,
       letterSpacing: "-0.01em",
       lineHeight: 1.08
-    },
-    "shanghai-modeng": {
-      fontFamily: "\"Shanghai Modeng\", \"PingFang SC\", \"SF Pro Display\", sans-serif",
-      cssFontStyle: "normal",
-      fontWeight: 400,
-      letterSpacing: "0.02em",
-      lineHeight: 1.2
     },
     "bradley-hand": {
       fontFamily: "\"Bradley Hand\", \"KaiTi\", \"STKaiti\", \"PingFang SC\", sans-serif",
@@ -1543,6 +1568,115 @@ function officialStickerPackById(packId) {
   return officialAssets.find((asset) => asset.type === "sticker" && asset.id === packId) || null;
 }
 
+function materialsScrollTop() {
+  return Math.max(0, document.querySelector(".materials-sheet-scroll")?.scrollTop || 0);
+}
+
+function syncMaterialsSession(scrollTop = materialsScrollTop()) {
+  const session = state.materialsSession;
+  if (!session.active) return;
+  session.materialsTab = state.materialsTab;
+  session.stickerLibraryTab = state.stickerLibraryTab;
+  session.officialStickerPackId = state.activeOfficialStickerPackId;
+  session.officialStickerSheetId = state.activeOfficialStickerSheetId;
+  if (!session.pendingScrollTop) session.scrollTop = Math.max(0, Number(scrollTop) || 0);
+}
+
+function restoreMaterialsSession() {
+  const session = state.materialsSession;
+  state.materialsTab = session.materialsTab === "tape" ? "tape" : "sticker";
+  state.stickerLibraryTab = session.stickerLibraryTab === "official" ? "official" : "personal";
+  state.activeOfficialStickerPackId = officialStickerPackById(session.officialStickerPackId)?.id || "";
+  const pack = officialStickerPackById(state.activeOfficialStickerPackId);
+  state.activeOfficialStickerSheetId = pack?.sheets?.some((sheet) => sheet.id === session.officialStickerSheetId)
+    ? session.officialStickerSheetId
+    : (pack?.sheets?.[0]?.id || "");
+}
+
+function applyPendingMaterialsScroll(scrollContainer) {
+  const session = state.materialsSession;
+  const targetScrollTop = Math.max(0, Number(session.pendingScrollTop) || 0);
+  if (!scrollContainer || !targetScrollTop) return;
+  scrollContainer.scrollTop = targetScrollTop;
+
+  const pack = officialStickerPackById(state.activeOfficialStickerPackId);
+  const previewAsset = pack ? officialStickerPreviewAsset(pack) : null;
+  const cacheKey = previewAsset ? materialPreviewKey("sticker", previewAsset.id) : "";
+  const hasLoadedEverySticker = previewAsset
+    && (state.materialPreviewPageSize[cacheKey] || materialPreviewInitialCount) >= previewAsset.stickers.length;
+  if (scrollContainer.scrollTop >= targetScrollTop - 1 || hasLoadedEverySticker) {
+    session.pendingScrollTop = 0;
+    session.scrollTop = scrollContainer.scrollTop;
+  }
+}
+
+function restoreMaterialsScroll(scrollTop = state.materialsSession.scrollTop) {
+  state.materialsSession.pendingScrollTop = Math.max(0, Number(scrollTop) || 0);
+  requestAnimationFrame(() => {
+    const scrollContainer = document.querySelector(".materials-sheet-scroll");
+    if (!scrollContainer || state.activePanel !== "materials") return;
+    applyPendingMaterialsScroll(scrollContainer);
+    scheduleOfficialStickerAutoload();
+  });
+}
+
+function saveRecentStickerPack(packId, sheetId, scrollTop) {
+  const pack = officialStickerPackById(packId);
+  if (!pack) return;
+  const recent = {
+    packId: pack.id,
+    sheetId: pack.sheets?.some((sheet) => sheet.id === sheetId) ? sheetId : (pack.sheets?.[0]?.id || ""),
+    scrollTop: Math.max(0, Number(scrollTop) || 0)
+  };
+  state.recentStickerPack = recent;
+  try {
+    localStorage.setItem(recentStickerPackKey, JSON.stringify(recent));
+  } catch {
+    // Keep the most recent pack for this run when storage is unavailable.
+  }
+}
+
+function recentOfficialStickerPack() {
+  const recent = state.recentStickerPack;
+  return recent ? officialStickerPackById(recent.packId) : null;
+}
+
+function commitUsedStickerPack() {
+  const session = state.materialsSession;
+  if (!session.usedOfficialStickerPackId) return;
+  saveRecentStickerPack(
+    session.usedOfficialStickerPackId,
+    session.officialStickerSheetId,
+    session.scrollTop
+  );
+  session.usedOfficialStickerPackId = "";
+}
+
+function endMaterialsSession() {
+  window.clearTimeout(materialsSessionTimer);
+  materialsSessionTimer = 0;
+  state.materialsSession = createMaterialsSession();
+}
+
+function scheduleMaterialsSessionExpiry() {
+  window.clearTimeout(materialsSessionTimer);
+  materialsSessionTimer = window.setTimeout(() => {
+    materialsSessionTimer = 0;
+    if (state.activePanel !== "materials") endMaterialsSession();
+  }, materialsSessionTimeoutMs);
+}
+
+function startMaterialsSession() {
+  window.clearTimeout(materialsSessionTimer);
+  materialsSessionTimer = 0;
+  if (state.materialsSession.active) {
+    restoreMaterialsSession();
+    return;
+  }
+  state.materialsSession = { ...createMaterialsSession(), active: true };
+  restoreMaterialsSession();
+}
+
 function officialStickerSheet(pack) {
   const sheets = Array.isArray(pack?.sheets) ? pack.sheets : [];
   if (!sheets.length) return { sheets: [], activeSheet: null, stickers: pack?.stickers || [] };
@@ -1558,6 +1692,28 @@ function officialStickerSheet(pack) {
 function officialStickerPreviewAsset(pack) {
   const { activeSheet, stickers } = officialStickerSheet(pack);
   return activeSheet ? { ...pack, id: `${pack.id}:${activeSheet.id}`, stickers } : pack;
+}
+
+function openOfficialStickerPack(pack, options = {}) {
+  if (!pack) return;
+  state.materialsTab = "sticker";
+  state.stickerLibraryTab = "official";
+  state.activeOfficialStickerPackId = pack.id;
+  state.activeOfficialStickerSheetId = pack.sheets?.some((sheet) => sheet.id === options.sheetId)
+    ? options.sheetId
+    : (pack.sheets?.[0]?.id || "");
+  const previewAsset = officialStickerPreviewAsset(pack);
+  const cacheKey = materialPreviewKey("sticker", previewAsset.id);
+  const wasCached = Boolean(materialPreviewEntry("sticker", previewAsset));
+  state.materialPreviewPageSize[cacheKey] ||= Math.min(
+    previewAsset.stickers.length,
+    materialPreviewInitialCount
+  );
+  requestMaterialPreviews("sticker", previewAsset, state.materialPreviewPageSize[cacheKey]);
+  syncMaterialsSession(options.scrollTop ?? 0);
+  if (wasCached) {
+    console.info("[materials-performance]", { asset: cacheKey, cacheHit: true, action: "open", durationMs: 0 });
+  }
 }
 
 function shouldRefreshOfficialStickerPackHome() {
@@ -1764,8 +1920,22 @@ function personalStickerLibrary() {
 
 function officialStickerPackHome() {
   const viewMode = state.officialPackViewMode === "list" ? "list" : "grid";
+  const recentPack = recentOfficialStickerPack();
+  const recent = state.recentStickerPack;
   return `
     <section class="official-pack-browser is-${viewMode}" aria-label="官方贴纸包浏览">
+      ${recentPack && recent ? `
+        <button class="continue-sticker-pack" type="button" data-action="continue-recent-sticker-pack" aria-label="继续使用 ${escapeHtml(recentPack.title)}">
+          <span class="continue-sticker-pack-copy">
+            <small>Continue Using</small>
+            <strong>${escapeHtml(recentPack.title)}</strong>
+          </span>
+          <span class="continue-sticker-pack-thumb" aria-hidden="true">
+            <img src="${escapeHtml(recentPack.packageImage)}" alt="" loading="lazy" decoding="async" draggable="false" />
+          </span>
+          <span class="continue-sticker-pack-arrow" aria-hidden="true">继续使用 →</span>
+        </button>
+      ` : ""}
       <div class="official-pack-browser-toolbar">
         <button type="button" data-action="toggle-official-pack-view-mode" aria-label="切换到${viewMode === "grid" ? "列表" : "网格"}模式" title="切换显示模式">⊞</button>
       </div>
@@ -2145,8 +2315,10 @@ function resetHorizontalScroll() {
 
 function render() {
   const app = document.querySelector("#app");
+  if (state.view !== "single" && state.materialsSession.active) endMaterialsSession();
   const previousMaterialsPreviewKey = app.querySelector(".official-pack-detail")?.dataset.materialPreviewKey || "";
   const previousMaterialsScrollTop = app.querySelector(".materials-sheet-scroll")?.scrollTop || 0;
+  if (state.activePanel === "materials") syncMaterialsSession(previousMaterialsScrollTop);
   const previousSingleView = app.firstElementChild?.classList.contains("single-day-view")
     ? app.firstElementChild
     : null;
@@ -2198,6 +2370,9 @@ function render() {
     && previousMaterialsPreviewKey === nextMaterialsPreviewKey
   ) {
     nextMaterialsScroll.scrollTop = previousMaterialsScrollTop;
+  }
+  if (nextMaterialsScroll && state.materialsSession.pendingScrollTop) {
+    applyPendingMaterialsScroll(nextMaterialsScroll);
   }
   resetHorizontalScroll();
   initializeDaybookTimeline();
@@ -2262,6 +2437,10 @@ function navigateToPage(targetView, direction = "forward", options = {}) {
   if (state.view === targetView && (!options.dayId || options.dayId === state.activeDayId)) {
     return;
   }
+
+  const isLeavingCurrentEditor = state.view === "single"
+    && (targetView !== "single" || (options.dayId && options.dayId !== state.activeDayId));
+  if (isLeavingCurrentEditor) endMaterialsSession();
 
   const fromView = state.view;
   const outgoingHtml = app.innerHTML || renderView(fromView);
@@ -3655,7 +3834,7 @@ async function setCanvasElementLocked(itemId, locked) {
 
 async function addStickerElement(sticker) {
   const day = getDay();
-  if (!day) return;
+  if (!day) return false;
 
   const element = positionCanvasElement(
     defaultStickerElement(day.dateKey, sticker),
@@ -3681,6 +3860,7 @@ async function addStickerElement(sticker) {
   setDeleteZoneVisible(false);
   debugInteraction("close sticker sheet after select", { elementId: element.id });
   render();
+  return true;
 }
 
 function openCustomStickerPicker() {
@@ -4708,6 +4888,8 @@ function endStickerSheetDrag(event) {
 
 function closeMaterialsPanel() {
   if (state.activePanel !== "materials" || state.materialsPanelClosing) return;
+  syncMaterialsSession();
+  commitUsedStickerPack();
   state.materialsPanelOpening = false;
   state.materialsPanelClosing = true;
   window.clearTimeout(materialsPanelCloseTimer);
@@ -4718,6 +4900,7 @@ function closeMaterialsPanel() {
     state.materialsPanelClosing = false;
     state.stickerSheetState = "collapsed";
     render();
+    scheduleMaterialsSessionExpiry();
   }, 240);
 }
 
@@ -5742,11 +5925,8 @@ document.addEventListener("click", async (event) => {
   if (action === "open-materials-panel") {
     cancelTapePlacement();
     window.clearTimeout(materialsPanelCloseTimer);
+    startMaterialsSession();
     state.activePanel = "materials";
-    state.materialsTab = "sticker";
-    state.stickerLibraryTab = "personal";
-    state.activeOfficialStickerPackId = "";
-    state.activeOfficialStickerSheetId = "";
     state.stickerSheetState = "expanded";
     state.materialsPanelClosing = false;
     state.materialsPanelOpening = true;
@@ -5756,6 +5936,7 @@ document.addEventListener("click", async (event) => {
     setDeleteZoneVisible(false);
     closeStickerMenus();
     render();
+    restoreMaterialsScroll();
     window.setTimeout(() => {
       state.materialsPanelOpening = false;
       stickerSheetElement()?.classList.remove("is-opening");
@@ -5766,6 +5947,7 @@ document.addEventListener("click", async (event) => {
     state.materialsTab = actionTarget.dataset.tab === "tape" ? "tape" : "sticker";
     state.activeOfficialStickerPackId = "";
     state.activeOfficialStickerSheetId = "";
+    syncMaterialsSession(0);
     render();
     return;
   }
@@ -5781,6 +5963,7 @@ document.addEventListener("click", async (event) => {
     state.activeOfficialStickerPackId = "";
     state.activeOfficialStickerSheetId = "";
     closeStickerMenus();
+    syncMaterialsSession(0);
     render();
     return;
   }
@@ -5792,22 +5975,17 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "open-official-sticker-pack") {
     const pack = officialStickerPackById(actionTarget.dataset.packId);
-    if (pack) {
-      state.activeOfficialStickerPackId = pack.id;
-      state.activeOfficialStickerSheetId = Array.isArray(pack.sheets) && pack.sheets.length ? pack.sheets[0].id : "";
-      const previewAsset = officialStickerPreviewAsset(pack);
-      const cacheKey = materialPreviewKey("sticker", previewAsset.id);
-      const wasCached = Boolean(materialPreviewEntry("sticker", previewAsset));
-      state.materialPreviewPageSize[cacheKey] ||= Math.min(
-        previewAsset.stickers.length,
-        materialPreviewInitialCount
-      );
-      requestMaterialPreviews("sticker", previewAsset, state.materialPreviewPageSize[cacheKey]);
-      if (wasCached) {
-        console.info("[materials-performance]", { asset: cacheKey, cacheHit: true, action: "open", durationMs: 0 });
-      }
-    }
+    openOfficialStickerPack(pack);
     render();
+    return;
+  }
+  if (action === "continue-recent-sticker-pack") {
+    const recent = state.recentStickerPack;
+    const pack = recent ? officialStickerPackById(recent.packId) : null;
+    if (!pack) return;
+    openOfficialStickerPack(pack, recent);
+    render();
+    restoreMaterialsScroll(recent.scrollTop);
     return;
   }
   if (action === "set-official-sticker-sheet") {
@@ -5822,12 +6000,14 @@ document.addEventListener("click", async (event) => {
       materialPreviewInitialCount
     );
     requestMaterialPreviews("sticker", previewAsset, state.materialPreviewPageSize[cacheKey]);
+    syncMaterialsSession(0);
     render();
     return;
   }
   if (action === "close-official-sticker-pack") {
     state.activeOfficialStickerPackId = "";
     state.activeOfficialStickerSheetId = "";
+    syncMaterialsSession(0);
     render();
     return;
   }
@@ -5923,7 +6103,15 @@ document.addEventListener("click", async (event) => {
   if (action === "add-official-sticker") {
     const pack = officialStickerPackById(actionTarget.dataset.packId);
     const sticker = pack?.stickers.find((item) => item.id === actionTarget.dataset.stickerId);
-    if (sticker) await addStickerElement(officialStickerCanvasPayload(sticker));
+    if (sticker) {
+      syncMaterialsSession();
+      state.materialsSession.usedOfficialStickerPackId = pack.id;
+      const added = await addStickerElement(officialStickerCanvasPayload(sticker));
+      if (added) {
+        commitUsedStickerPack();
+        scheduleMaterialsSessionExpiry();
+      }
+    }
     return;
   }
   if (action === "add-sticker") {

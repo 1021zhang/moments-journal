@@ -1,10 +1,4 @@
-/* Local-only font trials. These are intentionally not bundled with the app. */
-@font-face {
-  font-family: "Shanghai Modeng";
-  src: local("Shanghai Modeng"), local("ShanghaiModeng-Regular");
-  font-display: swap;
-}
-
+/* Local-only font trial. This is intentionally not bundled with the app. */
 @font-face {
   font-family: "Bradley Hand";
   src: local("Bradley Hand"), local("BradleyHandITCTT-Bold");
@@ -2347,6 +2341,71 @@ img.no-ios-callout,
   display: flex;
   justify-content: flex-end;
   margin: -2px 0 10px;
+}
+
+.continue-sticker-pack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 50px auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 64px;
+  margin: 0 0 10px;
+  padding: 7px 10px 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.94);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.continue-sticker-pack-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.continue-sticker-pack-copy small {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.continue-sticker-pack-copy strong {
+  overflow: hidden;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.continue-sticker-pack-thumb {
+  display: block;
+  width: 50px;
+  height: 42px;
+}
+
+.continue-sticker-pack-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.continue-sticker-pack-arrow {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.continue-sticker-pack:active {
+  background: rgba(255, 255, 255, 0.14);
+  transform: scale(0.992);
 }
 
 .official-pack-browser-toolbar button {
